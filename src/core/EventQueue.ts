@@ -15,10 +15,12 @@ export class EventQueue {
 
     /** Subscribe to events of a given type */
     on(type: string, handler: EventHandler): void {
-        if (!this.handlers.has(type)) {
-            this.handlers.set(type, []);
+        const list = this.handlers.get(type);
+        if (list) {
+            list.push(handler);
+        } else {
+            this.handlers.set(type, [handler]);
         }
-        this.handlers.get(type)!.push(handler);
     }
 
     /** Unsubscribe a handler */

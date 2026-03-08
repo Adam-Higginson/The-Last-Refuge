@@ -13,7 +13,10 @@ import { UISystem } from './systems/UISystem';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        throw new Error('Failed to get 2D canvas context');
+    }
 
     // Size canvas to window
     function resize(): void {

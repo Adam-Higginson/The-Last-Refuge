@@ -12,7 +12,7 @@ export type ComponentClass<T extends Component> = new (...args: unknown[]) => T;
 export class Entity {
     readonly id: number;
     readonly name: string;
-    private components: Map<Function, Component> = new Map();
+    private components: Map<ComponentClass<Component>, Component> = new Map();
 
     constructor(id: number, name: string) {
         this.id = id;
@@ -21,7 +21,7 @@ export class Entity {
 
     addComponent<T extends Component>(component: T): T {
         component.entity = this;
-        this.components.set(component.constructor, component);
+        this.components.set(component.constructor as ComponentClass<Component>, component);
         return component;
     }
 
