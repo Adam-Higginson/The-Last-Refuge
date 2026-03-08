@@ -12,6 +12,7 @@ import { RenderSystem } from './systems/RenderSystem';
 import { UISystem } from './systems/UISystem';
 import { TransformComponent } from './components/TransformComponent';
 import { OrbitComponent } from './components/OrbitComponent';
+import { MovementComponent } from './components/MovementComponent';
 import { createBackground } from './entities/createBackground';
 import { createStar } from './entities/createStar';
 import { createPlanet, getOrbitRadius } from './entities/createPlanet';
@@ -55,11 +56,16 @@ function boot(): void {
 
     // Resize handler — updates canvas dimensions and re-centres entities
     window.addEventListener('resize', () => {
+        const oldCx = canvas.width / 2;
+        const oldCy = canvas.height / 2;
+
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
         const newCx = canvas.width / 2;
         const newCy = canvas.height / 2;
+        const dx = newCx - oldCx;
+        const dy = newCy - oldCy;
 
         const star = world.getEntityByName('star');
         if (star) {
@@ -77,6 +83,23 @@ function boot(): void {
                 orbit.centreX = newCx;
                 orbit.centreY = newCy;
                 orbit.radius = getOrbitRadius(canvas);
+            }
+        }
+
+        // Shift ship by the same delta so it keeps its relative position
+        const ship = world.getEntityByName('arkSalvage');
+        if (ship) {
+            const transform = ship.getComponent(TransformComponent);
+            if (transform) {
+                transform.x += dx;
+                transform.y += dy;
+            }
+            const movement = ship.getComponent(MovementComponent);
+            if (movement) {
+                if (movement.turnOriginX !== null) movement.turnOriginX += dx;
+                if (movement.turnOriginY !== null) movement.turnOriginY += dy;
+                if (movement.targetX !== null) movement.targetX += dx;
+                if (movement.targetY !== null) movement.targetY += dy;
             }
         }
     });
