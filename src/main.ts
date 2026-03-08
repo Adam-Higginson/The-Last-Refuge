@@ -16,6 +16,7 @@ import { OrbitComponent } from './components/OrbitComponent';
 import { createBackground } from './entities/createBackground';
 import { createStar } from './entities/createStar';
 import { createPlanet, getOrbitRadius } from './entities/createPlanet';
+import { createShip } from './entities/createShip';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -50,6 +51,7 @@ function boot(): void {
     createBackground(world);
     createStar(world);
     createPlanet(world);
+    createShip(world);
 
     // Resize handler — updates canvas dimensions and re-centres entities
     window.addEventListener('resize', () => {
