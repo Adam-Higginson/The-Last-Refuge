@@ -1,7 +1,7 @@
 // InputSystem.ts — Reads mouse state, detects clicks/hovers on selectable entities.
 // Handles entity selection (left-click) and right-click dispatching.
 // Emits events for clicks on entities. Updates cursor style on hover.
-// Includes a temporary debug key (Space) to request turn advancement until the HUD is built.
+// Space key is a keyboard shortcut for turn advancement (alongside the HUD END TURN button).
 
 import { System } from '../core/System';
 import { ServiceLocator } from '../core/ServiceLocator';
@@ -44,7 +44,7 @@ export class InputSystem extends System {
             this.pendingRightClick = { x: e.clientX, y: e.clientY };
         };
 
-        // Temporary debug key: Space requests turn advancement
+        // Keyboard shortcut: Space requests turn advancement
         this.onKeyDown = (e: KeyboardEvent): void => {
             if (e.code === 'Space') {
                 e.preventDefault();
@@ -113,13 +113,36 @@ export class InputSystem extends System {
             }
         }
 
-        // Dispatch right-click event
+        // Dispatch right-click: entity right-click if on an entity, else generic right-click
         if (this.pendingRightClick) {
-            this.eventQueue.emit({
-                type: GameEvents.RIGHT_CLICK,
-                x: this.pendingRightClick.x,
-                y: this.pendingRightClick.y,
-            });
+            let rightClickedEntity = false;
+            for (const entity of entities) {
+                const selectable = entity.getComponent(SelectableComponent);
+                const transform = entity.getComponent(TransformComponent);
+                if (!selectable || !transform) continue;
+
+                const rdx = this.pendingRightClick.x - transform.x;
+                const rdy = this.pendingRightClick.y - transform.y;
+                const rDist = Math.sqrt(rdx * rdx + rdy * rdy);
+
+                if (rDist <= selectable.hitRadius) {
+                    rightClickedEntity = true;
+                    this.eventQueue.emit({
+                        type: GameEvents.ENTITY_RIGHT_CLICK,
+                        entityId: entity.id,
+                        entityName: entity.name,
+                    });
+                    break;
+                }
+            }
+
+            if (!rightClickedEntity) {
+                this.eventQueue.emit({
+                    type: GameEvents.RIGHT_CLICK,
+                    x: this.pendingRightClick.x,
+                    y: this.pendingRightClick.y,
+                });
+            }
             this.pendingRightClick = null;
         }
 
