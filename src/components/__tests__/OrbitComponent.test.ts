@@ -223,4 +223,57 @@ describe('OrbitComponent', () => {
         expect(orbit.angle).toBe(0);
         expect(orbit.animating).toBe(false);
     });
+
+    it('updates centreX, centreY, and radius on CANVAS_RESIZE', () => {
+        const canvas = { width: 800, height: 600 } as HTMLCanvasElement;
+        ServiceLocator.register('canvas', canvas);
+
+        const entity = world.createEntity('orbiter');
+        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
+        entity.addComponent(new TransformComponent(600, 300));
+        orbit.init();
+
+        // Resize to 1200x800
+        canvas.width = 1200;
+        canvas.height = 800;
+
+        eventQueue.emit({
+            type: GameEvents.CANVAS_RESIZE,
+            width: 1200,
+            height: 800,
+            dx: 200,
+            dy: 100,
+        });
+        eventQueue.drain();
+
+        expect(orbit.centreX).toBe(600);
+        expect(orbit.centreY).toBe(400);
+        // radius = Math.min(1200, 800) * 0.35 = 280
+        expect(orbit.radius).toBeCloseTo(280);
+    });
+
+    it('unsubscribes resize handler on destroy', () => {
+        const canvas = { width: 800, height: 600 } as HTMLCanvasElement;
+        ServiceLocator.register('canvas', canvas);
+
+        const entity = world.createEntity('orbiter');
+        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
+        entity.addComponent(new TransformComponent(600, 300));
+        orbit.init();
+        orbit.destroy();
+
+        eventQueue.emit({
+            type: GameEvents.CANVAS_RESIZE,
+            width: 1200,
+            height: 800,
+            dx: 200,
+            dy: 100,
+        });
+        eventQueue.drain();
+
+        // Centre should remain unchanged
+        expect(orbit.centreX).toBe(400);
+        expect(orbit.centreY).toBe(300);
+        expect(orbit.radius).toBe(200);
+    });
 });

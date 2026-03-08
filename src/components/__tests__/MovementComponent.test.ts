@@ -319,4 +319,109 @@ describe('MovementComponent', () => {
 
         expect(movement.moving).toBe(false);
     });
+
+    it('shifts transform by (dx, dy) on CANVAS_RESIZE', () => {
+        const { transform } = createShipEntity(200, 150, 300);
+
+        eventQueue.emit({
+            type: GameEvents.CANVAS_RESIZE,
+            width: 1200,
+            height: 800,
+            dx: 50,
+            dy: 30,
+        });
+        eventQueue.drain();
+
+        expect(transform.x).toBe(250);
+        expect(transform.y).toBe(180);
+    });
+
+    it('shifts movement targets by (dx, dy) on CANVAS_RESIZE', () => {
+        const { movement, selectable } = createShipEntity(100, 100, 300);
+        selectable.selected = true;
+
+        // Start a move
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 300, y: 100 });
+        eventQueue.drain();
+
+        expect(movement.targetX).toBe(300);
+        expect(movement.targetY).toBe(100);
+
+        // Resize
+        eventQueue.emit({
+            type: GameEvents.CANVAS_RESIZE,
+            width: 1200,
+            height: 800,
+            dx: 50,
+            dy: 30,
+        });
+        eventQueue.drain();
+
+        expect(movement.targetX).toBe(350);
+        expect(movement.targetY).toBe(130);
+    });
+
+    it('shifts turnOrigin by (dx, dy) on CANVAS_RESIZE', () => {
+        const { movement, selectable } = createShipEntity(100, 100, 300);
+        selectable.selected = true;
+
+        // Start a move to set turnOrigin
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 200, y: 100 });
+        eventQueue.drain();
+
+        expect(movement.turnOriginX).toBe(100);
+        expect(movement.turnOriginY).toBe(100);
+
+        // Resize
+        eventQueue.emit({
+            type: GameEvents.CANVAS_RESIZE,
+            width: 1200,
+            height: 800,
+            dx: 50,
+            dy: 30,
+        });
+        eventQueue.drain();
+
+        expect(movement.turnOriginX).toBe(150);
+        expect(movement.turnOriginY).toBe(130);
+    });
+
+    it('does not shift null targets on CANVAS_RESIZE', () => {
+        const { movement } = createShipEntity(100, 100, 300);
+
+        expect(movement.targetX).toBeNull();
+        expect(movement.turnOriginX).toBeNull();
+
+        eventQueue.emit({
+            type: GameEvents.CANVAS_RESIZE,
+            width: 1200,
+            height: 800,
+            dx: 50,
+            dy: 30,
+        });
+        eventQueue.drain();
+
+        expect(movement.targetX).toBeNull();
+        expect(movement.targetY).toBeNull();
+        expect(movement.turnOriginX).toBeNull();
+        expect(movement.turnOriginY).toBeNull();
+    });
+
+    it('unsubscribes resize handler on destroy', () => {
+        const { movement, transform } = createShipEntity(200, 150, 300);
+        movement.destroy();
+
+        eventQueue.emit({
+            type: GameEvents.CANVAS_RESIZE,
+            width: 1200,
+            height: 800,
+            dx: 50,
+            dy: 30,
+        });
+        eventQueue.drain();
+
+        // Transform should remain unchanged
+        expect(transform.x).toBe(200);
+        expect(transform.y).toBe(150);
+    });
 });

@@ -9,7 +9,7 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { TransformComponent } from './TransformComponent';
-import type { RightClickEvent } from '../core/GameEvents';
+import type { RightClickEvent, CanvasResizeEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
 /** Speed at which displayBudget lerps toward budgetRemaining (units/sec) */
@@ -30,6 +30,7 @@ export class MovementComponent extends Component {
     private eventQueue: EventQueue | null = null;
     private rightClickHandler: EventHandler | null = null;
     private turnEndHandler: EventHandler | null = null;
+    private resizeHandler: EventHandler | null = null;
 
     constructor(budgetMax: number, speed = 200) {
         super();
@@ -60,8 +61,22 @@ export class MovementComponent extends Component {
             this.turnOriginY = null;
         };
 
+        this.resizeHandler = (event): void => {
+            const { dx, dy } = event as CanvasResizeEvent;
+            const transform = this.entity.getComponent(TransformComponent);
+            if (transform) {
+                transform.x += dx;
+                transform.y += dy;
+            }
+            if (this.turnOriginX !== null) this.turnOriginX += dx;
+            if (this.turnOriginY !== null) this.turnOriginY += dy;
+            if (this.targetX !== null) this.targetX += dx;
+            if (this.targetY !== null) this.targetY += dy;
+        };
+
         this.eventQueue.on(GameEvents.RIGHT_CLICK, this.rightClickHandler);
         this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
+        this.eventQueue.on(GameEvents.CANVAS_RESIZE, this.resizeHandler);
     }
 
     private handleRightClick(targetX: number, targetY: number): void {
@@ -168,6 +183,9 @@ export class MovementComponent extends Component {
         }
         if (this.eventQueue && this.turnEndHandler) {
             this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
+        }
+        if (this.eventQueue && this.resizeHandler) {
+            this.eventQueue.off(GameEvents.CANVAS_RESIZE, this.resizeHandler);
         }
     }
 }

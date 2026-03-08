@@ -8,6 +8,7 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { TransformComponent } from '../components/TransformComponent';
 import { RenderComponent } from '../components/RenderComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
+import { CentredComponent } from '../components/CentredComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -131,6 +132,7 @@ export function createStar(world: World): Entity {
         canvas.height / 2,
     ));
     entity.addComponent(new SelectableComponent(HIT_RADIUS));
+    entity.addComponent(new CentredComponent());
     entity.addComponent(new RenderComponent('world', (ctx, x, y) => {
         drawStar(entity, ctx, x, y);
     }));
