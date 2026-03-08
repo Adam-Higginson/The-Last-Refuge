@@ -7,7 +7,11 @@ import { Component } from './Component';
 import { GameEvent } from './EventQueue';
 import { ServiceLocator } from './ServiceLocator';
 
-export type ComponentClass<T extends Component> = new (...args: unknown[]) => T;
+// Constructor type for component classes. `any[]` is required here because
+// this type must accept constructors with arbitrary parameter signatures —
+// TypeScript's `unknown[]` is contravariant and rejects typed params like `(x: number)`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ComponentClass<T extends Component> = new (...args: any[]) => T;
 
 export class Entity {
     readonly id: number;
