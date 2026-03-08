@@ -20,8 +20,10 @@ export const GameEvents = {
     TURN_UNBLOCK: 'turn:unblock',
     /** A selectable entity was clicked. Carries entity ID and name. */
     ENTITY_CLICK: 'entity:click',
-    /** A right-click occurred on the canvas. Carries canvas coordinates. */
+    /** A right-click occurred on the canvas (not on an entity). Carries canvas coordinates. */
     RIGHT_CLICK: 'input:rightclick',
+    /** A right-click occurred on a selectable entity. Carries entity ID and name. */
+    ENTITY_RIGHT_CLICK: 'entity:rightClick',
     /** An entity finished moving to its target. Carries entity ID. */
     MOVE_COMPLETE: 'move:complete',
 } as const;
@@ -66,6 +68,14 @@ export interface RightClickEvent extends GameEvent {
     x: number;
     /** Canvas y coordinate of the right-click. */
     y: number;
+}
+
+export interface EntityRightClickEvent extends GameEvent {
+    type: typeof GameEvents.ENTITY_RIGHT_CLICK;
+    /** Numeric entity ID. */
+    entityId: number;
+    /** Debug name of the entity. */
+    entityName: string;
 }
 
 export interface MoveCompleteEvent extends GameEvent {
