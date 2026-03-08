@@ -23,14 +23,14 @@ function drawStar(
 ): void {
     const t = performance.now();
 
-    // Slow, gentle brightness pulse (±4% over ~6 seconds)
-    const pulse = 1.0 + 0.04 * Math.sin(t / 3000);
+    // Brightness pulse (±15% over ~4 seconds) — visible but not jarring
+    const pulse = 1.0 + 0.15 * Math.sin(t / 2000);
 
     // --- Corona rays (drawn first, behind the glow) ---
-    const rayRotation = t / 60000; // one full rotation per ~6 minutes
+    const rayRotation = t / 30000; // one full rotation per ~3 minutes
     for (let i = 0; i < RAY_COUNT; i++) {
         const angle = (i / RAY_COUNT) * Math.PI * 2 + rayRotation;
-        const rayAlpha = 0.03 + 0.02 * Math.sin(t / 2000 + i);
+        const rayAlpha = 0.04 + 0.03 * Math.sin(t / 1500 + i);
         ctx.beginPath();
         ctx.moveTo(
             x + Math.cos(angle) * 15,
@@ -50,7 +50,7 @@ function drawStar(
 
     // Layer 1: outermost corona wash
     const g1 = ctx.createRadialGradient(x, y, 0, x, y, 180);
-    g1.addColorStop(0, `rgba(255, 149, 0, ${(0.015 * pulse).toFixed(4)})`);
+    g1.addColorStop(0, `rgba(255, 149, 0, ${(0.025 * pulse).toFixed(4)})`);
     g1.addColorStop(1, 'rgba(255, 149, 0, 0)');
     ctx.fillStyle = g1;
     ctx.beginPath();
@@ -59,7 +59,7 @@ function drawStar(
 
     // Layer 2: outer glow
     const g2 = ctx.createRadialGradient(x, y, 0, x, y, 100);
-    g2.addColorStop(0, `rgba(255, 220, 150, ${(0.06 * pulse).toFixed(4)})`);
+    g2.addColorStop(0, `rgba(255, 220, 150, ${(0.10 * pulse).toFixed(4)})`);
     g2.addColorStop(1, 'rgba(255, 200, 100, 0)');
     ctx.fillStyle = g2;
     ctx.beginPath();
@@ -68,7 +68,7 @@ function drawStar(
 
     // Layer 3: mid glow
     const g3 = ctx.createRadialGradient(x, y, 0, x, y, 50);
-    g3.addColorStop(0, `rgba(255, 244, 194, ${(0.25 * pulse).toFixed(4)})`);
+    g3.addColorStop(0, `rgba(255, 244, 194, ${(0.30 * pulse).toFixed(4)})`);
     g3.addColorStop(1, 'rgba(255, 220, 150, 0)');
     ctx.fillStyle = g3;
     ctx.beginPath();

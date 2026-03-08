@@ -102,9 +102,9 @@ describe('createBackground', () => {
         const render = entity.getComponent(RenderComponent);
         expect(render).not.toBeNull();
 
-        const mockCtx = {
-            drawImage: vi.fn(),
-        } as unknown as CanvasRenderingContext2D;
+        // The draw function now also renders twinkle stars each frame,
+        // so the mock needs canvas drawing methods beyond just drawImage.
+        const mockCtx = createMockCanvasCtx();
 
         // Should not throw
         expect(() => render?.draw(mockCtx, 0, 0, 0, 1, 0)).not.toThrow();
