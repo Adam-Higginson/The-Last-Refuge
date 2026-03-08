@@ -55,10 +55,51 @@ Enforced by **ESLint** with `typescript-eslint/strict`. Run `npm run lint` to ch
 - **Coverage:** Enforced on `src/core/` — 80% threshold for branches, functions, lines, statements. Run `npm run test:coverage` to check.
 - **Before committing:** Run `npm run check` (lint + type-check + tests).
 
-## Commits
+## Commit Conventions
 
-- Write clear commit messages: summary line describing the "why", then details if needed.
-- Do not amend previous commits — create new ones.
+Follows [Conventional Commits](https://www.conventionalcommits.org/) with project-specific scopes.
+
+### Format
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+```
+
+### Types
+
+- `feat` — New feature or gameplay functionality
+- `fix` — Bug fix
+- `refactor` — Code restructuring without behaviour change
+- `test` — Adding or updating tests
+- `chore` — Build config, dependencies, tooling, CI
+- `docs` — Documentation changes
+- `style` — Code formatting (no logic change)
+- `perf` — Performance improvement
+
+### Scopes
+
+- `core` — ECS framework (Entity, Component, System, World, GameLoop, EventQueue, ServiceLocator)
+- `render` — RenderSystem, canvas drawing, visual effects
+- `input` — InputSystem, mouse/keyboard handling
+- `movement` — MovementSystem, ship movement
+- `orbit` — OrbitSystem, planetary orbits
+- `ui` — UISystem, HTML panels, HUD
+- `crew` — CrewMemberComponent, crew generation, relationships
+- `planet` — Planet data, biomes, regions, colonisation
+- `data` — Static data files (names, configs)
+
+Scope is optional for broad changes that span multiple areas.
+
+### Rules
+
+- **Subject line:** imperative mood, lowercase, no period, max 72 chars (e.g. `feat(render): add star glow pulse animation`)
+- **Body:** explain the "why", not the "what". The diff shows the what.
+- **One concern per commit.** Don't mix a feature with a refactor.
+- **Do not amend** previous commits — always create new ones.
 - All commits are GPG-signed (configured globally).
 
 ## Commands
