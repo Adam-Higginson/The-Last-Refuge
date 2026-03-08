@@ -58,12 +58,12 @@ function drawPlanet(
         ctx.fill();
     }
 
-    // --- Orbit ring (faint dashed ellipse centred on the star) ---
+    // --- Orbit ring (dashed circle centred on the star) ---
     const orbit = entity.getComponent(OrbitComponent);
     if (orbit) {
         ctx.beginPath();
         ctx.arc(orbit.centreX, orbit.centreY, orbit.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(100, 140, 180, 0.12)';
+        ctx.strokeStyle = 'rgba(90, 140, 220, 0.25)';
         ctx.lineWidth = 1;
         ctx.setLineDash([6, 8]);
         ctx.stroke();
@@ -94,36 +94,67 @@ function drawPlanet(
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.clip();
 
-    // Base gradient: blue-green
+    // Base ocean: blue-green gradient
     const bodyGrad = ctx.createRadialGradient(
         x - r * 0.3, y - r * 0.3, r * 0.1,
         x, y, r,
     );
-    bodyGrad.addColorStop(0, '#5ab88c');  // lighter green
-    bodyGrad.addColorStop(0.5, '#3a8a6a'); // mid green
-    bodyGrad.addColorStop(1, '#2a6a8a');   // blue edge
+    bodyGrad.addColorStop(0, '#4aa8a0');  // lighter teal
+    bodyGrad.addColorStop(0.5, '#2a7a6a'); // mid green
+    bodyGrad.addColorStop(1, '#1a5a7a');   // blue edge
     ctx.fillStyle = bodyGrad;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
 
-    // --- Cloud wisps (slowly rotating for visual life) ---
-    const cloudRotation = t / 15000; // slow rotation
-    ctx.globalAlpha = 0.25;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.lineWidth = 1.5;
-    ctx.lineCap = 'round';
+    // --- Spinning surface features (continents + clouds) ---
+    // Horizontal scroll simulates planet rotation (~20s per revolution)
+    const spin = (t / 20000) * r * 2; // scroll offset in px
+    const wrap = r * 4; // wrap period (two planet diameters)
 
-    for (let i = 0; i < 3; i++) {
-        const baseAngle = cloudRotation + (i * Math.PI * 2) / 3;
-        const cloudY = y - r * 0.4 + i * r * 0.4;
+    // Draw 4 continent-like patches that scroll across the face
+    ctx.globalAlpha = 0.4;
+    const landColours = ['#4a9a5a', '#3a8a4a', '#5aaa6a', '#3a7a3a'];
+    const landPatches = [
+        { xOff: 0.0, yOff: -0.3, w: 0.5, h: 0.35 },
+        { xOff: 1.2, yOff: 0.1, w: 0.7, h: 0.3 },
+        { xOff: 2.4, yOff: -0.15, w: 0.4, h: 0.5 },
+        { xOff: 3.2, yOff: 0.35, w: 0.55, h: 0.25 },
+    ];
+    for (let i = 0; i < landPatches.length; i++) {
+        const p = landPatches[i];
+        // Compute scrolling x position, wrapping around
+        const rawX = (p.xOff * r + spin) % wrap - r;
+        ctx.fillStyle = landColours[i];
         ctx.beginPath();
-        ctx.arc(
-            x + Math.cos(baseAngle) * r * 0.2,
-            cloudY,
-            r * 0.6,
-            baseAngle - 0.5,
-            baseAngle + 0.5,
+        ctx.ellipse(
+            x + rawX,
+            y + p.yOff * r,
+            p.w * r,
+            p.h * r,
+            0, 0, Math.PI * 2,
         );
-        ctx.stroke();
+        ctx.fill();
+    }
+
+    // --- Cloud bands (scroll slightly faster than surface) ---
+    const cloudSpin = (t / 16000) * r * 2;
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    const cloudBands = [
+        { xOff: 0.5, yOff: -0.35, w: 0.8, h: 0.12 },
+        { xOff: 2.0, yOff: 0.25, w: 0.6, h: 0.1 },
+        { xOff: 3.5, yOff: -0.05, w: 0.9, h: 0.08 },
+    ];
+    for (const c of cloudBands) {
+        const rawX = (c.xOff * r + cloudSpin) % wrap - r;
+        ctx.beginPath();
+        ctx.ellipse(
+            x + rawX,
+            y + c.yOff * r,
+            c.w * r,
+            c.h * r,
+            0, 0, Math.PI * 2,
+        );
+        ctx.fill();
     }
     ctx.globalAlpha = 1.0;
 
