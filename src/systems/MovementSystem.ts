@@ -60,12 +60,12 @@ export class MovementSystem extends System {
             // Ignore if already moving
             if (movement.moving) continue;
 
-            // Validate distance fits budget
+            // Validate distance fits budget and is not trivially small
             const dx = targetX - transform.x;
             const dy = targetY - transform.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist > movement.budgetRemaining) continue;
+            if (dist < 5 || dist > movement.budgetRemaining) continue;
 
             // Initiate movement
             movement.targetX = targetX;

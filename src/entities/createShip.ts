@@ -1,8 +1,8 @@
 // createShip.ts — Factory for the Ark Salvage ship entity.
 // Renders an angular alien hull with engine glow, movement range disc,
 // and hover highlight. Ship rotates to face its direction of travel.
-// Movement range shown as a warm amber gradient disc (no stroke) when
-// selected, smoothly shrinking as budget is spent.
+// Movement range shown as a gradient disc with edge ring when selected,
+// smoothly shrinking as budget is spent. Colour shifts green → red.
 
 import { ServiceLocator } from '../core/ServiceLocator';
 import { TransformComponent } from '../components/TransformComponent';
@@ -27,6 +27,18 @@ const HULL_LENGTH = 14;
 /** Hull half-width at the widest point */
 const HULL_WIDTH = 8;
 
+/**
+ * Interpolate ring colour from green (full budget) to red (empty budget).
+ * Returns an `rgba(r, g, b, <alpha>)` string at the given alpha.
+ */
+function budgetColour(ratio: number, alpha: number): string {
+    // ratio 1 = full budget (green), 0 = empty (red), 0.5 = amber
+    const r = Math.round(255 * (1 - ratio) + 80 * ratio);
+    const g = Math.round(60 * (1 - ratio) + 220 * ratio);
+    const b = Math.round(40 * (1 - ratio) + 80 * ratio);
+    return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
+}
+
 /** Draw the ship hull, engine glow, range circle, and hover highlight. */
 function drawShip(
     entity: Entity,
@@ -41,19 +53,40 @@ function drawShip(
     const hovered = selectable?.hovered ?? false;
     const selected = selectable?.selected ?? false;
 
-    // --- Movement range disc (only when selected and not moving) ---
-    // Solid gradient disc — warm amber, clearly distinct from the dashed orbit ring
-    if (selected && movement && !movement.moving && movement.displayBudget > 0) {
-        const rangeGrad = ctx.createRadialGradient(
-            x, y, 0,
-            x, y, movement.displayBudget,
-        );
-        rangeGrad.addColorStop(0, 'rgba(255, 200, 80, 0.08)');
-        rangeGrad.addColorStop(0.7, 'rgba(255, 180, 60, 0.04)');
-        rangeGrad.addColorStop(1, 'rgba(255, 160, 40, 0)');
+    // --- Movement range disc (visible when selected, including while moving) ---
+    // Colour transitions green → amber → red as budget depletes
+    if (selected && movement && movement.displayBudget > 0) {
+        const r = movement.displayBudget;
+        const ratio = movement.budgetMax > 0
+            ? movement.budgetRemaining / movement.budgetMax
+            : 0;
+
+        // Gradient fill
+        const rangeGrad = ctx.createRadialGradient(x, y, 0, x, y, r);
+        rangeGrad.addColorStop(0, budgetColour(ratio, 0.18));
+        rangeGrad.addColorStop(0.6, budgetColour(ratio, 0.10));
+        rangeGrad.addColorStop(0.9, budgetColour(ratio, 0.05));
+        rangeGrad.addColorStop(1, budgetColour(ratio, 0));
         ctx.fillStyle = rangeGrad;
         ctx.beginPath();
-        ctx.arc(x, y, movement.displayBudget, 0, Math.PI * 2);
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Solid edge ring
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.strokeStyle = budgetColour(ratio, 0.45);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Soft glow bloom on the edge
+        const edgeGlow = ctx.createRadialGradient(x, y, r - 8, x, y, r + 8);
+        edgeGlow.addColorStop(0, budgetColour(ratio, 0));
+        edgeGlow.addColorStop(0.5, budgetColour(ratio, 0.10));
+        edgeGlow.addColorStop(1, budgetColour(ratio, 0));
+        ctx.fillStyle = edgeGlow;
+        ctx.beginPath();
+        ctx.arc(x, y, r + 8, 0, Math.PI * 2);
         ctx.fill();
     }
 

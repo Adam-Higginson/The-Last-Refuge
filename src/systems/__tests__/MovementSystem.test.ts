@@ -75,6 +75,21 @@ describe('MovementSystem', () => {
         expect(movement.budgetRemaining).toBeCloseTo(100);
     });
 
+    it('ignores RIGHT_CLICK when distance is below minimum threshold', () => {
+        const system = new MovementSystem();
+        system.init(world);
+
+        const { movement, selectable } = createShipEntity(100, 100, 300);
+        selectable.selected = true;
+
+        // Right-click at the same position (distance ~0, below 5px threshold)
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 102, y: 100 });
+        eventQueue.drain();
+
+        expect(movement.moving).toBe(false);
+        expect(movement.budgetRemaining).toBe(300);
+    });
+
     it('ignores RIGHT_CLICK when no entity is selected', () => {
         const system = new MovementSystem();
         system.init(world);
@@ -132,13 +147,14 @@ describe('MovementSystem', () => {
         const { movement, selectable, transform } = createShipEntity(100, 100, 300, 200);
         selectable.selected = true;
 
-        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 100.5, y: 100 });
+        // Move 10px (above 5px minimum), at high effective speed so it arrives in one tick
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 110, y: 100 });
         eventQueue.drain();
 
-        // One tick should reach it (distance < 1px)
-        system.update(1 / 60);
+        // One tick at 200px/s for 1s — step (200) >= dist (10), should snap
+        system.update(1);
 
-        expect(transform.x).toBeCloseTo(100.5);
+        expect(transform.x).toBeCloseTo(110);
         expect(movement.moving).toBe(false);
         expect(movement.targetX).toBeNull();
     });
@@ -150,7 +166,7 @@ describe('MovementSystem', () => {
         const { selectable } = createShipEntity(100, 100, 300, 10000);
         selectable.selected = true;
 
-        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 105, y: 100 });
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 110, y: 100 });
         eventQueue.drain();
 
         // Register handler before update emits the event
@@ -213,7 +229,7 @@ describe('MovementSystem', () => {
         const { selectable } = createShipEntity(100, 100, 300, 10000);
         selectable.selected = true;
 
-        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 105, y: 100 });
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 110, y: 100 });
         eventQueue.drain();
         // Drain the turn:block event
         eventQueue.drain();
