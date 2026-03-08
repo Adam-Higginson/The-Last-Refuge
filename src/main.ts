@@ -18,6 +18,7 @@ import { createStar } from './entities/createStar';
 import { createPlanet, getOrbitRadius } from './entities/createPlanet';
 import { createShip } from './entities/createShip';
 import { createHUD } from './entities/createHUD';
+import { createCrew } from './entities/createCrew';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -52,6 +53,7 @@ function boot(): void {
     createStar(world);
     createPlanet(world);
     createShip(world);
+    createCrew(world);
     createHUD(world);
 
     // Resize handler — updates canvas dimensions and re-centres entities
@@ -103,6 +105,9 @@ function boot(): void {
             }
         }
     });
+
+    // Expose world for browser console debugging (dev only)
+    (window as unknown as Record<string, unknown>).__debugWorld = world;
 
     // Start the game loop
     const loop = new GameLoop(world);
