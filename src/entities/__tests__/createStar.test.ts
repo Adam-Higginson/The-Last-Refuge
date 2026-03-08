@@ -3,6 +3,7 @@ import { World } from '../../core/World';
 import { ServiceLocator } from '../../core/ServiceLocator';
 import { RenderComponent } from '../../components/RenderComponent';
 import { TransformComponent } from '../../components/TransformComponent';
+import { SelectableComponent } from '../../components/SelectableComponent';
 import { createStar } from '../createStar';
 
 describe('createStar', () => {
@@ -56,5 +57,14 @@ describe('createStar', () => {
         const transform = entity.getComponent(TransformComponent);
         expect(transform?.x).toBe(960);
         expect(transform?.y).toBe(540);
+    });
+
+    it('has a SelectableComponent with hit radius', () => {
+        const world = new World();
+        const entity = createStar(world);
+        const selectable = entity.getComponent(SelectableComponent);
+        expect(selectable).not.toBeNull();
+        expect(selectable?.hitRadius).toBe(25);
+        expect(selectable?.hovered).toBe(false);
     });
 });

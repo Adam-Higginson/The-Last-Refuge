@@ -1,27 +1,34 @@
 // createStar.ts — Factory for the central star entity.
 // Renders a warm G-type star with multi-layered glow, animated pulse,
-// and faint corona rays. All rendering uses radial gradients with
-// additive blending for a natural, non-cartoon glow.
+// and faint corona rays. Selectable for resource management.
+// All rendering uses radial gradients with additive blending
+// for a natural, non-cartoon glow.
 
 import { ServiceLocator } from '../core/ServiceLocator';
 import { TransformComponent } from '../components/TransformComponent';
 import { RenderComponent } from '../components/RenderComponent';
+import { SelectableComponent } from '../components/SelectableComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
 /** Number of faint radial corona rays */
 const RAY_COUNT = 8;
 
-/** Draw the animated star at the given position. */
+/** Hit radius for hover/click detection (covers the bright inner glow) */
+const HIT_RADIUS = 25;
+
+/** Draw the animated star at the given position. Entity captured via closure. */
 function drawStar(
+    entity: Entity,
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
-    _angle: number,
-    _scale: number,
-    _dt: number,
 ): void {
     const t = performance.now();
+
+    // Check hover state via the captured entity reference
+    const selectable = entity.getComponent(SelectableComponent);
+    const hovered = selectable?.hovered ?? false;
 
     // Brightness pulse (±15% over ~4 seconds) — visible but not jarring
     const pulse = 1.0 + 0.15 * Math.sin(t / 2000);
@@ -95,6 +102,24 @@ function drawStar(
     ctx.beginPath();
     ctx.arc(x, y, 10, 0, Math.PI * 2);
     ctx.fill();
+
+    // --- Hover highlight ring (warm amber to match the star) ---
+    if (hovered) {
+        ctx.beginPath();
+        ctx.arc(x, y, 30, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 220, 120, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Soft outer glow
+        const hoverGlow = ctx.createRadialGradient(x, y, 25, x, y, 45);
+        hoverGlow.addColorStop(0, 'rgba(255, 220, 120, 0.15)');
+        hoverGlow.addColorStop(1, 'rgba(255, 220, 120, 0)');
+        ctx.fillStyle = hoverGlow;
+        ctx.beginPath();
+        ctx.arc(x, y, 45, 0, Math.PI * 2);
+        ctx.fill();
+    }
 }
 
 export function createStar(world: World): Entity {
@@ -105,7 +130,10 @@ export function createStar(world: World): Entity {
         canvas.width / 2,
         canvas.height / 2,
     ));
-    entity.addComponent(new RenderComponent('world', drawStar));
+    entity.addComponent(new SelectableComponent(HIT_RADIUS));
+    entity.addComponent(new RenderComponent('world', (ctx, x, y) => {
+        drawStar(entity, ctx, x, y);
+    }));
 
     return entity;
 }
