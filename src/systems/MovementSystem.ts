@@ -60,12 +60,13 @@ export class MovementSystem extends System {
             // Ignore if already moving
             if (movement.moving) continue;
 
-            // Validate distance fits budget and is not trivially small
+            // Validate distance fits budget and is outside the entity's hit area
             const dx = targetX - transform.x;
             const dy = targetY - transform.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
+            const minDist = selectable.hitRadius + 2;
 
-            if (dist < 5 || dist > movement.budgetRemaining) continue;
+            if (dist < minDist || dist > movement.budgetRemaining) continue;
 
             // Initiate movement
             movement.targetX = targetX;

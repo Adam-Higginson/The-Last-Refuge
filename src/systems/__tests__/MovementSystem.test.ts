@@ -82,7 +82,7 @@ describe('MovementSystem', () => {
         const { movement, selectable } = createShipEntity(100, 100, 300);
         selectable.selected = true;
 
-        // Right-click at the same position (distance ~0, below 5px threshold)
+        // Right-click within hit radius (distance 2px, below hitRadius+2 threshold)
         eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 102, y: 100 });
         eventQueue.drain();
 
@@ -147,14 +147,14 @@ describe('MovementSystem', () => {
         const { movement, selectable, transform } = createShipEntity(100, 100, 300, 200);
         selectable.selected = true;
 
-        // Move 10px (above 5px minimum), at high effective speed so it arrives in one tick
-        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 110, y: 100 });
+        // Move 30px (above hitRadius+2 minimum), at high effective speed so it arrives in one tick
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 130, y: 100 });
         eventQueue.drain();
 
-        // One tick at 200px/s for 1s — step (200) >= dist (10), should snap
+        // One tick at 200px/s for 1s — step (200) >= dist (30), should snap
         system.update(1);
 
-        expect(transform.x).toBeCloseTo(110);
+        expect(transform.x).toBeCloseTo(130);
         expect(movement.moving).toBe(false);
         expect(movement.targetX).toBeNull();
     });
@@ -166,7 +166,7 @@ describe('MovementSystem', () => {
         const { selectable } = createShipEntity(100, 100, 300, 10000);
         selectable.selected = true;
 
-        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 110, y: 100 });
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 130, y: 100 });
         eventQueue.drain();
 
         // Register handler before update emits the event
@@ -229,7 +229,7 @@ describe('MovementSystem', () => {
         const { selectable } = createShipEntity(100, 100, 300, 10000);
         selectable.selected = true;
 
-        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 110, y: 100 });
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 130, y: 100 });
         eventQueue.drain();
         // Drain the turn:block event
         eventQueue.drain();
