@@ -5,8 +5,14 @@
 // activeView and selectedCrewEntityId to coordinate their display.
 
 import { Component } from '../core/Component';
+import { ServiceLocator } from '../core/ServiceLocator';
+import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { MovementComponent } from './MovementComponent';
+import { TransformComponent } from './TransformComponent';
+import { COLONISE_RANGE } from '../data/constants';
+import type { World } from '../core/World';
+import type { EventQueue } from '../core/EventQueue';
 
 export type PanelView = 'overview' | 'manifest' | 'detail';
 
@@ -27,6 +33,8 @@ export class ShipInfoUIComponent extends Component {
     private rangeFill: HTMLElement | null = null;
     private rangeText: HTMLElement | null = null;
     private overviewSection: HTMLElement | null = null;
+    private coloniseBtn: HTMLElement | null = null;
+    private coloniseTooltip: HTMLElement | null = null;
 
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
@@ -93,6 +101,10 @@ export class ShipInfoUIComponent extends Component {
                 <div style="margin-top:16px">
                     <button class="hud-btn" id="ship-view-manifest-btn" type="button">VIEW MANIFEST</button>
                 </div>
+                <div id="ship-colonise-wrapper" style="margin-top:8px; position:relative">
+                    <button class="hud-btn" id="ship-colonise-btn" type="button">COLONISE</button>
+                    <div class="surface-tooltip" id="ship-colonise-tooltip" style="display:none">Ship must be closer to colonise</div>
+                </div>
             </div>
             <div class="view-section" id="crew-manifest-section"></div>
             <div class="view-section" id="crew-detail-section"></div>
@@ -122,6 +134,35 @@ export class ShipInfoUIComponent extends Component {
         const manifestBtn = document.getElementById('ship-view-manifest-btn');
         manifestBtn?.addEventListener('click', () => {
             this.activeView = 'manifest';
+        });
+
+        // COLONISE button — go to planet surface (guarded by disabled state)
+        this.coloniseBtn = document.getElementById('ship-colonise-btn');
+        this.coloniseTooltip = document.getElementById('ship-colonise-tooltip');
+        this.coloniseBtn?.addEventListener('click', () => {
+            if (this.coloniseBtn?.classList.contains('disabled')) return;
+            const world = ServiceLocator.get<World>('world');
+            const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
+            const planet = world.getEntityByName('newTerra');
+            if (planet) {
+                eventQueue.emit({
+                    type: GameEvents.PLANET_VIEW_ENTER,
+                    entityId: planet.id,
+                });
+            }
+        });
+
+        // Tooltip hover on wrapper
+        const coloniseWrapper = document.getElementById('ship-colonise-wrapper');
+        coloniseWrapper?.addEventListener('mouseenter', () => {
+            if (this.coloniseBtn?.classList.contains('disabled') && this.coloniseTooltip) {
+                this.coloniseTooltip.style.display = 'block';
+            }
+        });
+        coloniseWrapper?.addEventListener('mouseleave', () => {
+            if (this.coloniseTooltip) {
+                this.coloniseTooltip.style.display = 'none';
+            }
         });
 
         // Rename button click
@@ -179,12 +220,13 @@ export class ShipInfoUIComponent extends Component {
             }
         }
 
-        // Update range display when panel is open and on overview
+        // Update range display and colonise button when panel is open and on overview
         if (this.panelOpen && this.activeView === 'overview') {
             const movement = this.entity.getComponent(MovementComponent);
             if (movement) {
                 this.updateRangeDisplay(movement.budgetRemaining, movement.budgetMax);
             }
+            this.updateColoniseButton();
         }
     }
 
@@ -221,6 +263,34 @@ export class ShipInfoUIComponent extends Component {
         if (ratio > 0.5) return '#44cc66';
         if (ratio > 0.25) return '#ccaa44';
         return '#cc4444';
+    }
+
+    private updateColoniseButton(): void {
+        if (!this.coloniseBtn) return;
+
+        const world = ServiceLocator.get<World>('world');
+        const planet = world.getEntityByName('newTerra');
+        if (!planet) {
+            this.coloniseBtn.classList.add('disabled');
+            return;
+        }
+
+        const shipTransform = this.entity.getComponent(TransformComponent);
+        const planetTransform = planet.getComponent(TransformComponent);
+        if (!shipTransform || !planetTransform) {
+            this.coloniseBtn.classList.add('disabled');
+            return;
+        }
+
+        const dx = shipTransform.x - planetTransform.x;
+        const dy = shipTransform.y - planetTransform.y;
+        const inRange = Math.sqrt(dx * dx + dy * dy) <= COLONISE_RANGE;
+
+        if (inRange) {
+            this.coloniseBtn.classList.remove('disabled');
+        } else {
+            this.coloniseBtn.classList.add('disabled');
+        }
     }
 
     private enterRenameMode(): void {

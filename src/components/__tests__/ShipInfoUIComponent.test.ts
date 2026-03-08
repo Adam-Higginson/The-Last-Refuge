@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
+import { GameEvents } from '../../core/GameEvents';
 import { ShipInfoUIComponent } from '../ShipInfoUIComponent';
 import { TransformComponent } from '../TransformComponent';
 import { SelectableComponent } from '../SelectableComponent';
@@ -28,6 +29,7 @@ interface MockElement {
     focus(): void;
     select(): void;
     _fireKeydown(e: Partial<KeyboardEvent>): void;
+    _fireEvent(eventName: string): void;
 }
 
 function createMockElement(id: string): MockElement {
@@ -60,6 +62,9 @@ function createMockElement(id: string): MockElement {
         select(): void { /* no-op */ },
         _fireKeydown(e: Partial<KeyboardEvent>): void {
             for (const fn of listeners['keydown'] ?? []) fn(e);
+        },
+        _fireEvent(eventName: string): void {
+            for (const fn of listeners[eventName] ?? []) fn();
         },
     };
 }
@@ -139,6 +144,9 @@ describe('ShipInfoUIComponent', () => {
     let overviewSection: MockElement;
     let manifestSection: MockElement;
     let detailSection: MockElement;
+    let coloniseBtn: MockElement;
+    let coloniseWrapper: MockElement;
+    let coloniseTooltip: MockElement;
 
     beforeEach(() => {
         ServiceLocator.clear();
@@ -160,6 +168,9 @@ describe('ShipInfoUIComponent', () => {
         overviewSection = createMockElement('ship-overview-section');
         manifestSection = createMockElement('crew-manifest-section');
         detailSection = createMockElement('crew-detail-section');
+        coloniseBtn = createMockElement('ship-colonise-btn');
+        coloniseWrapper = createMockElement('ship-colonise-wrapper');
+        coloniseTooltip = createMockElement('ship-colonise-tooltip');
 
         elementMap = {
             'ship-info-panel': panel,
@@ -175,6 +186,9 @@ describe('ShipInfoUIComponent', () => {
             'ship-overview-section': overviewSection,
             'crew-manifest-section': manifestSection,
             'crew-detail-section': detailSection,
+            'ship-colonise-btn': coloniseBtn,
+            'ship-colonise-wrapper': coloniseWrapper,
+            'ship-colonise-tooltip': coloniseTooltip,
         };
 
         installMocks();
@@ -538,6 +552,91 @@ describe('ShipInfoUIComponent', () => {
         // Should still be on overview, panel still open
         expect(info.activeView).toBe('overview');
         expect(selectable.selected).toBe(true);
+    });
+
+    // --- COLONISE button ---
+
+    it('enables COLONISE button when ship is in range of planet', () => {
+        const planet = world.createEntity('newTerra');
+        planet.addComponent(new TransformComponent(400, 300)); // same as ship
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        expect(coloniseBtn.classList.contains('disabled')).toBe(false);
+    });
+
+    it('disables COLONISE button when ship is out of range', () => {
+        const planet = world.createEntity('newTerra');
+        planet.addComponent(new TransformComponent(0, 0)); // far from ship at (400, 300)
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        expect(coloniseBtn.classList.contains('disabled')).toBe(true);
+    });
+
+    it('disables COLONISE button when no planet exists', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        expect(coloniseBtn.classList.contains('disabled')).toBe(true);
+    });
+
+    it('blocks click when COLONISE is disabled', () => {
+        const planet = world.createEntity('newTerra');
+        planet.addComponent(new TransformComponent(0, 0)); // out of range
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        const emitSpy = vi.spyOn(eventQueue, 'emit');
+        coloniseBtn.click();
+        expect(emitSpy).not.toHaveBeenCalled();
+    });
+
+    it('shows tooltip on hover when COLONISE is disabled', () => {
+        const planet = world.createEntity('newTerra');
+        planet.addComponent(new TransformComponent(0, 0)); // out of range
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        coloniseWrapper._fireEvent('mouseenter');
+        expect(coloniseTooltip.style.display).toBe('block');
+
+        coloniseWrapper._fireEvent('mouseleave');
+        expect(coloniseTooltip.style.display).toBe('none');
+    });
+
+    it('does not show tooltip on hover when COLONISE is enabled', () => {
+        const planet = world.createEntity('newTerra');
+        planet.addComponent(new TransformComponent(400, 300)); // in range
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        coloniseWrapper._fireEvent('mouseenter');
+        expect(coloniseTooltip.style.display).not.toBe('block');
+    });
+
+    it('emits PLANET_VIEW_ENTER when COLONISE is clicked', () => {
+        const planet = world.createEntity('newTerra');
+        planet.addComponent(new TransformComponent(400, 300));
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        const emitSpy = vi.spyOn(eventQueue, 'emit');
+        coloniseBtn.click();
+
+        expect(emitSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: GameEvents.PLANET_VIEW_ENTER,
+                entityId: planet.id,
+            }),
+        );
     });
 
     // --- Lifecycle ---

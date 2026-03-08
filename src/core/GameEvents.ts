@@ -26,6 +26,12 @@ export const GameEvents = {
     ENTITY_RIGHT_CLICK: 'entity:rightClick',
     /** An entity finished moving to its target. Carries entity ID. */
     MOVE_COMPLETE: 'move:complete',
+    /** Request transition to planet view. Carries the planet entity ID. */
+    PLANET_VIEW_ENTER: 'view:planet:enter',
+    /** Request transition back to system map. */
+    PLANET_VIEW_EXIT: 'view:planet:exit',
+    /** Colony established on a region. Carries region ID and biome name. */
+    COLONISE_CONFIRM: 'colonise:confirm',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -82,4 +88,22 @@ export interface MoveCompleteEvent extends GameEvent {
     type: typeof GameEvents.MOVE_COMPLETE;
     /** Numeric entity ID of the entity that finished moving. */
     entityId: number;
+}
+
+export interface PlanetViewEnterEvent extends GameEvent {
+    type: typeof GameEvents.PLANET_VIEW_ENTER;
+    /** Entity ID of the planet to view. */
+    entityId: number;
+}
+
+export interface PlanetViewExitEvent extends GameEvent {
+    type: typeof GameEvents.PLANET_VIEW_EXIT;
+}
+
+export interface ColoniseConfirmEvent extends GameEvent {
+    type: typeof GameEvents.COLONISE_CONFIRM;
+    /** Region ID that was colonised. */
+    regionId: number;
+    /** Biome name of the colonised region. */
+    biome: string;
 }
