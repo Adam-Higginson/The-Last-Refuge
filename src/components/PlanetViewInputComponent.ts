@@ -2,6 +2,8 @@
 // Lives on the planet entity. Reads mouse position, detects region hover
 // via point-in-polygon. Escape key and back button trigger PLANET_VIEW_EXIT.
 
+import './PlanetViewInputComponent.css';
+
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';

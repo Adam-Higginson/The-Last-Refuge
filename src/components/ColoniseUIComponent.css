@@ -1,0 +1,96 @@
+#colonise-btn {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    background: rgba(212, 160, 32, 0.15);
+    border: 1px solid #d4a020;
+    color: #d4a020;
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 10px 32px;
+    cursor: pointer;
+    z-index: 20;
+    transition: background 0.15s, color 0.15s;
+}
+
+#colonise-btn:hover {
+    background: rgba(212, 160, 32, 0.3);
+    color: #ffffff;
+}
+
+/* --- Colonise Confirmation Modal --- */
+#colonise-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 4, 10, 0.8);
+    z-index: 30;
+}
+
+.colonise-modal-box {
+    background: rgba(3, 4, 10, 0.95);
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    padding: 32px 40px;
+    max-width: 420px;
+    text-align: center;
+}
+
+.colonise-modal-box .modal-title {
+    font-size: 14px;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+}
+
+.colonise-modal-box .modal-desc {
+    font-size: 12px;
+    opacity: 0.7;
+    line-height: 1.7;
+    margin-bottom: 24px;
+}
+
+.colonise-modal-box .modal-biome {
+    color: #d4a020;
+    font-size: 13px;
+}
+
+.colonise-modal-box .modal-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+}
+
+.colonise-modal-box .modal-btn {
+    background: transparent;
+    border: 1px solid rgba(79, 168, 255, 0.4);
+    color: #4fa8ff;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px 24px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.colonise-modal-box .modal-btn:hover {
+    border-color: #4fa8ff;
+    color: #ffffff;
+}
+
+.colonise-modal-box .modal-btn.confirm {
+    border-color: #d4a020;
+    color: #d4a020;
+}
+
+.colonise-modal-box .modal-btn.confirm:hover {
+    background: rgba(212, 160, 32, 0.15);
+    color: #ffffff;
+}

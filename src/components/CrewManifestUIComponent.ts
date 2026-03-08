@@ -3,6 +3,8 @@
 // Reads activeView from ShipInfoUIComponent to show/hide itself.
 // Queries crew entities from the World to build the list.
 
+import './CrewManifestUIComponent.css';
+
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { CrewMemberComponent } from './CrewMemberComponent';

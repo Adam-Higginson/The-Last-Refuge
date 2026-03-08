@@ -1,0 +1,91 @@
+.crew-manifest-list {
+    max-height: calc(100vh - 320px);
+    overflow-y: auto;
+    margin-top: 8px;
+    padding-right: 8px;
+}
+
+.crew-manifest-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.crew-manifest-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.crew-manifest-list::-webkit-scrollbar-thumb {
+    background: rgba(79, 168, 255, 0.2);
+}
+
+.crew-manifest-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 4px 6px;
+    font-size: 10px;
+    opacity: 0.4;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(79, 168, 255, 0.15);
+    margin-right: 8px;
+}
+
+.crew-manifest-header .crew-name {
+    flex: 1;
+}
+
+.crew-manifest-header .crew-role {
+    width: 70px;
+}
+
+.crew-manifest-header .crew-morale-dot {
+    width: 6px;
+}
+
+.crew-manifest-header .crew-age {
+    width: 24px;
+    text-align: right;
+}
+
+.crew-manifest-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 4px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(192, 200, 216, 0.06);
+    font-size: 12px;
+    transition: background 0.15s;
+}
+
+.crew-manifest-row:hover {
+    background: rgba(79, 168, 255, 0.08);
+}
+
+.crew-manifest-row .crew-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.crew-manifest-row .crew-role {
+    width: 70px;
+    font-size: 11px;
+    opacity: 0.6;
+    text-transform: uppercase;
+}
+
+.crew-manifest-row .crew-morale-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.crew-manifest-row .crew-age {
+    width: 24px;
+    text-align: right;
+    font-size: 11px;
+    opacity: 0.6;
+}

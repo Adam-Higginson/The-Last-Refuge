@@ -4,6 +4,8 @@
 // Sibling components (CrewManifestUIComponent, CrewDetailUIComponent) read
 // activeView and selectedCrewEntityId to coordinate their display.
 
+import './ShipInfoUIComponent.css';
+
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
