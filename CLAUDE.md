@@ -13,7 +13,9 @@ Browser-based game built with HTML5 Canvas + TypeScript. Entity-Component-System
 
 ## Architecture
 
-- **ECS pattern:** Entities are numeric IDs with a debug name and a bag of Components. Components are data containers with minimal logic. Systems contain game logic and run in explicit order each tick.
+- **ECS pattern:** Entities are numeric IDs with a debug name and a bag of Components. Systems run in explicit order each tick. Two kinds of logic placement:
+  - **Systems** for generic cross-entity infrastructure (InputSystem, TurnSystem, RenderSystem, ComponentSystem).
+  - **Component lifecycle** for entity-specific behaviour. Components may implement optional `init()`, `update(dt)`, `destroy()` methods, driven by ComponentSystem. Use this for behaviour tied to a single entity type (e.g. MovementComponent, OrbitComponent).
 - **Event Queue:** Cross-entity and cross-system communication goes through `EventQueue`. Events are queued and drained once per frame.
 - **Service Locator:** Shared services (canvas, ctx, eventQueue, world) are registered and retrieved via `ServiceLocator` — never hardcoded imports of singletons.
 - **Game Loop:** Fixed-timestep update (60/sec) with variable rendering. Systems implement `update(dt)` for logic and `render(alpha)` for drawing.
@@ -23,8 +25,8 @@ Browser-based game built with HTML5 Canvas + TypeScript. Entity-Component-System
 ```
 src/
   core/           Framework classes (Entity, Component, System, World, GameLoop, EventQueue, ServiceLocator)
-  components/     Component classes (data only)
-  systems/        System classes (game logic)
+  components/     Component classes (data, or data + lifecycle methods for entity-specific behaviour)
+  systems/        System classes (generic cross-entity infrastructure)
   data/           Static data (name lists, biome definitions, etc.)
   main.ts         Entry point — boots services, world, systems, game loop
 ```
@@ -39,7 +41,7 @@ Enforced by **ESLint** with `typescript-eslint/strict`. Run `npm run lint` to ch
 - **Explicit return types on functions.** Warned by `@typescript-eslint/explicit-function-return-type`.
 - **Unused vars must be prefixed with `_`.** Enforced by `@typescript-eslint/no-unused-vars`.
 - **Single responsibility.** One class per file. File name matches class name.
-- **Components are data.** Game logic belongs in Systems, not Components.
+- **Components are data by default.** Entity-specific behaviour may implement optional lifecycle methods (`init`, `update`, `destroy`), driven by ComponentSystem. Use Systems for generic cross-entity infrastructure (InputSystem, TurnSystem, RenderSystem). Use component lifecycle for entity-specific behaviour (MovementComponent, OrbitComponent).
 
 ## Testing
 
@@ -48,6 +50,7 @@ Enforced by **ESLint** with `typescript-eslint/strict`. Run `npm run lint` to ch
 - **What to test:**
   - All core framework classes (Entity, World, EventQueue, ServiceLocator).
   - All System logic — instantiate real Components, call `update(dt)`, assert state changes.
+  - Component lifecycle logic — instantiate component, call `init()`, `update(dt)`, assert state changes.
   - Crew generation invariants (50 humans, correct role distribution, no relationship orphans, pre-seeded characters present).
 - **What NOT to test:**
   - Canvas rendering output (verify visually).
