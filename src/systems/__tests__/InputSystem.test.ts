@@ -222,14 +222,14 @@ describe('InputSystem', () => {
         expect(emittedEvents).toHaveLength(0);
     });
 
-    it('emits turn:end when Space key is pressed', () => {
+    it('emits turn:advance when Space key is pressed', () => {
         const system = new InputSystem();
         system.init(world);
 
         simulateKeyDown('Space');
 
         const emittedEvents: Array<{ type: string }> = [];
-        eventQueue.on('turn:end', (event) => {
+        eventQueue.on('turn:advance', (event) => {
             emittedEvents.push(event);
         });
         eventQueue.drain();

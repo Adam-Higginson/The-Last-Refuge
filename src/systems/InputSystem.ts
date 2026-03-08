@@ -1,6 +1,6 @@
 // InputSystem.ts — Reads mouse state, detects clicks/hovers on selectable entities.
 // Emits events for clicks on entities. Updates cursor style on hover.
-// Includes a temporary debug key (Space) to emit 'turn:end' until the HUD is built.
+// Includes a temporary debug key (Space) to request turn advancement until the HUD is built.
 
 import { System } from '../core/System';
 import { ServiceLocator } from '../core/ServiceLocator';
@@ -35,11 +35,11 @@ export class InputSystem extends System {
             this.pendingClick = true;
         };
 
-        // Temporary debug key: Space advances the turn
+        // Temporary debug key: Space requests turn advancement
         this.onKeyDown = (e: KeyboardEvent): void => {
             if (e.code === 'Space') {
                 e.preventDefault();
-                this.eventQueue.emit({ type: 'turn:end' });
+                this.eventQueue.emit({ type: 'turn:advance' });
             }
         };
 

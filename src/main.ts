@@ -7,6 +7,7 @@ import { EventQueue } from './core/EventQueue';
 import { ServiceLocator } from './core/ServiceLocator';
 import { InputSystem } from './systems/InputSystem';
 import { MovementSystem } from './systems/MovementSystem';
+import { TurnSystem } from './systems/TurnSystem';
 import { OrbitSystem } from './systems/OrbitSystem';
 import { RenderSystem } from './systems/RenderSystem';
 import { UISystem } from './systems/UISystem';
@@ -39,6 +40,7 @@ function boot(): void {
 
     // Add systems in explicit update order
     world.addSystem(new InputSystem());
+    world.addSystem(new TurnSystem());
     world.addSystem(new OrbitSystem());
     world.addSystem(new MovementSystem());
     world.addSystem(new RenderSystem());
