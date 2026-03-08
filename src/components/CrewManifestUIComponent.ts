@@ -75,6 +75,12 @@ export class CrewManifestUIComponent extends Component {
             <button class="panel-back-btn" id="manifest-back-btn" type="button">&#8592; SHIP</button>
             <div style="font-size:13px; color:#ffffff; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">CREW MANIFEST</div>
             <div style="font-size:11px; opacity:0.5; margin-bottom:12px;">${crewData.length} SOULS ABOARD</div>
+            <div class="crew-manifest-header">
+                <span class="crew-name">NAME</span>
+                <span class="crew-role">ROLE</span>
+                <span class="crew-morale-dot"></span>
+                <span class="crew-age">AGE</span>
+            </div>
             <div class="crew-manifest-list" id="crew-manifest-list">${rowsHTML}</div>
         `;
 

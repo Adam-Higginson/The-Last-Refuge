@@ -250,9 +250,10 @@
 
         /* --- Crew Manifest List --- */
         .crew-manifest-list {
-            max-height: calc(100vh - 280px);
+            max-height: calc(100vh - 320px);
             overflow-y: auto;
             margin-top: 8px;
+            padding-right: 8px;
         }
 
         .crew-manifest-list::-webkit-scrollbar {
@@ -265,6 +266,36 @@
 
         .crew-manifest-list::-webkit-scrollbar-thumb {
             background: rgba(79, 168, 255, 0.2);
+        }
+
+        .crew-manifest-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 4px 6px;
+            font-size: 10px;
+            opacity: 0.4;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(79, 168, 255, 0.15);
+            margin-right: 8px;
+        }
+
+        .crew-manifest-header .crew-name {
+            flex: 1;
+        }
+
+        .crew-manifest-header .crew-role {
+            width: 70px;
+        }
+
+        .crew-manifest-header .crew-morale-dot {
+            width: 6px;
+        }
+
+        .crew-manifest-header .crew-age {
+            width: 24px;
+            text-align: right;
         }
 
         .crew-manifest-row {
