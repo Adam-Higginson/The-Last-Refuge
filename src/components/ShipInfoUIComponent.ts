@@ -1,16 +1,24 @@
 // ShipInfoUIComponent.ts — Ship info panel that slides in from the right.
 // Opens when the ship is selected (left-click), closes on deselection.
-// Shows ship name (renameable), lore text, crew count, movement range bar,
-// and a placeholder VIEW MANIFEST button.
+// Manages three sub-views: ship overview, crew manifest, and crew detail.
+// Sibling components (CrewManifestUIComponent, CrewDetailUIComponent) read
+// activeView and selectedCrewEntityId to coordinate their display.
 
 import { Component } from '../core/Component';
 import { SelectableComponent } from './SelectableComponent';
 import { MovementComponent } from './MovementComponent';
 
+export type PanelView = 'overview' | 'manifest' | 'detail';
+
 export class ShipInfoUIComponent extends Component {
     shipName: string;
     panelOpen = false;
     renaming = false;
+
+    /** Which sub-view is currently active. Read by sibling components. */
+    activeView: PanelView = 'overview';
+    /** Entity ID of the selected crew member for detail view. */
+    selectedCrewEntityId: number | null = null;
 
     private panel: HTMLElement | null = null;
     private nameEl: HTMLElement | null = null;
@@ -18,6 +26,7 @@ export class ShipInfoUIComponent extends Component {
     private renameInput: HTMLInputElement | null = null;
     private rangeFill: HTMLElement | null = null;
     private rangeText: HTMLElement | null = null;
+    private overviewSection: HTMLElement | null = null;
 
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
@@ -32,11 +41,16 @@ export class ShipInfoUIComponent extends Component {
 
         this.buildPanelHTML();
 
-        // Escape: cancel rename or deselect ship (which closes panel on next update)
+        // Escape: navigate back through view stack or cancel rename
         this.onKeyDown = (e: KeyboardEvent): void => {
             if (e.code === 'Escape') {
                 if (this.renaming) {
                     this.cancelRename();
+                } else if (this.activeView === 'detail') {
+                    this.activeView = 'manifest';
+                    this.selectedCrewEntityId = null;
+                } else if (this.activeView === 'manifest') {
+                    this.activeView = 'overview';
                 } else {
                     const selectable = this.entity.getComponent(SelectableComponent);
                     if (selectable) {
@@ -53,32 +67,38 @@ export class ShipInfoUIComponent extends Component {
         if (!this.panel) return;
 
         this.panel.innerHTML = `
-            <div class="ship-name-row">
-                <span class="ship-name" id="ship-name-label"></span>
-                <button class="rename-btn" id="ship-rename-btn" type="button" title="Rename ship">&#9998;</button>
+            <button class="panel-close-btn" id="ship-panel-close" type="button" title="Close">&times;</button>
+            <div class="view-section active" id="ship-overview-section">
+                <div class="ship-name-row">
+                    <span class="ship-name" id="ship-name-label"></span>
+                    <button class="rename-btn" id="ship-rename-btn" type="button" title="Rename ship">&#9998;</button>
+                </div>
+                <div class="ship-name-row" id="ship-rename-row" style="display:none">
+                    <input class="rename-input" id="ship-rename-input" type="text" maxlength="30">
+                    <button class="rename-ok" id="ship-rename-ok" type="button">OK</button>
+                </div>
+                <hr class="divider">
+                <div class="lore-text">
+                    Extiris Slaver Vessel, designation unknown.
+                    Captured during the Keth-7 exodus.
+                </div>
+                <div class="crew-count">
+                    <span class="crew-dot"></span>50 SOULS ABOARD
+                </div>
+                <div class="ship-range-section">
+                    <span class="ship-range-label">RANGE</span>
+                    <div class="ship-range-bar"><div class="ship-range-fill" id="ship-range-fill"></div></div>
+                    <span class="ship-range-text" id="ship-range-text">300 / 300</span>
+                </div>
+                <div style="margin-top:16px">
+                    <button class="hud-btn" id="ship-view-manifest-btn" type="button">VIEW MANIFEST</button>
+                </div>
             </div>
-            <div class="ship-name-row" id="ship-rename-row" style="display:none">
-                <input class="rename-input" id="ship-rename-input" type="text" maxlength="30">
-                <button class="rename-ok" id="ship-rename-ok" type="button">OK</button>
-            </div>
-            <hr class="divider">
-            <div class="lore-text">
-                Extiris Slaver Vessel, designation unknown.
-                Captured during the Keth-7 exodus.
-            </div>
-            <div class="crew-count">
-                <span class="crew-dot"></span>50 SOULS ABOARD
-            </div>
-            <div class="ship-range-section">
-                <span class="ship-range-label">RANGE</span>
-                <div class="ship-range-bar"><div class="ship-range-fill" id="ship-range-fill"></div></div>
-                <span class="ship-range-text" id="ship-range-text">300 / 300</span>
-            </div>
-            <div style="margin-top:16px">
-                <button class="hud-btn" type="button" disabled>VIEW MANIFEST</button>
-            </div>
+            <div class="view-section" id="crew-manifest-section"></div>
+            <div class="view-section" id="crew-detail-section"></div>
         `;
 
+        this.overviewSection = document.getElementById('ship-overview-section');
         this.nameEl = document.getElementById('ship-name-label');
         this.renameRow = document.getElementById('ship-rename-row');
         this.renameInput = document.getElementById('ship-rename-input') as HTMLInputElement | null;
@@ -88,6 +108,21 @@ export class ShipInfoUIComponent extends Component {
         if (this.nameEl) {
             this.nameEl.textContent = this.shipName;
         }
+
+        // Close button
+        const closeBtn = document.getElementById('ship-panel-close');
+        closeBtn?.addEventListener('click', () => {
+            const selectable = this.entity.getComponent(SelectableComponent);
+            if (selectable) {
+                selectable.selected = false;
+            }
+        });
+
+        // VIEW MANIFEST button
+        const manifestBtn = document.getElementById('ship-view-manifest-btn');
+        manifestBtn?.addEventListener('click', () => {
+            this.activeView = 'manifest';
+        });
 
         // Rename button click
         const renameBtn = document.getElementById('ship-rename-btn');
@@ -126,8 +161,26 @@ export class ShipInfoUIComponent extends Component {
             this.closePanel();
         }
 
-        // Update range display when panel is open
-        if (this.panelOpen) {
+        // Manage overview section visibility
+        if (this.overviewSection) {
+            if (this.activeView === 'overview') {
+                this.overviewSection.classList.add('active');
+            } else {
+                this.overviewSection.classList.remove('active');
+            }
+        }
+
+        // Toggle wide class for manifest/detail views
+        if (this.panel) {
+            if (this.activeView !== 'overview') {
+                this.panel.classList.add('wide');
+            } else {
+                this.panel.classList.remove('wide');
+            }
+        }
+
+        // Update range display when panel is open and on overview
+        if (this.panelOpen && this.activeView === 'overview') {
             const movement = this.entity.getComponent(MovementComponent);
             if (movement) {
                 this.updateRangeDisplay(movement.budgetRemaining, movement.budgetMax);
@@ -145,7 +198,10 @@ export class ShipInfoUIComponent extends Component {
             this.cancelRename();
         }
         this.panelOpen = false;
+        this.activeView = 'overview';
+        this.selectedCrewEntityId = null;
         this.panel?.classList.remove('open');
+        this.panel?.classList.remove('wide');
     }
 
     private updateRangeDisplay(remaining: number, max: number): void {

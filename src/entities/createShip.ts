@@ -10,6 +10,8 @@ import { RenderComponent } from '../components/RenderComponent';
 import { MovementComponent } from '../components/MovementComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { ShipInfoUIComponent } from '../components/ShipInfoUIComponent';
+import { CrewManifestUIComponent } from '../components/CrewManifestUIComponent';
+import { CrewDetailUIComponent } from '../components/CrewDetailUIComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -283,6 +285,8 @@ export function createShip(world: World): Entity {
         drawShip(entity, ctx, x, y, angle);
     }));
     entity.addComponent(new ShipInfoUIComponent());
+    entity.addComponent(new CrewManifestUIComponent());
+    entity.addComponent(new CrewDetailUIComponent());
 
     return entity;
 }
