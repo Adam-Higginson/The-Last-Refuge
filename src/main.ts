@@ -11,8 +11,10 @@ import { OrbitSystem } from './systems/OrbitSystem';
 import { RenderSystem } from './systems/RenderSystem';
 import { UISystem } from './systems/UISystem';
 import { TransformComponent } from './components/TransformComponent';
+import { OrbitComponent } from './components/OrbitComponent';
 import { createBackground } from './entities/createBackground';
 import { createStar } from './entities/createStar';
+import { createPlanet, getOrbitRadius } from './entities/createPlanet';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -45,19 +47,32 @@ function boot(): void {
     // Create entities
     createBackground(world);
     createStar(world);
-    // TODO: create planet, ship, crew entities
+    createPlanet(world);
 
     // Resize handler — updates canvas dimensions and re-centres entities
     window.addEventListener('resize', () => {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
+        const newCx = canvas.width / 2;
+        const newCy = canvas.height / 2;
+
         const star = world.getEntityByName('star');
         if (star) {
             const transform = star.getComponent(TransformComponent);
             if (transform) {
-                transform.x = canvas.width / 2;
-                transform.y = canvas.height / 2;
+                transform.x = newCx;
+                transform.y = newCy;
+            }
+        }
+
+        const planet = world.getEntityByName('newTerra');
+        if (planet) {
+            const orbit = planet.getComponent(OrbitComponent);
+            if (orbit) {
+                orbit.centreX = newCx;
+                orbit.centreY = newCy;
+                orbit.radius = getOrbitRadius(canvas);
             }
         }
     });
