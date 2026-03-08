@@ -1,8 +1,8 @@
 // createShip.ts — Factory for the Ark Salvage ship entity.
-// Renders an angular alien hull with engine glow, movement range circle,
+// Renders an angular alien hull with engine glow, movement range disc,
 // and hover highlight. Ship rotates to face its direction of travel.
-// Movement range circle is only visible when the ship is selected,
-// and smoothly shrinks as budget is spent.
+// Movement range shown as a warm amber gradient disc (no stroke) when
+// selected, smoothly shrinking as budget is spent.
 
 import { ServiceLocator } from '../core/ServiceLocator';
 import { TransformComponent } from '../components/TransformComponent';
@@ -41,30 +41,23 @@ function drawShip(
     const hovered = selectable?.hovered ?? false;
     const selected = selectable?.selected ?? false;
 
-    // --- Movement range circle (only when selected and not moving) ---
+    // --- Movement range disc (only when selected and not moving) ---
+    // Solid gradient disc — warm amber, clearly distinct from the dashed orbit ring
     if (selected && movement && !movement.moving && movement.displayBudget > 0) {
-        ctx.beginPath();
-        ctx.arc(x, y, movement.displayBudget, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(180, 200, 255, 0.25)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([6, 8]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Faint fill for the range area
         const rangeGrad = ctx.createRadialGradient(
             x, y, 0,
             x, y, movement.displayBudget,
         );
-        rangeGrad.addColorStop(0, 'rgba(180, 200, 255, 0.03)');
-        rangeGrad.addColorStop(1, 'rgba(180, 200, 255, 0)');
+        rangeGrad.addColorStop(0, 'rgba(255, 200, 80, 0.08)');
+        rangeGrad.addColorStop(0.7, 'rgba(255, 180, 60, 0.04)');
+        rangeGrad.addColorStop(1, 'rgba(255, 160, 40, 0)');
         ctx.fillStyle = rangeGrad;
         ctx.beginPath();
         ctx.arc(x, y, movement.displayBudget, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // --- Hover highlight ring ---
+    // --- Hover highlight ring (warm amber) ---
     if (hovered) {
         ctx.beginPath();
         ctx.arc(x, y, HIT_RADIUS + 6, 0, Math.PI * 2);
@@ -84,15 +77,24 @@ function drawShip(
         ctx.fill();
     }
 
-    // --- Selection ring (subtle indicator when selected but not hovered) ---
+    // --- Selection ring (warm amber, solid — shown when selected but not hovered) ---
     if (selected && !hovered) {
         ctx.beginPath();
         ctx.arc(x, y, HIT_RADIUS + 4, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(180, 200, 255, 0.35)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 5]);
+        ctx.strokeStyle = 'rgba(255, 220, 120, 0.4)';
+        ctx.lineWidth = 1.5;
         ctx.stroke();
-        ctx.setLineDash([]);
+
+        const selGlow = ctx.createRadialGradient(
+            x, y, HIT_RADIUS,
+            x, y, HIT_RADIUS + 12,
+        );
+        selGlow.addColorStop(0, 'rgba(255, 220, 120, 0.1)');
+        selGlow.addColorStop(1, 'rgba(255, 220, 120, 0)');
+        ctx.fillStyle = selGlow;
+        ctx.beginPath();
+        ctx.arc(x, y, HIT_RADIUS + 12, 0, Math.PI * 2);
+        ctx.fill();
     }
 
     ctx.save();
