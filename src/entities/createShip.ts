@@ -125,8 +125,10 @@ function drawShip(
     }
 
     // --- Movement range disc (anchored to turn origin, visible when selected) ---
-    // Colour transitions green → amber → red as budget depletes
-    if (selected && movement && movement.displayBudget > 0) {
+    // Colour transitions green → amber → red as budget depletes.
+    // Minimum radius of 3px avoids visual noise from tiny circles.
+    const MIN_RANGE_RADIUS = 3;
+    if (selected && movement && movement.displayBudget > MIN_RANGE_RADIUS) {
         const r = movement.displayBudget;
         const ratio = movement.budgetMax > 0
             ? movement.displayBudget / movement.budgetMax
@@ -150,15 +152,18 @@ function drawShip(
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // Soft glow bloom on the edge
-        const edgeGlow = ctx.createRadialGradient(x, y, r - 8, x, y, r + 8);
-        edgeGlow.addColorStop(0, budgetColour(ratio, 0));
-        edgeGlow.addColorStop(0.5, budgetColour(ratio, 0.10));
-        edgeGlow.addColorStop(1, budgetColour(ratio, 0));
-        ctx.fillStyle = edgeGlow;
-        ctx.beginPath();
-        ctx.arc(x, y, r + 8, 0, Math.PI * 2);
-        ctx.fill();
+        // Soft glow bloom on the edge (only when radius is large enough
+        // for the inner radius to stay non-negative — canvas throws if < 0)
+        if (r > 8) {
+            const edgeGlow = ctx.createRadialGradient(x, y, r - 8, x, y, r + 8);
+            edgeGlow.addColorStop(0, budgetColour(ratio, 0));
+            edgeGlow.addColorStop(0.5, budgetColour(ratio, 0.10));
+            edgeGlow.addColorStop(1, budgetColour(ratio, 0));
+            ctx.fillStyle = edgeGlow;
+            ctx.beginPath();
+            ctx.arc(x, y, r + 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
     // --- Hover highlight ring (warm amber) ---
