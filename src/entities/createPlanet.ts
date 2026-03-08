@@ -1,7 +1,8 @@
 // createPlanet.ts — Factory for the New Terra planet entity.
 // Renders a blue-green habitable world with atmospheric glow, cloud wisps,
 // and shadow on the side facing away from the star. Shows a highlight ring
-// when hovered. Orbit is turn-based — position advances on 'turn:end' events.
+// when hovered. Draws a faint orbit ring centred on the star.
+// Orbit is turn-based — position advances on 'turn:end' events.
 
 import { ServiceLocator } from '../core/ServiceLocator';
 import { TransformComponent } from '../components/TransformComponent';
@@ -55,6 +56,18 @@ function drawPlanet(
         ctx.beginPath();
         ctx.arc(x, y, r + 16, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    // --- Orbit ring (faint dashed ellipse centred on the star) ---
+    const orbit = entity.getComponent(OrbitComponent);
+    if (orbit) {
+        ctx.beginPath();
+        ctx.arc(orbit.centreX, orbit.centreY, orbit.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(100, 140, 180, 0.12)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([6, 8]);
+        ctx.stroke();
+        ctx.setLineDash([]); // reset dash
     }
 
     // --- Atmospheric glow (star-facing side) ---
