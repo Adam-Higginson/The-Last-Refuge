@@ -46,19 +46,21 @@ describe('MovementSystem', () => {
         expect(movement.targetY).toBe(100);
     });
 
-    it('rejects move when distance exceeds budget', () => {
+    it('clamps move to budget range when distance exceeds budget', () => {
         const system = new MovementSystem();
         system.init(world);
 
         const { movement, selectable } = createShipEntity(100, 100, 50);
         selectable.selected = true;
 
-        // Right-click 200px away (exceeds 50px budget)
+        // Right-click 200px away (exceeds 50px budget) — should clamp to 50px
         eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 300, y: 100 });
         eventQueue.drain();
 
-        expect(movement.moving).toBe(false);
-        expect(movement.targetX).toBeNull();
+        expect(movement.moving).toBe(true);
+        expect(movement.targetX).toBeCloseTo(150); // 100 + 50px in the x direction
+        expect(movement.targetY).toBeCloseTo(100);
+        expect(movement.budgetRemaining).toBeCloseTo(0);
     });
 
     it('subtracts distance from budget on move command', () => {

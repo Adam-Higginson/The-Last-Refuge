@@ -69,6 +69,10 @@ export class InputSystem extends System {
             const transform = entity.getComponent(TransformComponent);
             if (!selectable || !transform) continue;
 
+            // Broadcast cursor position so renderers can draw hover previews
+            selectable.cursorX = this.mouseX;
+            selectable.cursorY = this.mouseY;
+
             const dx = this.mouseX - transform.x;
             const dy = this.mouseY - transform.y;
             const dist = Math.sqrt(dx * dx + dy * dy);

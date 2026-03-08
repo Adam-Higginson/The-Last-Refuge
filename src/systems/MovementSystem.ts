@@ -62,13 +62,25 @@ export class MovementSystem extends System {
             // Ignore if already moving
             if (movement.moving) continue;
 
-            // Validate distance fits budget and is outside the entity's hit area
-            const dx = targetX - transform.x;
-            const dy = targetY - transform.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            // Validate distance is outside the entity's hit area
+            let dx = targetX - transform.x;
+            let dy = targetY - transform.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
             const minDist = selectable.hitRadius + 2;
 
-            if (dist < minDist || dist > movement.budgetRemaining) continue;
+            if (dist < minDist) continue;
+
+            // Clamp to budget range if click is beyond it
+            let clampedX = targetX;
+            let clampedY = targetY;
+            if (dist > movement.budgetRemaining) {
+                const scale = movement.budgetRemaining / dist;
+                clampedX = transform.x + dx * scale;
+                clampedY = transform.y + dy * scale;
+                dx = clampedX - transform.x;
+                dy = clampedY - transform.y;
+                dist = movement.budgetRemaining;
+            }
 
             // Record turn origin on first move of the turn
             if (movement.turnOriginX === null || movement.turnOriginY === null) {
@@ -77,8 +89,8 @@ export class MovementSystem extends System {
             }
 
             // Initiate movement
-            movement.targetX = targetX;
-            movement.targetY = targetY;
+            movement.targetX = clampedX;
+            movement.targetY = clampedY;
             movement.moving = true;
             movement.budgetRemaining -= dist;
             movement.facing = Math.atan2(dy, dx);

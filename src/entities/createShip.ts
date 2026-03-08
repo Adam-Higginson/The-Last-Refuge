@@ -80,6 +80,49 @@ function drawShip(
         ctx.restore();
     }
 
+    // --- Cursor preview line (selected, idle, clamped to budget range) ---
+    if (selected && selectable && movement && !movement.moving && movement.budgetRemaining > 0) {
+        const mcx = selectable.cursorX;
+        const mcy = selectable.cursorY;
+        const pdx = mcx - x;
+        const pdy = mcy - y;
+        const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
+        const minDist = (selectable.hitRadius ?? 0) + 2;
+
+        if (pDist >= minDist) {
+            // Clamp endpoint to budget radius if cursor is beyond range
+            let endX = mcx;
+            let endY = mcy;
+            if (pDist > movement.budgetRemaining) {
+                const scale = movement.budgetRemaining / pDist;
+                endX = x + pdx * scale;
+                endY = y + pdy * scale;
+            }
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([6, 4]);
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = 'rgba(255, 220, 120, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Cross at clamped endpoint
+            const cs = 5;
+            ctx.beginPath();
+            ctx.moveTo(endX - cs, endY - cs);
+            ctx.lineTo(endX + cs, endY + cs);
+            ctx.moveTo(endX + cs, endY - cs);
+            ctx.lineTo(endX - cs, endY + cs);
+            ctx.strokeStyle = 'rgba(255, 220, 120, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
     // --- Movement range disc (anchored to turn origin, visible when selected) ---
     // Colour transitions green → amber → red as budget depletes
     if (selected && movement && movement.displayBudget > 0) {
