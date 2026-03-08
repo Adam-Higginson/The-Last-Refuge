@@ -6,9 +6,8 @@ import { GameLoop } from './core/GameLoop';
 import { EventQueue } from './core/EventQueue';
 import { ServiceLocator } from './core/ServiceLocator';
 import { InputSystem } from './systems/InputSystem';
-import { MovementSystem } from './systems/MovementSystem';
 import { TurnSystem } from './systems/TurnSystem';
-import { OrbitSystem } from './systems/OrbitSystem';
+import { ComponentSystem } from './systems/ComponentSystem';
 import { RenderSystem } from './systems/RenderSystem';
 import { UISystem } from './systems/UISystem';
 import { TransformComponent } from './components/TransformComponent';
@@ -42,8 +41,7 @@ function boot(): void {
     // Add systems in explicit update order
     world.addSystem(new InputSystem());
     world.addSystem(new TurnSystem());
-    world.addSystem(new OrbitSystem());
-    world.addSystem(new MovementSystem());
+    world.addSystem(new ComponentSystem());
     world.addSystem(new RenderSystem());
     world.addSystem(new UISystem());
 
