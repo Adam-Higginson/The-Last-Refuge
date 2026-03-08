@@ -187,6 +187,52 @@ describe('OrbitSystem', () => {
         expect(orbit.animating).toBe(false);
     });
 
+    it('emits turn:block when animation starts', () => {
+        const system = new OrbitSystem();
+        system.init(world);
+
+        const entity = world.createEntity('orbiter');
+        entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
+        entity.addComponent(new TransformComponent(600, 300));
+
+        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.drain();
+
+        // The turn:end handler emits turn:block — drain to process it
+        const blocked: Array<{ type: string; key?: string }> = [];
+        eventQueue.on('turn:block', (event) => {
+            blocked.push(event as { type: string; key?: string });
+        });
+        eventQueue.drain();
+
+        expect(blocked).toHaveLength(1);
+        expect(blocked[0].key).toBe('orbit');
+    });
+
+    it('emits turn:unblock when all animations complete', () => {
+        const system = new OrbitSystem();
+        system.init(world);
+
+        const entity = world.createEntity('orbiter');
+        entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
+        entity.addComponent(new TransformComponent(600, 300));
+
+        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.drain();
+
+        // Complete the animation
+        completeAnimation(system);
+
+        const unblocked: Array<{ type: string; key?: string }> = [];
+        eventQueue.on('turn:unblock', (event) => {
+            unblocked.push(event as { type: string; key?: string });
+        });
+        eventQueue.drain();
+
+        expect(unblocked.length).toBeGreaterThan(0);
+        expect(unblocked[0].key).toBe('orbit');
+    });
+
     it('unsubscribes from turn:end on destroy', () => {
         const system = new OrbitSystem();
         system.init(world);

@@ -18,12 +18,13 @@ function easeInOutCubic(t: number): number {
 }
 
 export class OrbitSystem extends System {
+    private eventQueue!: EventQueue;
     private turnEndHandler!: EventHandler;
 
     init(world: World): void {
         super.init(world);
 
-        const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
+        this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
 
         // On turn end, begin a smooth animation toward the next orbit position
         this.turnEndHandler = (): void => {
@@ -42,12 +43,16 @@ export class OrbitSystem extends System {
                 orbit.animElapsed = 0;
                 orbit.animating = true;
             }
+
+            // Block turn advancement while orbits animate
+            this.eventQueue.emit({ type: 'turn:block', key: 'orbit' });
         };
 
-        eventQueue.on('turn:end', this.turnEndHandler);
+        this.eventQueue.on('turn:end', this.turnEndHandler);
     }
 
     update(dt: number): void {
+        let anyAnimating = false;
         const entities = this.world.getEntitiesWithComponent(OrbitComponent);
         for (const entity of entities) {
             const orbit = entity.getComponent(OrbitComponent);
@@ -64,6 +69,8 @@ export class OrbitSystem extends System {
                 if (t >= 1) {
                     orbit.angle = orbit.targetAngle;
                     orbit.animating = false;
+                } else {
+                    anyAnimating = true;
                 }
             }
 
@@ -73,10 +80,14 @@ export class OrbitSystem extends System {
             transform.x = orbit.centreX + orbit.radius * Math.cos(orbit.angle);
             transform.y = orbit.centreY + orbit.radius * Math.sin(orbit.angle);
         }
+
+        // Unblock turn advancement once all orbit animations are done
+        if (!anyAnimating) {
+            this.eventQueue.emit({ type: 'turn:unblock', key: 'orbit' });
+        }
     }
 
     destroy(): void {
-        const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
-        eventQueue.off('turn:end', this.turnEndHandler);
+        this.eventQueue.off('turn:end', this.turnEndHandler);
     }
 }

@@ -3,8 +3,6 @@ import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
 import { TurnSystem } from '../TurnSystem';
-import { OrbitComponent } from '../../components/OrbitComponent';
-import { TransformComponent } from '../../components/TransformComponent';
 
 describe('TurnSystem', () => {
     let world: World;
@@ -64,33 +62,29 @@ describe('TurnSystem', () => {
         expect(system.currentTurn).toBe(6);
     });
 
-    it('blocks turn advance while orbit animation is playing', () => {
+    it('blocks turn advance when a blocker is active', () => {
         const system = new TurnSystem();
         system.init(world);
 
-        // Create an entity with an animating orbit
-        const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
-        orbit.animating = true;
+        // Another system blocks turn advancement
+        eventQueue.emit({ type: 'turn:block', key: 'orbit' });
+        eventQueue.drain();
 
         eventQueue.emit({ type: 'turn:advance' });
         eventQueue.drain();
 
-        // Turn should NOT have advanced
         expect(system.currentTurn).toBe(1);
     });
 
-    it('allows turn advance after orbit animation completes', () => {
+    it('allows turn advance after blocker is removed', () => {
         const system = new TurnSystem();
         system.init(world);
 
-        const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
-
-        // Animation is not playing
-        orbit.animating = false;
+        // Block then unblock
+        eventQueue.emit({ type: 'turn:block', key: 'orbit' });
+        eventQueue.drain();
+        eventQueue.emit({ type: 'turn:unblock', key: 'orbit' });
+        eventQueue.drain();
 
         eventQueue.emit({ type: 'turn:advance' });
         eventQueue.drain();
@@ -102,10 +96,8 @@ describe('TurnSystem', () => {
         const system = new TurnSystem();
         system.init(world);
 
-        const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
-        orbit.animating = true;
+        eventQueue.emit({ type: 'turn:block', key: 'orbit' });
+        eventQueue.drain();
 
         eventQueue.emit({ type: 'turn:advance' });
         eventQueue.drain();
@@ -119,7 +111,32 @@ describe('TurnSystem', () => {
         expect(emitted).toHaveLength(0);
     });
 
-    it('unsubscribes from turn:advance on destroy', () => {
+    it('supports multiple independent blockers', () => {
+        const system = new TurnSystem();
+        system.init(world);
+
+        eventQueue.emit({ type: 'turn:block', key: 'orbit' });
+        eventQueue.emit({ type: 'turn:block', key: 'combat' });
+        eventQueue.drain();
+
+        // Remove one blocker — still blocked by the other
+        eventQueue.emit({ type: 'turn:unblock', key: 'orbit' });
+        eventQueue.drain();
+
+        eventQueue.emit({ type: 'turn:advance' });
+        eventQueue.drain();
+        expect(system.currentTurn).toBe(1);
+
+        // Remove the second blocker — now unblocked
+        eventQueue.emit({ type: 'turn:unblock', key: 'combat' });
+        eventQueue.drain();
+
+        eventQueue.emit({ type: 'turn:advance' });
+        eventQueue.drain();
+        expect(system.currentTurn).toBe(2);
+    });
+
+    it('unsubscribes from all events on destroy', () => {
         const system = new TurnSystem();
         system.init(world);
         system.destroy();
@@ -130,7 +147,7 @@ describe('TurnSystem', () => {
         expect(system.currentTurn).toBe(1);
     });
 
-    it('ignores non-turn:advance events', () => {
+    it('ignores non-turn events', () => {
         const system = new TurnSystem();
         system.init(world);
 
