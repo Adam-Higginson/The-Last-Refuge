@@ -1,27 +1,24 @@
 // ShipInfoUIComponent.ts — Ship info panel that slides in from the right.
-// Opens on right-click of the ship entity. Shows ship name (renameable),
-// lore text, crew count, and a placeholder VIEW MANIFEST button.
-// Closes on Escape, clicking elsewhere, or right-clicking the ship again.
+// Opens when the ship is selected (left-click), closes on deselection.
+// Shows ship name (renameable), lore text, crew count, movement range bar,
+// and a placeholder VIEW MANIFEST button.
 
 import { Component } from '../core/Component';
-import { ServiceLocator } from '../core/ServiceLocator';
-import { GameEvents } from '../core/GameEvents';
-import type { EntityRightClickEvent } from '../core/GameEvents';
-import type { EventQueue, EventHandler } from '../core/EventQueue';
+import { SelectableComponent } from './SelectableComponent';
+import { MovementComponent } from './MovementComponent';
 
 export class ShipInfoUIComponent extends Component {
     shipName: string;
     panelOpen = false;
     renaming = false;
 
-    private eventQueue: EventQueue | null = null;
     private panel: HTMLElement | null = null;
     private nameEl: HTMLElement | null = null;
     private renameRow: HTMLElement | null = null;
     private renameInput: HTMLInputElement | null = null;
+    private rangeFill: HTMLElement | null = null;
+    private rangeText: HTMLElement | null = null;
 
-    private entityRightClickHandler: EventHandler | null = null;
-    private entityClickHandler: EventHandler | null = null;
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
     constructor(shipName = 'ESV-7 (Unnamed)') {
@@ -30,45 +27,25 @@ export class ShipInfoUIComponent extends Component {
     }
 
     init(): void {
-        this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
-
         this.panel = document.getElementById('ship-info-panel');
         if (!this.panel) return;
 
         this.buildPanelHTML();
 
-        // Toggle panel on right-click of this entity
-        this.entityRightClickHandler = (event): void => {
-            const { entityId } = event as EntityRightClickEvent;
-            if (entityId !== this.entity.id) return;
-
-            if (this.panelOpen) {
-                this.closePanel();
-            } else {
-                this.openPanel();
-            }
-        };
-
-        // Close panel when clicking elsewhere (left-click on empty space or other entity)
-        this.entityClickHandler = (): void => {
-            if (this.panelOpen && !this.renaming) {
-                this.closePanel();
-            }
-        };
-
-        // Escape: cancel rename or close panel
+        // Escape: cancel rename or deselect ship (which closes panel on next update)
         this.onKeyDown = (e: KeyboardEvent): void => {
             if (e.code === 'Escape') {
                 if (this.renaming) {
                     this.cancelRename();
-                } else if (this.panelOpen) {
-                    this.closePanel();
+                } else {
+                    const selectable = this.entity.getComponent(SelectableComponent);
+                    if (selectable) {
+                        selectable.selected = false;
+                    }
                 }
             }
         };
 
-        this.eventQueue.on(GameEvents.ENTITY_RIGHT_CLICK, this.entityRightClickHandler);
-        this.eventQueue.on(GameEvents.ENTITY_CLICK, this.entityClickHandler);
         window.addEventListener('keydown', this.onKeyDown);
     }
 
@@ -92,6 +69,11 @@ export class ShipInfoUIComponent extends Component {
             <div class="crew-count">
                 <span class="crew-dot"></span>50 SOULS ABOARD
             </div>
+            <div class="ship-range-section">
+                <span class="ship-range-label">RANGE</span>
+                <div class="ship-range-bar"><div class="ship-range-fill" id="ship-range-fill"></div></div>
+                <span class="ship-range-text" id="ship-range-text">300 / 300</span>
+            </div>
             <div style="margin-top:16px">
                 <button class="hud-btn" type="button" disabled>VIEW MANIFEST</button>
             </div>
@@ -100,6 +82,8 @@ export class ShipInfoUIComponent extends Component {
         this.nameEl = document.getElementById('ship-name-label');
         this.renameRow = document.getElementById('ship-rename-row');
         this.renameInput = document.getElementById('ship-rename-input') as HTMLInputElement | null;
+        this.rangeFill = document.getElementById('ship-range-fill');
+        this.rangeText = document.getElementById('ship-range-text');
 
         if (this.nameEl) {
             this.nameEl.textContent = this.shipName;
@@ -131,6 +115,26 @@ export class ShipInfoUIComponent extends Component {
         });
     }
 
+    update(_dt: number): void {
+        const selectable = this.entity.getComponent(SelectableComponent);
+        const selected = selectable?.selected ?? false;
+
+        // Sync panel visibility with selection state
+        if (selected && !this.panelOpen) {
+            this.openPanel();
+        } else if (!selected && this.panelOpen) {
+            this.closePanel();
+        }
+
+        // Update range display when panel is open
+        if (this.panelOpen) {
+            const movement = this.entity.getComponent(MovementComponent);
+            if (movement) {
+                this.updateRangeDisplay(movement.budgetRemaining, movement.budgetMax);
+            }
+        }
+    }
+
     private openPanel(): void {
         this.panelOpen = true;
         this.panel?.classList.add('open');
@@ -142,6 +146,25 @@ export class ShipInfoUIComponent extends Component {
         }
         this.panelOpen = false;
         this.panel?.classList.remove('open');
+    }
+
+    private updateRangeDisplay(remaining: number, max: number): void {
+        const ratio = max > 0 ? remaining / max : 0;
+
+        if (this.rangeFill) {
+            this.rangeFill.style.width = `${ratio * 100}%`;
+            this.rangeFill.style.background = this.getRangeColour(ratio);
+        }
+
+        if (this.rangeText) {
+            this.rangeText.textContent = `${Math.round(remaining)} / ${Math.round(max)}`;
+        }
+    }
+
+    private getRangeColour(ratio: number): string {
+        if (ratio > 0.5) return '#44cc66';
+        if (ratio > 0.25) return '#ccaa44';
+        return '#cc4444';
     }
 
     private enterRenameMode(): void {
@@ -181,12 +204,6 @@ export class ShipInfoUIComponent extends Component {
     }
 
     destroy(): void {
-        if (this.eventQueue && this.entityRightClickHandler) {
-            this.eventQueue.off(GameEvents.ENTITY_RIGHT_CLICK, this.entityRightClickHandler);
-        }
-        if (this.eventQueue && this.entityClickHandler) {
-            this.eventQueue.off(GameEvents.ENTITY_CLICK, this.entityClickHandler);
-        }
         if (this.onKeyDown) {
             window.removeEventListener('keydown', this.onKeyDown);
         }

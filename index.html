@@ -61,38 +61,6 @@
             white-space: nowrap;
         }
 
-        #hud-budget-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        #hud-budget-label {
-            font-size: 11px;
-            opacity: 0.6;
-        }
-
-        #hud-budget-bar {
-            width: 160px;
-            height: 6px;
-            background: rgba(192, 200, 216, 0.1);
-            overflow: hidden;
-        }
-
-        #hud-budget-fill {
-            height: 100%;
-            width: 100%;
-            background: #44cc66;
-            transition: width 0.15s ease-out;
-        }
-
-        #hud-budget-text {
-            min-width: 80px;
-            text-align: right;
-            font-size: 12px;
-            opacity: 0.8;
-        }
-
         .hud-btn {
             background: transparent;
             color: #4fa8ff;
@@ -213,6 +181,39 @@
             border-radius: 50%;
             margin-right: 6px;
             vertical-align: middle;
+        }
+
+        #ship-info-panel .ship-range-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        #ship-info-panel .ship-range-label {
+            font-size: 11px;
+            opacity: 0.6;
+        }
+
+        #ship-info-panel .ship-range-bar {
+            flex: 1;
+            height: 6px;
+            background: rgba(192, 200, 216, 0.1);
+            overflow: hidden;
+        }
+
+        #ship-info-panel .ship-range-fill {
+            height: 100%;
+            width: 100%;
+            background: #44cc66;
+            transition: width 0.15s ease-out;
+        }
+
+        #ship-info-panel .ship-range-text {
+            min-width: 70px;
+            text-align: right;
+            font-size: 12px;
+            opacity: 0.8;
         }
     </style>
 </head>

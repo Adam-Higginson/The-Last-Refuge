@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
-import { GameEvents } from '../../core/GameEvents';
 import { ShipInfoUIComponent } from '../ShipInfoUIComponent';
 import { TransformComponent } from '../TransformComponent';
+import { SelectableComponent } from '../SelectableComponent';
+import { MovementComponent } from '../MovementComponent';
 
 // ---------------------------------------------------------------------------
 // Minimal DOM mock
@@ -131,6 +132,8 @@ describe('ShipInfoUIComponent', () => {
     let renameInput: MockElement;
     let renameBtn: MockElement;
     let renameOk: MockElement;
+    let rangeFill: MockElement;
+    let rangeText: MockElement;
 
     beforeEach(() => {
         ServiceLocator.clear();
@@ -145,6 +148,8 @@ describe('ShipInfoUIComponent', () => {
         renameInput = createMockElement('ship-rename-input');
         renameBtn = createMockElement('ship-rename-btn');
         renameOk = createMockElement('ship-rename-ok');
+        rangeFill = createMockElement('ship-range-fill');
+        rangeText = createMockElement('ship-range-text');
 
         elementMap = {
             'ship-info-panel': panel,
@@ -153,6 +158,8 @@ describe('ShipInfoUIComponent', () => {
             'ship-rename-input': renameInput,
             'ship-rename-btn': renameBtn,
             'ship-rename-ok': renameOk,
+            'ship-range-fill': rangeFill,
+            'ship-range-text': rangeText,
         };
 
         installMocks();
@@ -163,133 +170,139 @@ describe('ShipInfoUIComponent', () => {
         elementMap = {};
     });
 
-    function createShipWithInfoPanel(shipName?: string): ShipInfoUIComponent {
+    function createShipWithInfoPanel(shipName?: string): {
+        info: ShipInfoUIComponent;
+        selectable: SelectableComponent;
+    } {
         const entity = world.createEntity('arkSalvage');
         entity.addComponent(new TransformComponent(400, 300));
+        const selectable = entity.addComponent(new SelectableComponent(18));
         const info = shipName
             ? entity.addComponent(new ShipInfoUIComponent(shipName))
             : entity.addComponent(new ShipInfoUIComponent());
         info.init();
-        return info;
+        return { info, selectable };
     }
 
-    // --- Panel open/close ---
+    // --- Panel open/close via selection ---
 
-    it('opens panel on ENTITY_RIGHT_CLICK matching entity ID', () => {
-        const info = createShipWithInfoPanel();
-        const entityId = info.entity.id;
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
+    it('opens panel when ship is selected', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
 
         expect(info.panelOpen).toBe(true);
         expect(panel.classList.contains('open')).toBe(true);
     });
 
-    it('ignores ENTITY_RIGHT_CLICK for other entities', () => {
-        const info = createShipWithInfoPanel();
+    it('closes panel when ship is deselected', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+        expect(info.panelOpen).toBe(true);
 
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId: 9999,
-            entityName: 'other',
-        });
-        eventQueue.drain();
-
+        selectable.selected = false;
+        info.update(1 / 60);
         expect(info.panelOpen).toBe(false);
         expect(panel.classList.contains('open')).toBe(false);
     });
 
-    it('toggles panel closed on repeated right-click', () => {
-        const info = createShipWithInfoPanel();
-        const entityId = info.entity.id;
+    it('does not open panel if no SelectableComponent', () => {
+        const entity = world.createEntity('arkSalvage');
+        entity.addComponent(new TransformComponent(400, 300));
+        const info = entity.addComponent(new ShipInfoUIComponent());
+        info.init();
 
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
-        expect(info.panelOpen).toBe(true);
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
-        expect(info.panelOpen).toBe(false);
-        expect(panel.classList.contains('open')).toBe(false);
-    });
-
-    it('closes panel on ENTITY_CLICK (left-click elsewhere)', () => {
-        const info = createShipWithInfoPanel();
-        const entityId = info.entity.id;
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
-        expect(info.panelOpen).toBe(true);
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_CLICK,
-            entityId: 5,
-            entityName: 'star',
-        });
-        eventQueue.drain();
+        info.update(1 / 60);
         expect(info.panelOpen).toBe(false);
     });
 
-    it('closes panel on Escape key', () => {
-        const info = createShipWithInfoPanel();
-        const entityId = info.entity.id;
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
+    it('deselects ship on Escape key (closes panel on next update)', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
         expect(info.panelOpen).toBe(true);
 
         pressEscape();
+        expect(selectable.selected).toBe(false);
+
+        info.update(1 / 60);
         expect(info.panelOpen).toBe(false);
+    });
+
+    // --- Range display ---
+
+    it('updates range display from MovementComponent when panel is open', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        const movement = info.entity.addComponent(new MovementComponent(300));
+
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        movement.budgetRemaining = 150;
+        info.update(1 / 60);
+
+        expect(rangeText.textContent).toBe('150 / 300');
+    });
+
+    it('shows green colour for budget ratio above 0.5', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        info.entity.addComponent(new MovementComponent(300));
+
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        expect(rangeFill.style.background).toBe('#44cc66');
+    });
+
+    it('shows amber colour for budget ratio between 0.25 and 0.5', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        const movement = info.entity.addComponent(new MovementComponent(300));
+
+        selectable.selected = true;
+        movement.budgetRemaining = 120;
+        info.update(1 / 60);
+
+        expect(rangeFill.style.background).toBe('#ccaa44');
+    });
+
+    it('shows red colour for budget ratio at or below 0.25', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        const movement = info.entity.addComponent(new MovementComponent(300));
+
+        selectable.selected = true;
+        movement.budgetRemaining = 60;
+        info.update(1 / 60);
+
+        expect(rangeFill.style.background).toBe('#cc4444');
+    });
+
+    it('handles missing MovementComponent gracefully', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        // No MovementComponent added
+
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        expect(info.panelOpen).toBe(true);
+        // No crash, range display just doesn't update
     });
 
     // --- Rename ---
 
     it('enters rename mode when rename button is clicked', () => {
-        const info = createShipWithInfoPanel();
-        const entityId = info.entity.id;
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
 
         renameBtn.click();
         expect(info.renaming).toBe(true);
     });
 
     it('updates ship name on rename confirm (OK button)', () => {
-        const info = createShipWithInfoPanel();
-        const entityId = info.entity.id;
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
 
         renameBtn.click();
         renameInput.value = "Horizon's Edge";
@@ -300,15 +313,9 @@ describe('ShipInfoUIComponent', () => {
     });
 
     it('updates ship name on Enter key in rename input', () => {
-        const info = createShipWithInfoPanel();
-        const entityId = info.entity.id;
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
 
         renameBtn.click();
         renameInput.value = 'Dawn Treader';
@@ -318,20 +325,13 @@ describe('ShipInfoUIComponent', () => {
         expect(info.renaming).toBe(false);
     });
 
-    it('cancels rename on Escape without changing name', () => {
-        const info = createShipWithInfoPanel('ESV-7 (Unnamed)');
-        const entityId = info.entity.id;
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
+    it('cancels rename on Escape in input without changing name', () => {
+        const { info, selectable } = createShipWithInfoPanel('ESV-7 (Unnamed)');
+        selectable.selected = true;
+        info.update(1 / 60);
 
         renameBtn.click();
         renameInput.value = 'NewName';
-        // Escape on the input itself (stopPropagation prevents window handler)
         renameInput._fireKeydown({
             code: 'Escape',
             preventDefault: (): void => {},
@@ -340,18 +340,14 @@ describe('ShipInfoUIComponent', () => {
 
         expect(info.shipName).toBe('ESV-7 (Unnamed)');
         expect(info.renaming).toBe(false);
+        expect(info.panelOpen).toBe(true);
+        expect(selectable.selected).toBe(true);
     });
 
     it('rejects empty name and keeps previous name', () => {
-        const info = createShipWithInfoPanel('ESV-7 (Unnamed)');
-        const entityId = info.entity.id;
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
+        const { info, selectable } = createShipWithInfoPanel('ESV-7 (Unnamed)');
+        selectable.selected = true;
+        info.update(1 / 60);
 
         renameBtn.click();
         renameInput.value = '   '; // whitespace only
@@ -361,61 +357,37 @@ describe('ShipInfoUIComponent', () => {
         expect(info.renaming).toBe(false);
     });
 
-    it('does not close panel on ENTITY_CLICK while renaming', () => {
-        const info = createShipWithInfoPanel();
-        const entityId = info.entity.id;
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
+    it('cancels rename when ship is deselected', () => {
+        const { info, selectable } = createShipWithInfoPanel('ESV-7 (Unnamed)');
+        selectable.selected = true;
+        info.update(1 / 60);
 
         renameBtn.click();
+        renameInput.value = 'NewName';
         expect(info.renaming).toBe(true);
 
-        eventQueue.emit({
-            type: GameEvents.ENTITY_CLICK,
-            entityId: 5,
-            entityName: 'star',
-        });
-        eventQueue.drain();
+        selectable.selected = false;
+        info.update(1 / 60);
 
-        expect(info.panelOpen).toBe(true);
-        expect(info.renaming).toBe(true);
+        expect(info.panelOpen).toBe(false);
+        expect(info.renaming).toBe(false);
+        expect(info.shipName).toBe('ESV-7 (Unnamed)');
     });
 
     // --- Lifecycle ---
 
     it('starts with default ship name', () => {
-        const info = createShipWithInfoPanel();
+        const { info } = createShipWithInfoPanel();
         expect(info.shipName).toBe('ESV-7 (Unnamed)');
     });
 
     it('accepts custom ship name via constructor', () => {
-        const info = createShipWithInfoPanel('The Exodus');
+        const { info } = createShipWithInfoPanel('The Exodus');
         expect(info.shipName).toBe('The Exodus');
     });
 
-    it('unsubscribes from events on destroy', () => {
-        const info = createShipWithInfoPanel();
-        const entityId = info.entity.id;
-
-        info.destroy();
-
-        eventQueue.emit({
-            type: GameEvents.ENTITY_RIGHT_CLICK,
-            entityId,
-            entityName: 'arkSalvage',
-        });
-        eventQueue.drain();
-
-        expect(info.panelOpen).toBe(false);
-    });
-
     it('removes window keydown listener on destroy', () => {
-        const info = createShipWithInfoPanel();
+        const { info } = createShipWithInfoPanel();
         expect(windowKeydownListeners).toHaveLength(1);
 
         info.destroy();
