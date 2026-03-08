@@ -8,7 +8,7 @@ export class OrbitComponent extends Component {
     centreY: number;
     radius: number;          // orbit radius in px
     angle: number;           // current position in orbit (radians)
-    speed: number;           // radians per second
+    speed: number;           // radians per turn
 
     constructor(centreX: number, centreY: number, radius: number, speed: number) {
         super();
