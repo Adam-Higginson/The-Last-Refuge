@@ -102,6 +102,20 @@ Scope is optional for broad changes that span multiple areas.
 - **Do not amend** previous commits — always create new ones.
 - All commits are GPG-signed (configured globally).
 
+## Visual Testing (Claude Preview)
+
+Use Claude Preview to manually test the game in a headless browser during development.
+
+- **Launch config:** `.claude/launch.json` defines the `dev` server (Vite on port 5173).
+- **Start the server:** Use `preview_start` with name `"dev"`. Reuses if already running.
+- **Screenshot:** Use `preview_screenshot` to check rendering after changes.
+- **Interact:** Use `preview_click` to test mouse input (e.g. clicking planets, ships).
+- **Inspect:** Use `preview_inspect` to verify DOM elements and computed styles for HTML UI panels.
+- **Console:** Use `preview_console_logs` to check for runtime errors.
+- **Debug:** Use `preview_eval` to inspect game state (e.g. entity positions, component values).
+- **After visual changes:** Always take a screenshot to verify rendering is correct.
+- **Note:** On Windows, `npm` is not in the preview tool's PATH. The launch config uses the full path to `node.exe` with `node_modules/vite/bin/vite.js` directly.
+
 ## Commands
 
 - `npm run dev` — Start Vite dev server with HMR
