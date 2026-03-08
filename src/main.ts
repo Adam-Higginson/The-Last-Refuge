@@ -6,9 +6,8 @@ import { GameLoop } from './core/GameLoop';
 import { EventQueue } from './core/EventQueue';
 import { ServiceLocator } from './core/ServiceLocator';
 import { InputSystem } from './systems/InputSystem';
-import { MovementSystem } from './systems/MovementSystem';
 import { TurnSystem } from './systems/TurnSystem';
-import { OrbitSystem } from './systems/OrbitSystem';
+import { ComponentSystem } from './systems/ComponentSystem';
 import { RenderSystem } from './systems/RenderSystem';
 import { UISystem } from './systems/UISystem';
 import { TransformComponent } from './components/TransformComponent';
@@ -16,6 +15,7 @@ import { OrbitComponent } from './components/OrbitComponent';
 import { createBackground } from './entities/createBackground';
 import { createStar } from './entities/createStar';
 import { createPlanet, getOrbitRadius } from './entities/createPlanet';
+import { createShip } from './entities/createShip';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -41,8 +41,7 @@ function boot(): void {
     // Add systems in explicit update order
     world.addSystem(new InputSystem());
     world.addSystem(new TurnSystem());
-    world.addSystem(new OrbitSystem());
-    world.addSystem(new MovementSystem());
+    world.addSystem(new ComponentSystem());
     world.addSystem(new RenderSystem());
     world.addSystem(new UISystem());
 
@@ -50,6 +49,7 @@ function boot(): void {
     createBackground(world);
     createStar(world);
     createPlanet(world);
+    createShip(world);
 
     // Resize handler — updates canvas dimensions and re-centres entities
     window.addEventListener('resize', () => {

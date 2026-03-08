@@ -93,6 +93,18 @@ describe('InputSystem', () => {
         }
     }
 
+    /** Simulate a right-click (contextmenu) event at the given coordinates */
+    function simulateRightClick(x: number, y: number): void {
+        const contextHandler = canvasListeners.find((l) => l.type === 'contextmenu');
+        if (contextHandler) {
+            contextHandler.handler({
+                clientX: x,
+                clientY: y,
+                preventDefault: vi.fn(),
+            } as unknown as MouseEvent);
+        }
+    }
+
     /** Simulate a keydown event */
     function simulateKeyDown(code: string): void {
         const keyHandler = windowListeners.find((l) => l.type === 'keydown');
@@ -111,6 +123,10 @@ describe('InputSystem', () => {
         );
         expect(mockCanvas.addEventListener).toHaveBeenCalledWith(
             'click',
+            expect.any(Function),
+        );
+        expect(mockCanvas.addEventListener).toHaveBeenCalledWith(
+            'contextmenu',
             expect.any(Function),
         );
         expect(window.addEventListener).toHaveBeenCalledWith(
@@ -279,9 +295,98 @@ describe('InputSystem', () => {
             'click',
             expect.any(Function),
         );
+        expect(mockCanvas.removeEventListener).toHaveBeenCalledWith(
+            'contextmenu',
+            expect.any(Function),
+        );
         expect(window.removeEventListener).toHaveBeenCalledWith(
             'keydown',
             expect.any(Function),
         );
+    });
+
+    // --- Selection tests ---
+
+    it('sets selected=true on clicked entity and deselects others', () => {
+        const system = new InputSystem();
+        system.init(world);
+
+        const e1 = world.createEntity('first');
+        e1.addComponent(new TransformComponent(100, 100));
+        const sel1 = e1.addComponent(new SelectableComponent(20));
+
+        const e2 = world.createEntity('second');
+        e2.addComponent(new TransformComponent(300, 300));
+        const sel2 = e2.addComponent(new SelectableComponent(20));
+
+        // Click on first entity
+        simulateMouseMove(100, 100);
+        simulateClick();
+        system.update(16);
+
+        expect(sel1.selected).toBe(true);
+        expect(sel2.selected).toBe(false);
+    });
+
+    it('deselects all entities when clicking on empty space', () => {
+        const system = new InputSystem();
+        system.init(world);
+
+        const entity = world.createEntity('target');
+        entity.addComponent(new TransformComponent(100, 100));
+        const selectable = entity.addComponent(new SelectableComponent(20));
+
+        // First select the entity
+        simulateMouseMove(100, 100);
+        simulateClick();
+        system.update(16);
+        expect(selectable.selected).toBe(true);
+
+        // Click on empty space
+        simulateMouseMove(500, 500);
+        simulateClick();
+        system.update(16);
+
+        expect(selectable.selected).toBe(false);
+    });
+
+    // --- Right-click tests ---
+
+    it('emits RIGHT_CLICK with coordinates on right-click', () => {
+        const system = new InputSystem();
+        system.init(world);
+
+        simulateRightClick(250, 350);
+        system.update(16);
+
+        const emittedEvents: Array<{ type: string; x?: number; y?: number }> = [];
+        eventQueue.on(GameEvents.RIGHT_CLICK, (event) => {
+            emittedEvents.push(event as { type: string; x?: number; y?: number });
+        });
+        eventQueue.drain();
+
+        expect(emittedEvents).toHaveLength(1);
+        expect(emittedEvents[0].x).toBe(250);
+        expect(emittedEvents[0].y).toBe(350);
+    });
+
+    it('clears pending right-click after processing', () => {
+        const system = new InputSystem();
+        system.init(world);
+
+        simulateRightClick(250, 350);
+        system.update(16);
+        eventQueue.drain();
+
+        // Second update without new right-click should not emit another event
+        system.update(16);
+
+        const emittedEvents: Array<{ type: string }> = [];
+        eventQueue.on(GameEvents.RIGHT_CLICK, (event) => {
+            emittedEvents.push(event);
+        });
+        eventQueue.drain();
+
+        expect(emittedEvents).toHaveLength(0);
     });
 });
