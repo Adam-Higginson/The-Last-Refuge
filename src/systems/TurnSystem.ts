@@ -5,6 +5,8 @@
 
 import { System } from '../core/System';
 import { ServiceLocator } from '../core/ServiceLocator';
+import { GameEvents } from '../core/GameEvents';
+import type { TurnBlockEvent, TurnUnblockEvent } from '../core/GameEvents';
 import type { World } from '../core/World';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
@@ -25,12 +27,12 @@ export class TurnSystem extends System {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
 
         this.turnBlockHandler = (event): void => {
-            const key = event.key as string;
+            const { key } = event as TurnBlockEvent;
             if (key) (this.blockers as Set<string>).add(key);
         };
 
         this.turnUnblockHandler = (event): void => {
-            const key = event.key as string;
+            const { key } = event as TurnUnblockEvent;
             if (key) (this.blockers as Set<string>).delete(key);
         };
 
@@ -38,12 +40,12 @@ export class TurnSystem extends System {
             if (this.blockers.size > 0) return;
 
             this.currentTurn++;
-            this.eventQueue.emit({ type: 'turn:end', turn: this.currentTurn });
+            this.eventQueue.emit({ type: GameEvents.TURN_END, turn: this.currentTurn });
         };
 
-        this.eventQueue.on('turn:advance', this.turnAdvanceHandler);
-        this.eventQueue.on('turn:block', this.turnBlockHandler);
-        this.eventQueue.on('turn:unblock', this.turnUnblockHandler);
+        this.eventQueue.on(GameEvents.TURN_ADVANCE, this.turnAdvanceHandler);
+        this.eventQueue.on(GameEvents.TURN_BLOCK, this.turnBlockHandler);
+        this.eventQueue.on(GameEvents.TURN_UNBLOCK, this.turnUnblockHandler);
     }
 
     update(_dt: number): void {
@@ -51,8 +53,8 @@ export class TurnSystem extends System {
     }
 
     destroy(): void {
-        this.eventQueue.off('turn:advance', this.turnAdvanceHandler);
-        this.eventQueue.off('turn:block', this.turnBlockHandler);
-        this.eventQueue.off('turn:unblock', this.turnUnblockHandler);
+        this.eventQueue.off(GameEvents.TURN_ADVANCE, this.turnAdvanceHandler);
+        this.eventQueue.off(GameEvents.TURN_BLOCK, this.turnBlockHandler);
+        this.eventQueue.off(GameEvents.TURN_UNBLOCK, this.turnUnblockHandler);
     }
 }

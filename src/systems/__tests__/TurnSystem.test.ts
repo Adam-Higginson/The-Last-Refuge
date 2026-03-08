@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
+import { GameEvents } from '../../core/GameEvents';
 import { TurnSystem } from '../TurnSystem';
 
 describe('TurnSystem', () => {
@@ -25,7 +26,7 @@ describe('TurnSystem', () => {
         const system = new TurnSystem();
         system.init(world);
 
-        eventQueue.emit({ type: 'turn:advance' });
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
         eventQueue.drain();
 
         expect(system.currentTurn).toBe(2);
@@ -35,11 +36,11 @@ describe('TurnSystem', () => {
         const system = new TurnSystem();
         system.init(world);
 
-        eventQueue.emit({ type: 'turn:advance' });
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
         eventQueue.drain();
 
         const emitted: Array<{ type: string; turn?: number }> = [];
-        eventQueue.on('turn:end', (event) => {
+        eventQueue.on(GameEvents.TURN_END, (event) => {
             emitted.push(event as { type: string; turn?: number });
         });
         eventQueue.drain();
@@ -53,7 +54,7 @@ describe('TurnSystem', () => {
         system.init(world);
 
         for (let i = 0; i < 5; i++) {
-            eventQueue.emit({ type: 'turn:advance' });
+            eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
             eventQueue.drain();
             // Drain the turn:end that gets emitted
             eventQueue.drain();
@@ -67,10 +68,10 @@ describe('TurnSystem', () => {
         system.init(world);
 
         // Another system blocks turn advancement
-        eventQueue.emit({ type: 'turn:block', key: 'orbit' });
+        eventQueue.emit({ type: GameEvents.TURN_BLOCK, key: 'orbit' });
         eventQueue.drain();
 
-        eventQueue.emit({ type: 'turn:advance' });
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
         eventQueue.drain();
 
         expect(system.currentTurn).toBe(1);
@@ -81,12 +82,12 @@ describe('TurnSystem', () => {
         system.init(world);
 
         // Block then unblock
-        eventQueue.emit({ type: 'turn:block', key: 'orbit' });
+        eventQueue.emit({ type: GameEvents.TURN_BLOCK, key: 'orbit' });
         eventQueue.drain();
-        eventQueue.emit({ type: 'turn:unblock', key: 'orbit' });
+        eventQueue.emit({ type: GameEvents.TURN_UNBLOCK, key: 'orbit' });
         eventQueue.drain();
 
-        eventQueue.emit({ type: 'turn:advance' });
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
         eventQueue.drain();
 
         expect(system.currentTurn).toBe(2);
@@ -96,14 +97,14 @@ describe('TurnSystem', () => {
         const system = new TurnSystem();
         system.init(world);
 
-        eventQueue.emit({ type: 'turn:block', key: 'orbit' });
+        eventQueue.emit({ type: GameEvents.TURN_BLOCK, key: 'orbit' });
         eventQueue.drain();
 
-        eventQueue.emit({ type: 'turn:advance' });
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
         eventQueue.drain();
 
         const emitted: Array<{ type: string }> = [];
-        eventQueue.on('turn:end', (event) => {
+        eventQueue.on(GameEvents.TURN_END, (event) => {
             emitted.push(event);
         });
         eventQueue.drain();
@@ -115,23 +116,23 @@ describe('TurnSystem', () => {
         const system = new TurnSystem();
         system.init(world);
 
-        eventQueue.emit({ type: 'turn:block', key: 'orbit' });
-        eventQueue.emit({ type: 'turn:block', key: 'combat' });
+        eventQueue.emit({ type: GameEvents.TURN_BLOCK, key: 'orbit' });
+        eventQueue.emit({ type: GameEvents.TURN_BLOCK, key: 'combat' });
         eventQueue.drain();
 
         // Remove one blocker — still blocked by the other
-        eventQueue.emit({ type: 'turn:unblock', key: 'orbit' });
+        eventQueue.emit({ type: GameEvents.TURN_UNBLOCK, key: 'orbit' });
         eventQueue.drain();
 
-        eventQueue.emit({ type: 'turn:advance' });
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
         eventQueue.drain();
         expect(system.currentTurn).toBe(1);
 
         // Remove the second blocker — now unblocked
-        eventQueue.emit({ type: 'turn:unblock', key: 'combat' });
+        eventQueue.emit({ type: GameEvents.TURN_UNBLOCK, key: 'combat' });
         eventQueue.drain();
 
-        eventQueue.emit({ type: 'turn:advance' });
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
         eventQueue.drain();
         expect(system.currentTurn).toBe(2);
     });
@@ -141,7 +142,7 @@ describe('TurnSystem', () => {
         system.init(world);
         system.destroy();
 
-        eventQueue.emit({ type: 'turn:advance' });
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
         eventQueue.drain();
 
         expect(system.currentTurn).toBe(1);
@@ -151,7 +152,7 @@ describe('TurnSystem', () => {
         const system = new TurnSystem();
         system.init(world);
 
-        eventQueue.emit({ type: 'entity:click', entityId: 1 });
+        eventQueue.emit({ type: GameEvents.ENTITY_CLICK, entityId: 1 });
         eventQueue.drain();
 
         expect(system.currentTurn).toBe(1);

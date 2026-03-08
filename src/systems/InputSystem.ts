@@ -4,6 +4,7 @@
 
 import { System } from '../core/System';
 import { ServiceLocator } from '../core/ServiceLocator';
+import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import type { World } from '../core/World';
@@ -39,7 +40,7 @@ export class InputSystem extends System {
         this.onKeyDown = (e: KeyboardEvent): void => {
             if (e.code === 'Space') {
                 e.preventDefault();
-                this.eventQueue.emit({ type: 'turn:advance' });
+                this.eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
             }
         };
 
@@ -70,7 +71,7 @@ export class InputSystem extends System {
                 // Emit click event if there was a pending click
                 if (this.pendingClick) {
                     this.eventQueue.emit({
-                        type: 'entity:click',
+                        type: GameEvents.ENTITY_CLICK,
                         entityId: entity.id,
                         entityName: entity.name,
                     });

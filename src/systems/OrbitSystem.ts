@@ -5,6 +5,7 @@
 
 import { System } from '../core/System';
 import { ServiceLocator } from '../core/ServiceLocator';
+import { GameEvents } from '../core/GameEvents';
 import { OrbitComponent } from '../components/OrbitComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import type { World } from '../core/World';
@@ -45,10 +46,10 @@ export class OrbitSystem extends System {
             }
 
             // Block turn advancement while orbits animate
-            this.eventQueue.emit({ type: 'turn:block', key: 'orbit' });
+            this.eventQueue.emit({ type: GameEvents.TURN_BLOCK, key: 'orbit' });
         };
 
-        this.eventQueue.on('turn:end', this.turnEndHandler);
+        this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
     }
 
     update(dt: number): void {
@@ -83,11 +84,11 @@ export class OrbitSystem extends System {
 
         // Unblock turn advancement once all orbit animations are done
         if (!anyAnimating) {
-            this.eventQueue.emit({ type: 'turn:unblock', key: 'orbit' });
+            this.eventQueue.emit({ type: GameEvents.TURN_UNBLOCK, key: 'orbit' });
         }
     }
 
     destroy(): void {
-        this.eventQueue.off('turn:end', this.turnEndHandler);
+        this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
     }
 }

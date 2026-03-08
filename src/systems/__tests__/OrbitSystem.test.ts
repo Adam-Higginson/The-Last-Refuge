@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
+import { GameEvents } from '../../core/GameEvents';
 import { OrbitSystem } from '../OrbitSystem';
 import { OrbitComponent, ORBIT_ANIM_DURATION } from '../../components/OrbitComponent';
 import { TransformComponent } from '../../components/TransformComponent';
@@ -35,7 +36,7 @@ describe('OrbitSystem', () => {
 
         expect(orbit.animating).toBe(false);
 
-        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.emit({ type: GameEvents.TURN_END });
         eventQueue.drain();
 
         expect(orbit.animating).toBe(true);
@@ -51,7 +52,7 @@ describe('OrbitSystem', () => {
         const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
         entity.addComponent(new TransformComponent(600, 300));
 
-        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.emit({ type: GameEvents.TURN_END });
         eventQueue.drain();
 
         // Run enough ticks to complete the animation
@@ -69,7 +70,7 @@ describe('OrbitSystem', () => {
         const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
         entity.addComponent(new TransformComponent(600, 300));
 
-        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.emit({ type: GameEvents.TURN_END });
         eventQueue.drain();
 
         // After a partial update, angle should be between 0 and 0.15
@@ -87,12 +88,12 @@ describe('OrbitSystem', () => {
         entity.addComponent(new TransformComponent(600, 300));
 
         // First turn
-        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.emit({ type: GameEvents.TURN_END });
         eventQueue.drain();
         system.update(ORBIT_ANIM_DURATION / 2); // half-animate
 
         // Second turn while still animating — should snap first
-        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.emit({ type: GameEvents.TURN_END });
         eventQueue.drain();
 
         // Should have snapped to first target and started new animation
@@ -111,7 +112,7 @@ describe('OrbitSystem', () => {
 
         // Advance three turns, completing animation between each
         for (let i = 0; i < 3; i++) {
-            eventQueue.emit({ type: 'turn:end' });
+            eventQueue.emit({ type: GameEvents.TURN_END });
             eventQueue.drain();
             completeAnimation(system);
         }
@@ -164,7 +165,7 @@ describe('OrbitSystem', () => {
         const orbit2 = e2.addComponent(new OrbitComponent(400, 300, 200, 0.2));
         e2.addComponent(new TransformComponent(0, 0));
 
-        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.emit({ type: GameEvents.TURN_END });
         eventQueue.drain();
         completeAnimation(system);
 
@@ -180,7 +181,7 @@ describe('OrbitSystem', () => {
         const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
         entity.addComponent(new TransformComponent(600, 300));
 
-        eventQueue.emit({ type: 'entity:click', entityId: 1 });
+        eventQueue.emit({ type: GameEvents.ENTITY_CLICK, entityId: 1 });
         eventQueue.drain();
 
         expect(orbit.angle).toBe(0);
@@ -195,12 +196,12 @@ describe('OrbitSystem', () => {
         entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
         entity.addComponent(new TransformComponent(600, 300));
 
-        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.emit({ type: GameEvents.TURN_END });
         eventQueue.drain();
 
         // The turn:end handler emits turn:block — drain to process it
         const blocked: Array<{ type: string; key?: string }> = [];
-        eventQueue.on('turn:block', (event) => {
+        eventQueue.on(GameEvents.TURN_BLOCK, (event) => {
             blocked.push(event as { type: string; key?: string });
         });
         eventQueue.drain();
@@ -217,14 +218,14 @@ describe('OrbitSystem', () => {
         entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
         entity.addComponent(new TransformComponent(600, 300));
 
-        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.emit({ type: GameEvents.TURN_END });
         eventQueue.drain();
 
         // Complete the animation
         completeAnimation(system);
 
         const unblocked: Array<{ type: string; key?: string }> = [];
-        eventQueue.on('turn:unblock', (event) => {
+        eventQueue.on(GameEvents.TURN_UNBLOCK, (event) => {
             unblocked.push(event as { type: string; key?: string });
         });
         eventQueue.drain();
@@ -244,7 +245,7 @@ describe('OrbitSystem', () => {
         system.destroy();
 
         // Events after destroy should not start animation
-        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.emit({ type: GameEvents.TURN_END });
         eventQueue.drain();
 
         expect(orbit.angle).toBe(0);

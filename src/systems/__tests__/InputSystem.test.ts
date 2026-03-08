@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
+import { GameEvents } from '../../core/GameEvents';
 import { InputSystem } from '../InputSystem';
 import { SelectableComponent } from '../../components/SelectableComponent';
 import { TransformComponent } from '../../components/TransformComponent';
@@ -191,7 +192,7 @@ describe('InputSystem', () => {
 
         // Check that an entity:click event was emitted
         const emittedEvents: Array<{ type: string; entityName?: string }> = [];
-        eventQueue.on('entity:click', (event) => {
+        eventQueue.on(GameEvents.ENTITY_CLICK, (event) => {
             emittedEvents.push(event as { type: string; entityName?: string });
         });
         eventQueue.drain();
@@ -214,7 +215,7 @@ describe('InputSystem', () => {
         system.update(16);
 
         const emittedEvents: Array<{ type: string }> = [];
-        eventQueue.on('entity:click', (event) => {
+        eventQueue.on(GameEvents.ENTITY_CLICK, (event) => {
             emittedEvents.push(event);
         });
         eventQueue.drain();
@@ -229,7 +230,7 @@ describe('InputSystem', () => {
         simulateKeyDown('Space');
 
         const emittedEvents: Array<{ type: string }> = [];
-        eventQueue.on('turn:advance', (event) => {
+        eventQueue.on(GameEvents.TURN_ADVANCE, (event) => {
             emittedEvents.push(event);
         });
         eventQueue.drain();
@@ -257,7 +258,7 @@ describe('InputSystem', () => {
         system.update(16);
 
         const emittedEvents: Array<{ type: string }> = [];
-        eventQueue.on('entity:click', (event) => {
+        eventQueue.on(GameEvents.ENTITY_CLICK, (event) => {
             emittedEvents.push(event);
         });
         eventQueue.drain();
