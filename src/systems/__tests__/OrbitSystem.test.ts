@@ -3,8 +3,16 @@ import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
 import { OrbitSystem } from '../OrbitSystem';
-import { OrbitComponent } from '../../components/OrbitComponent';
+import { OrbitComponent, ORBIT_ANIM_DURATION } from '../../components/OrbitComponent';
 import { TransformComponent } from '../../components/TransformComponent';
+
+/** Run enough update ticks to complete an animation at the given dt. */
+function completeAnimation(system: OrbitSystem, dt = 1 / 60): void {
+    const ticks = Math.ceil(ORBIT_ANIM_DURATION / dt) + 1;
+    for (let i = 0; i < ticks; i++) {
+        system.update(dt);
+    }
+}
 
 describe('OrbitSystem', () => {
     let world: World;
@@ -17,7 +25,7 @@ describe('OrbitSystem', () => {
         world = new World();
     });
 
-    it('advances orbit angle on turn:end event', () => {
+    it('begins animation on turn:end event', () => {
         const system = new OrbitSystem();
         system.init(world);
 
@@ -25,16 +33,75 @@ describe('OrbitSystem', () => {
         const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
         entity.addComponent(new TransformComponent(600, 300));
 
-        expect(orbit.angle).toBe(0);
+        expect(orbit.animating).toBe(false);
 
-        // Emit and drain a turn:end event
         eventQueue.emit({ type: 'turn:end' });
         eventQueue.drain();
 
-        expect(orbit.angle).toBeCloseTo(0.15);
+        expect(orbit.animating).toBe(true);
+        expect(orbit.startAngle).toBe(0);
+        expect(orbit.targetAngle).toBeCloseTo(0.15);
     });
 
-    it('advances angle by speed each turn', () => {
+    it('reaches target angle after animation completes', () => {
+        const system = new OrbitSystem();
+        system.init(world);
+
+        const entity = world.createEntity('orbiter');
+        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
+        entity.addComponent(new TransformComponent(600, 300));
+
+        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.drain();
+
+        // Run enough ticks to complete the animation
+        completeAnimation(system);
+
+        expect(orbit.angle).toBeCloseTo(0.15);
+        expect(orbit.animating).toBe(false);
+    });
+
+    it('interpolates angle gradually during animation', () => {
+        const system = new OrbitSystem();
+        system.init(world);
+
+        const entity = world.createEntity('orbiter');
+        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
+        entity.addComponent(new TransformComponent(600, 300));
+
+        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.drain();
+
+        // After a partial update, angle should be between 0 and 0.15
+        system.update(ORBIT_ANIM_DURATION / 2); // half the animation
+        expect(orbit.angle).toBeGreaterThan(0);
+        expect(orbit.angle).toBeLessThan(0.15);
+    });
+
+    it('snaps to target when new turn starts during animation', () => {
+        const system = new OrbitSystem();
+        system.init(world);
+
+        const entity = world.createEntity('orbiter');
+        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
+        entity.addComponent(new TransformComponent(600, 300));
+
+        // First turn
+        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.drain();
+        system.update(ORBIT_ANIM_DURATION / 2); // half-animate
+
+        // Second turn while still animating — should snap first
+        eventQueue.emit({ type: 'turn:end' });
+        eventQueue.drain();
+
+        // Should have snapped to first target and started new animation
+        expect(orbit.startAngle).toBeCloseTo(0.15);
+        expect(orbit.targetAngle).toBeCloseTo(0.30);
+        expect(orbit.animating).toBe(true);
+    });
+
+    it('accumulates angle across multiple completed turns', () => {
         const system = new OrbitSystem();
         system.init(world);
 
@@ -42,10 +109,11 @@ describe('OrbitSystem', () => {
         const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.3));
         entity.addComponent(new TransformComponent(600, 300));
 
-        // Advance three turns
+        // Advance three turns, completing animation between each
         for (let i = 0; i < 3; i++) {
             eventQueue.emit({ type: 'turn:end' });
             eventQueue.drain();
+            completeAnimation(system);
         }
 
         expect(orbit.angle).toBeCloseTo(0.9);
@@ -60,7 +128,7 @@ describe('OrbitSystem', () => {
         const transform = entity.addComponent(new TransformComponent(0, 0));
 
         // update() should sync transform from orbit
-        system.update(16);
+        system.update(1 / 60);
 
         // angle=0: position should be (cx + r, cy) = (600, 300)
         expect(transform.x).toBeCloseTo(600);
@@ -77,7 +145,7 @@ describe('OrbitSystem', () => {
 
         // Manually set angle to pi/2 (90 degrees — top of orbit if y-down)
         orbit.angle = Math.PI / 2;
-        system.update(16);
+        system.update(1 / 60);
 
         // At pi/2: x = cx + r*cos(pi/2) = 400, y = cy + r*sin(pi/2) = 500
         expect(transform.x).toBeCloseTo(400);
@@ -98,6 +166,7 @@ describe('OrbitSystem', () => {
 
         eventQueue.emit({ type: 'turn:end' });
         eventQueue.drain();
+        completeAnimation(system);
 
         expect(orbit1.angle).toBeCloseTo(0.1);
         expect(orbit2.angle).toBeCloseTo(0.2);
@@ -115,6 +184,7 @@ describe('OrbitSystem', () => {
         eventQueue.drain();
 
         expect(orbit.angle).toBe(0);
+        expect(orbit.animating).toBe(false);
     });
 
     it('unsubscribes from turn:end on destroy', () => {
@@ -127,10 +197,11 @@ describe('OrbitSystem', () => {
 
         system.destroy();
 
-        // Events after destroy should not advance the orbit
+        // Events after destroy should not start animation
         eventQueue.emit({ type: 'turn:end' });
         eventQueue.drain();
 
         expect(orbit.angle).toBe(0);
+        expect(orbit.animating).toBe(false);
     });
 });
