@@ -38,6 +38,8 @@ export class MovementSystem extends System {
                 if (!movement) continue;
                 movement.budgetRemaining = movement.budgetMax;
                 movement.displayBudget = movement.budgetMax;
+                movement.turnOriginX = null;
+                movement.turnOriginY = null;
             }
         };
 
@@ -68,6 +70,12 @@ export class MovementSystem extends System {
 
             if (dist < minDist || dist > movement.budgetRemaining) continue;
 
+            // Record turn origin on first move of the turn
+            if (movement.turnOriginX === null || movement.turnOriginY === null) {
+                movement.turnOriginX = transform.x;
+                movement.turnOriginY = transform.y;
+            }
+
             // Initiate movement
             movement.targetX = targetX;
             movement.targetY = targetY;
@@ -88,8 +96,8 @@ export class MovementSystem extends System {
             const transform = entity.getComponent(TransformComponent);
             if (!movement || !transform) continue;
 
-            // Animate displayBudget toward budgetRemaining
-            if (movement.displayBudget !== movement.budgetRemaining) {
+            // Animate displayBudget toward budgetRemaining (only after arrival)
+            if (!movement.moving && movement.displayBudget !== movement.budgetRemaining) {
                 const diff = movement.budgetRemaining - movement.displayBudget;
                 const step = DISPLAY_BUDGET_SPEED * dt;
                 if (Math.abs(diff) <= step) {

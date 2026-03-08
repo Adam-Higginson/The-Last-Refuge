@@ -247,16 +247,35 @@ describe('MovementSystem', () => {
         expect(unblocked[0].key).toBe('movement');
     });
 
-    it('lerps displayBudget toward budgetRemaining each tick', () => {
+    it('does not lerp displayBudget while moving', () => {
+        const system = new MovementSystem();
+        system.init(world);
+
+        const { movement, selectable } = createShipEntity(100, 100, 300);
+        selectable.selected = true;
+
+        // Start a move — budget reduced but displayBudget should stay
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 200, y: 100 });
+        eventQueue.drain();
+
+        const displayBefore = movement.displayBudget;
+        system.update(0.1);
+
+        // displayBudget should NOT have changed while moving
+        expect(movement.displayBudget).toBe(displayBefore);
+        expect(movement.moving).toBe(true);
+    });
+
+    it('lerps displayBudget toward budgetRemaining after arrival', () => {
         const system = new MovementSystem();
         system.init(world);
 
         const { movement } = createShipEntity(100, 100, 300);
 
-        // Manually set budget lower to trigger display animation
+        // Simulate post-arrival state: not moving, but displayBudget mismatched
         movement.budgetRemaining = 100;
+        movement.moving = false;
 
-        // After a small dt, displayBudget should move toward 100 but not reach it
         system.update(0.1);
 
         expect(movement.displayBudget).toBeLessThan(300);
@@ -287,6 +306,60 @@ describe('MovementSystem', () => {
         system.update(1 / 60);
 
         expect(transform.angle).toBeCloseTo(Math.PI / 4);
+    });
+
+    it('sets turnOrigin on first move of a turn', () => {
+        const system = new MovementSystem();
+        system.init(world);
+
+        const { movement, selectable } = createShipEntity(100, 100, 300);
+        selectable.selected = true;
+
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 200, y: 100 });
+        eventQueue.drain();
+
+        expect(movement.turnOriginX).toBe(100);
+        expect(movement.turnOriginY).toBe(100);
+    });
+
+    it('keeps turnOrigin from first move on subsequent moves', () => {
+        const system = new MovementSystem();
+        system.init(world);
+
+        const { movement, selectable } = createShipEntity(100, 100, 300, 10000);
+        selectable.selected = true;
+
+        // First move
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 150, y: 100 });
+        eventQueue.drain();
+        system.update(1); // arrive instantly
+        eventQueue.drain();
+
+        // Second move from new position (150, 100)
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 200, y: 100 });
+        eventQueue.drain();
+
+        // turnOrigin should still be the original position
+        expect(movement.turnOriginX).toBe(100);
+        expect(movement.turnOriginY).toBe(100);
+    });
+
+    it('resets turnOrigin on TURN_END', () => {
+        const system = new MovementSystem();
+        system.init(world);
+
+        const { movement, selectable } = createShipEntity(100, 100, 300);
+        selectable.selected = true;
+
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 200, y: 100 });
+        eventQueue.drain();
+        expect(movement.turnOriginX).toBe(100);
+
+        eventQueue.emit({ type: GameEvents.TURN_END, turn: 2 });
+        eventQueue.drain();
+
+        expect(movement.turnOriginX).toBeNull();
+        expect(movement.turnOriginY).toBeNull();
     });
 
     it('unsubscribes from events on destroy', () => {

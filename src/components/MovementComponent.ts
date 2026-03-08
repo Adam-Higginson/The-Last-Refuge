@@ -4,14 +4,16 @@
 import { Component } from '../core/Component';
 
 export class MovementComponent extends Component {
-    budgetMax: number;       // max movement distance per turn (px)
-    budgetRemaining: number; // remaining this turn
-    targetX: number | null;  // where the ship is gliding toward
+    budgetMax: number;         // max movement distance per turn (px)
+    budgetRemaining: number;   // remaining this turn
+    targetX: number | null;    // where the ship is gliding toward
     targetY: number | null;
-    speed: number;           // glide speed in px/second
+    speed: number;             // glide speed in px/second
     moving: boolean;
-    facing: number;          // visual facing angle in radians
-    displayBudget: number;   // animated budget radius for range circle visualization
+    facing: number;            // visual facing angle in radians
+    displayBudget: number;     // animated budget radius for range circle visualization
+    turnOriginX: number | null; // position at start of first move this turn
+    turnOriginY: number | null;
 
     constructor(budgetMax: number, speed = 200) {
         super();
@@ -23,5 +25,7 @@ export class MovementComponent extends Component {
         this.moving = false;
         this.facing = 0;
         this.displayBudget = budgetMax;
+        this.turnOriginX = null;
+        this.turnOriginY = null;
     }
 }

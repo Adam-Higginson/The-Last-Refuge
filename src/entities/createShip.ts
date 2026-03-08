@@ -53,15 +53,42 @@ function drawShip(
     const hovered = selectable?.hovered ?? false;
     const selected = selectable?.selected ?? false;
 
-    // --- Movement range disc (visible when selected, including while moving) ---
+    // --- Dotted line to target while moving ---
+    if (movement && movement.moving && movement.targetX !== null && movement.targetY !== null) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([6, 4]);
+        ctx.moveTo(x, y);
+        ctx.lineTo(movement.targetX, movement.targetY);
+        ctx.strokeStyle = 'rgba(255, 220, 120, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Target marker — small cross at destination
+        const tx = movement.targetX;
+        const ty = movement.targetY;
+        const cs = 5; // cross half-size
+        ctx.beginPath();
+        ctx.moveTo(tx - cs, ty - cs);
+        ctx.lineTo(tx + cs, ty + cs);
+        ctx.moveTo(tx + cs, ty - cs);
+        ctx.lineTo(tx - cs, ty + cs);
+        ctx.strokeStyle = 'rgba(255, 220, 120, 0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // --- Movement range disc (anchored to turn origin, visible when selected) ---
     // Colour transitions green → amber → red as budget depletes
     if (selected && movement && movement.displayBudget > 0) {
         const r = movement.displayBudget;
         const ratio = movement.budgetMax > 0
-            ? movement.budgetRemaining / movement.budgetMax
+            ? movement.displayBudget / movement.budgetMax
             : 0;
 
-        // Gradient fill
+        // Gradient fill (always centred on the ship)
         const rangeGrad = ctx.createRadialGradient(x, y, 0, x, y, r);
         rangeGrad.addColorStop(0, budgetColour(ratio, 0.18));
         rangeGrad.addColorStop(0.6, budgetColour(ratio, 0.10));
