@@ -10,6 +10,9 @@ import { MovementSystem } from './systems/MovementSystem';
 import { OrbitSystem } from './systems/OrbitSystem';
 import { RenderSystem } from './systems/RenderSystem';
 import { UISystem } from './systems/UISystem';
+import { TransformComponent } from './components/TransformComponent';
+import { createBackground } from './entities/createBackground';
+import { createStar } from './entities/createStar';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -18,13 +21,9 @@ function boot(): void {
         throw new Error('Failed to get 2D canvas context');
     }
 
-    // Size canvas to window
-    function resize(): void {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    resize();
-    window.addEventListener('resize', resize);
+    // Size canvas to window (initial sizing before entities exist)
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
     // Register core services
     const eventQueue = new EventQueue();
@@ -43,7 +42,25 @@ function boot(): void {
     world.addSystem(new RenderSystem());
     world.addSystem(new UISystem());
 
-    // TODO: create entities (star, planet, ship, crew)
+    // Create entities
+    createBackground(world);
+    createStar(world);
+    // TODO: create planet, ship, crew entities
+
+    // Resize handler — updates canvas dimensions and re-centres entities
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const star = world.getEntityByName('star');
+        if (star) {
+            const transform = star.getComponent(TransformComponent);
+            if (transform) {
+                transform.x = canvas.width / 2;
+                transform.y = canvas.height / 2;
+            }
+        }
+    });
 
     // Start the game loop
     const loop = new GameLoop(world);
