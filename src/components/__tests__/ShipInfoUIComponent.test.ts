@@ -134,6 +134,11 @@ describe('ShipInfoUIComponent', () => {
     let renameOk: MockElement;
     let rangeFill: MockElement;
     let rangeText: MockElement;
+    let closeBtn: MockElement;
+    let manifestBtn: MockElement;
+    let overviewSection: MockElement;
+    let manifestSection: MockElement;
+    let detailSection: MockElement;
 
     beforeEach(() => {
         ServiceLocator.clear();
@@ -150,6 +155,11 @@ describe('ShipInfoUIComponent', () => {
         renameOk = createMockElement('ship-rename-ok');
         rangeFill = createMockElement('ship-range-fill');
         rangeText = createMockElement('ship-range-text');
+        closeBtn = createMockElement('ship-panel-close');
+        manifestBtn = createMockElement('ship-view-manifest-btn');
+        overviewSection = createMockElement('ship-overview-section');
+        manifestSection = createMockElement('crew-manifest-section');
+        detailSection = createMockElement('crew-detail-section');
 
         elementMap = {
             'ship-info-panel': panel,
@@ -160,6 +170,11 @@ describe('ShipInfoUIComponent', () => {
             'ship-rename-ok': renameOk,
             'ship-range-fill': rangeFill,
             'ship-range-text': rangeText,
+            'ship-panel-close': closeBtn,
+            'ship-view-manifest-btn': manifestBtn,
+            'ship-overview-section': overviewSection,
+            'crew-manifest-section': manifestSection,
+            'crew-detail-section': detailSection,
         };
 
         installMocks();
@@ -217,7 +232,127 @@ describe('ShipInfoUIComponent', () => {
         expect(info.panelOpen).toBe(false);
     });
 
-    it('deselects ship on Escape key (closes panel on next update)', () => {
+    // --- Close button ---
+
+    it('deselects ship when close button is clicked', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+        expect(info.panelOpen).toBe(true);
+
+        closeBtn.click();
+        expect(selectable.selected).toBe(false);
+    });
+
+    // --- View state ---
+
+    it('starts with overview as active view', () => {
+        const { info } = createShipWithInfoPanel();
+        expect(info.activeView).toBe('overview');
+        expect(info.selectedCrewEntityId).toBeNull();
+    });
+
+    it('switches to manifest view when VIEW MANIFEST is clicked', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        manifestBtn.click();
+        expect(info.activeView).toBe('manifest');
+    });
+
+    it('adds wide class when activeView is manifest', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+        expect(panel.classList.contains('wide')).toBe(false);
+
+        info.activeView = 'manifest';
+        info.update(1 / 60);
+        expect(panel.classList.contains('wide')).toBe(true);
+    });
+
+    it('adds wide class when activeView is detail', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.activeView = 'detail';
+        info.update(1 / 60);
+        expect(panel.classList.contains('wide')).toBe(true);
+    });
+
+    it('removes wide class when activeView returns to overview', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.activeView = 'manifest';
+        info.update(1 / 60);
+        expect(panel.classList.contains('wide')).toBe(true);
+
+        info.activeView = 'overview';
+        info.update(1 / 60);
+        expect(panel.classList.contains('wide')).toBe(false);
+    });
+
+    it('shows overview section when activeView is overview', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        expect(overviewSection.classList.contains('active')).toBe(true);
+    });
+
+    it('hides overview section when activeView is manifest', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.activeView = 'manifest';
+        info.update(1 / 60);
+
+        expect(overviewSection.classList.contains('active')).toBe(false);
+    });
+
+    it('resets activeView and selectedCrewEntityId on panel close', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        info.activeView = 'detail';
+        info.selectedCrewEntityId = 42;
+
+        selectable.selected = false;
+        info.update(1 / 60);
+
+        expect(info.activeView).toBe('overview');
+        expect(info.selectedCrewEntityId).toBeNull();
+    });
+
+    // --- Escape key view navigation ---
+
+    it('navigates from detail to manifest on Escape', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        info.activeView = 'detail';
+        info.selectedCrewEntityId = 42;
+
+        pressEscape();
+        expect(info.activeView).toBe('manifest');
+        expect(info.selectedCrewEntityId).toBeNull();
+        expect(selectable.selected).toBe(true);
+    });
+
+    it('navigates from manifest to overview on Escape', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        info.activeView = 'manifest';
+
+        pressEscape();
+        expect(info.activeView).toBe('overview');
+        expect(selectable.selected).toBe(true);
+    });
+
+    it('deselects ship on Escape from overview', () => {
         const { info, selectable } = createShipWithInfoPanel();
         selectable.selected = true;
         info.update(1 / 60);
@@ -286,6 +421,22 @@ describe('ShipInfoUIComponent', () => {
 
         expect(info.panelOpen).toBe(true);
         // No crash, range display just doesn't update
+    });
+
+    it('does not update range display when on manifest view', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        const movement = info.entity.addComponent(new MovementComponent(300));
+
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        // Switch to manifest and change budget
+        info.activeView = 'manifest';
+        movement.budgetRemaining = 50;
+        rangeText.textContent = ''; // reset to confirm it doesn't update
+        info.update(1 / 60);
+
+        expect(rangeText.textContent).toBe('');
     });
 
     // --- Rename ---
@@ -372,6 +523,21 @@ describe('ShipInfoUIComponent', () => {
         expect(info.panelOpen).toBe(false);
         expect(info.renaming).toBe(false);
         expect(info.shipName).toBe('ESV-7 (Unnamed)');
+    });
+
+    it('cancels rename on Escape when renaming (does not navigate views)', () => {
+        const { info, selectable } = createShipWithInfoPanel();
+        selectable.selected = true;
+        info.update(1 / 60);
+
+        renameBtn.click();
+        expect(info.renaming).toBe(true);
+
+        pressEscape();
+        expect(info.renaming).toBe(false);
+        // Should still be on overview, panel still open
+        expect(info.activeView).toBe('overview');
+        expect(selectable.selected).toBe(true);
     });
 
     // --- Lifecycle ---
