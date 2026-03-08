@@ -6,6 +6,7 @@
 import { System } from '../core/System';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
+import { GameModeComponent } from '../components/GameModeComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import type { World } from '../core/World';
@@ -59,6 +60,16 @@ export class InputSystem extends System {
     }
 
     update(_dt: number): void {
+        // Skip entity hover/click processing when not in system map mode.
+        // Consume pending inputs so they don't accumulate.
+        const gameState = this.world.getEntityByName('gameState');
+        const gameMode = gameState?.getComponent(GameModeComponent);
+        if (gameMode && gameMode.mode !== 'system') {
+            this.pendingClick = false;
+            this.pendingRightClick = null;
+            return;
+        }
+
         const entities = this.world.getEntitiesWithComponent(SelectableComponent);
         let anythingHovered = false;
         let hoveredCursor = '';

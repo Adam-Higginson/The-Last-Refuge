@@ -3,12 +3,23 @@
 // and shadow on the side facing away from the star. Shows a highlight ring
 // when hovered. Draws a faint orbit ring centred on the star.
 // Orbit is turn-based — position advances on 'turn:end' events.
+//
+// In planet view mode, renders the surface map with Voronoi biome regions.
 
 import { ServiceLocator } from '../core/ServiceLocator';
 import { TransformComponent } from '../components/TransformComponent';
 import { RenderComponent } from '../components/RenderComponent';
 import { OrbitComponent } from '../components/OrbitComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
+import { RegionDataComponent } from '../components/RegionDataComponent';
+import { GameModeComponent } from '../components/GameModeComponent';
+import { PlanetViewInputComponent } from '../components/PlanetViewInputComponent';
+import { ColoniseUIComponent } from '../components/ColoniseUIComponent';
+import { PlanetInfoUIComponent } from '../components/PlanetInfoUIComponent';
+import { generateVoronoi } from '../utils/voronoi';
+import { assignBiomes } from '../data/biomes';
+import { polygonCentroid } from '../utils/geometry';
+import { mulberry32 } from '../utils/prng';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -21,13 +32,19 @@ const HIT_RADIUS = 20;
 /** Orbit speed in radians per turn (~8.6° per turn, full orbit in ~42 turns) */
 const ORBIT_SPEED = 0.15;
 
+/** Number of Voronoi cells for the surface map */
+export const REGION_COUNT = 8;
+
 /** Calculate the orbit radius as 35% of the smaller canvas dimension */
 export function getOrbitRadius(canvas: HTMLCanvasElement): number {
     return Math.min(canvas.width, canvas.height) * 0.35;
 }
 
-/** Draw New Terra at the given position. Entity is captured via closure. */
-function drawPlanet(
+// ---------------------------------------------------------------------------
+// System map drawing (globe)
+// ---------------------------------------------------------------------------
+
+function drawPlanetGlobe(
     entity: Entity,
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -36,11 +53,10 @@ function drawPlanet(
     const t = performance.now();
     const r = PLANET_RADIUS;
 
-    // Check hover state via the captured entity reference
     const selectable = entity.getComponent(SelectableComponent);
     const hovered = selectable?.hovered ?? false;
 
-    // --- Hover highlight ring ---
+    // Hover highlight ring
     if (hovered) {
         ctx.beginPath();
         ctx.arc(x, y, r + 8, 0, Math.PI * 2);
@@ -48,7 +64,6 @@ function drawPlanet(
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Soft outer glow
         const glowGrad = ctx.createRadialGradient(x, y, r + 4, x, y, r + 16);
         glowGrad.addColorStop(0, 'rgba(79, 168, 255, 0.15)');
         glowGrad.addColorStop(1, 'rgba(79, 168, 255, 0)');
@@ -58,7 +73,7 @@ function drawPlanet(
         ctx.fill();
     }
 
-    // --- Orbit ring (dashed circle centred on the star) ---
+    // Orbit ring
     const orbit = entity.getComponent(OrbitComponent);
     if (orbit) {
         ctx.beginPath();
@@ -67,17 +82,15 @@ function drawPlanet(
         ctx.lineWidth = 1;
         ctx.setLineDash([6, 8]);
         ctx.stroke();
-        ctx.setLineDash([]); // reset dash
+        ctx.setLineDash([]);
     }
 
-    // --- Atmospheric glow (star-facing side) ---
-    // The star is at canvas centre; compute angle from planet to star
+    // Atmospheric glow
     const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
     const starX = canvas.width / 2;
     const starY = canvas.height / 2;
     const angleToStar = Math.atan2(starY - y, starX - x);
 
-    // Atmospheric limb glow on the star-facing side
     const glowX = x + Math.cos(angleToStar) * (r * 0.3);
     const glowY = y + Math.sin(angleToStar) * (r * 0.3);
     const atmosGrad = ctx.createRadialGradient(glowX, glowY, r * 0.5, x, y, r + 6);
@@ -88,29 +101,26 @@ function drawPlanet(
     ctx.arc(x, y, r + 6, 0, Math.PI * 2);
     ctx.fill();
 
-    // --- Planet body ---
+    // Planet body (clipped circle)
     ctx.save();
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.clip();
 
-    // Base ocean: blue-green gradient
+    // Base ocean gradient
     const bodyGrad = ctx.createRadialGradient(
         x - r * 0.3, y - r * 0.3, r * 0.1,
         x, y, r,
     );
-    bodyGrad.addColorStop(0, '#4aa8a0');  // lighter teal
-    bodyGrad.addColorStop(0.5, '#2a7a6a'); // mid green
-    bodyGrad.addColorStop(1, '#1a5a7a');   // blue edge
+    bodyGrad.addColorStop(0, '#4aa8a0');
+    bodyGrad.addColorStop(0.5, '#2a7a6a');
+    bodyGrad.addColorStop(1, '#1a5a7a');
     ctx.fillStyle = bodyGrad;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
 
-    // --- Spinning surface features (continents + clouds) ---
-    // Horizontal scroll simulates planet rotation (~20s per revolution)
-    const spin = (t / 20000) * r * 2; // scroll offset in px
-    const wrap = r * 4; // wrap period (two planet diameters)
-
-    // Draw 4 continent-like patches that scroll across the face
+    // Spinning surface features (continents)
+    const spin = (t / 20000) * r * 2;
+    const wrap = r * 4;
     ctx.globalAlpha = 0.4;
     const landColours = ['#4a9a5a', '#3a8a4a', '#5aaa6a', '#3a7a3a'];
     const landPatches = [
@@ -121,21 +131,14 @@ function drawPlanet(
     ];
     for (let i = 0; i < landPatches.length; i++) {
         const p = landPatches[i];
-        // Compute scrolling x position, wrapping around
         const rawX = (p.xOff * r + spin) % wrap - r;
         ctx.fillStyle = landColours[i];
         ctx.beginPath();
-        ctx.ellipse(
-            x + rawX,
-            y + p.yOff * r,
-            p.w * r,
-            p.h * r,
-            0, 0, Math.PI * 2,
-        );
+        ctx.ellipse(x + rawX, y + p.yOff * r, p.w * r, p.h * r, 0, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // --- Cloud bands (scroll slightly faster than surface) ---
+    // Cloud bands
     const cloudSpin = (t / 16000) * r * 2;
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
@@ -147,18 +150,12 @@ function drawPlanet(
     for (const c of cloudBands) {
         const rawX = (c.xOff * r + cloudSpin) % wrap - r;
         ctx.beginPath();
-        ctx.ellipse(
-            x + rawX,
-            y + c.yOff * r,
-            c.w * r,
-            c.h * r,
-            0, 0, Math.PI * 2,
-        );
+        ctx.ellipse(x + rawX, y + c.yOff * r, c.w * r, c.h * r, 0, 0, Math.PI * 2);
         ctx.fill();
     }
     ctx.globalAlpha = 1.0;
 
-    // --- Shadow (side away from star) ---
+    // Shadow
     const shadowX = x - Math.cos(angleToStar) * r * 0.5;
     const shadowY = y - Math.sin(angleToStar) * r * 0.5;
     const shadowGrad = ctx.createRadialGradient(
@@ -170,8 +167,232 @@ function drawPlanet(
     ctx.fillStyle = shadowGrad;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
 
-    ctx.restore(); // end clip
+    ctx.restore();
 }
+
+// ---------------------------------------------------------------------------
+// Planet view drawing (surface map)
+// ---------------------------------------------------------------------------
+
+function drawPlanetSurface(
+    entity: Entity,
+    ctx: CanvasRenderingContext2D,
+): void {
+    const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
+    const regionData = entity.getComponent(RegionDataComponent);
+    if (!regionData) return;
+
+    // Get hovered/selected region from PlanetViewInputComponent
+    const inputComp = entity.getComponent(PlanetViewInputComponent);
+    const hoveredId = inputComp?.hoveredRegionId ?? -1;
+    const selectedId = inputComp?.selectedRegionId ?? -1;
+
+    // Dark background
+    ctx.fillStyle = '#03040a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw each region
+    for (const region of regionData.regions) {
+        if (region.vertices.length < 3) continue;
+
+        ctx.beginPath();
+        ctx.moveTo(region.vertices[0].x, region.vertices[0].y);
+        for (let i = 1; i < region.vertices.length; i++) {
+            ctx.lineTo(region.vertices[i].x, region.vertices[i].y);
+        }
+        ctx.closePath();
+
+        // Fill with biome colour (brighten on hover, stronger on selection)
+        if (region.id === selectedId) {
+            ctx.fillStyle = brightenColour(region.colour, 0.35);
+        } else if (region.id === hoveredId) {
+            ctx.fillStyle = brightenColour(region.colour, 0.2);
+        } else {
+            ctx.fillStyle = region.colour;
+        }
+        ctx.fill();
+
+        // Border
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Selected border: blue outline
+        if (region.id === selectedId) {
+            ctx.strokeStyle = 'rgba(79, 168, 255, 0.8)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        // Landing zone: gold outline + label
+        if (region.isLandingZone && !region.colonised) {
+            ctx.strokeStyle = '#d4a020';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            const centroid = polygonCentroid(region.vertices);
+            ctx.fillStyle = '#d4a020';
+            ctx.font = '10px "Share Tech Mono", "Courier New", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('HABITABLE LANDING ZONE', centroid.x, centroid.y - 8);
+        }
+
+        // Colonised: settlement icon
+        if (region.colonised) {
+            const centroid = polygonCentroid(region.vertices);
+            drawSettlement(ctx, centroid.x, centroid.y);
+        }
+
+        // Biome label on hover or selection
+        if (region.id === hoveredId || region.id === selectedId) {
+            const centroid = polygonCentroid(region.vertices);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '12px "Share Tech Mono", "Courier New", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(region.biome.toUpperCase(), centroid.x, centroid.y + 4);
+        }
+    }
+}
+
+/** Draw a simple settlement icon at the given position. */
+function drawSettlement(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+    // Small house-like icon
+    ctx.fillStyle = '#d4a020';
+    ctx.beginPath();
+    // Triangle roof
+    ctx.moveTo(x - 8, y);
+    ctx.lineTo(x, y - 10);
+    ctx.lineTo(x + 8, y);
+    ctx.closePath();
+    ctx.fill();
+    // Rectangle base
+    ctx.fillRect(x - 6, y, 12, 8);
+    // Label
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '10px "Share Tech Mono", "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('COLONY', x, y + 22);
+}
+
+/** Brighten a hex colour by a fraction (0-1). */
+function brightenColour(hex: string, amount: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const brighten = (c: number): number => Math.min(255, Math.round(c + (255 - c) * amount));
+    return `rgb(${brighten(r)}, ${brighten(g)}, ${brighten(b)})`;
+}
+
+// ---------------------------------------------------------------------------
+// Transition drawing
+// ---------------------------------------------------------------------------
+
+function drawTransitionToPlanet(
+    entity: Entity,
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    progress: number,
+): void {
+    const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
+
+    if (progress < 0.5) {
+        // Phase 1 (0→0.5): Planet globe scales up, everything else fades
+        const phase = progress / 0.5; // 0→1
+        const scale = 1 + phase * 30; // grow from 1x to 31x
+        const fadeAlpha = 1 - phase;
+
+        // Draw fading background entities (they'll be drawn by RenderSystem normally)
+        // Just draw the planet growing
+        ctx.save();
+        ctx.globalAlpha = fadeAlpha;
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        ctx.translate(-x, -y);
+        drawPlanetGlobe(entity, ctx, x, y);
+        ctx.restore();
+
+        // Overlay darkening
+        ctx.fillStyle = `rgba(3, 4, 10, ${phase * 0.8})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else if (progress < 0.6) {
+        // Phase 2 (0.5→0.6): Black screen
+        ctx.fillStyle = '#03040a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+        // Phase 3 (0.6→1.0): Surface map fades in
+        const phase = (progress - 0.6) / 0.4; // 0→1
+
+        ctx.save();
+        ctx.globalAlpha = phase;
+        drawPlanetSurface(entity, ctx);
+        ctx.restore();
+
+        // Remaining darkness
+        ctx.fillStyle = `rgba(3, 4, 10, ${1 - phase})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+function drawTransitionToSystem(
+    entity: Entity,
+    ctx: CanvasRenderingContext2D,
+    progress: number,
+): void {
+    const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
+
+    if (progress < 0.4) {
+        // Phase 1 (0→0.4): Surface map fades out
+        const phase = progress / 0.4;
+
+        ctx.save();
+        ctx.globalAlpha = 1 - phase;
+        drawPlanetSurface(entity, ctx);
+        ctx.restore();
+
+        ctx.fillStyle = `rgba(3, 4, 10, ${phase})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else if (progress < 0.5) {
+        // Phase 2 (0.4→0.5): Black screen
+        ctx.fillStyle = '#03040a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+        // Phase 3 (0.5→1.0): Fade back to normal (system entities restore visibility)
+        const phase = (progress - 0.5) / 0.5;
+
+        ctx.fillStyle = `rgba(3, 4, 10, ${1 - phase})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Mode-aware draw dispatcher
+// ---------------------------------------------------------------------------
+
+function drawPlanet(
+    entity: Entity,
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+): void {
+    const world = ServiceLocator.get<World>('world');
+    const gameState = world.getEntityByName('gameState');
+    const gameMode = gameState?.getComponent(GameModeComponent);
+
+    if (!gameMode || gameMode.mode === 'system') {
+        drawPlanetGlobe(entity, ctx, x, y);
+    } else if (gameMode.mode === 'planet') {
+        drawPlanetSurface(entity, ctx);
+    } else if (gameMode.mode === 'transitioning-to-planet') {
+        drawTransitionToPlanet(entity, ctx, x, y, gameMode.transitionProgress);
+    } else if (gameMode.mode === 'transitioning-to-system') {
+        drawTransitionToSystem(entity, ctx, gameMode.transitionProgress);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Entity factory
+// ---------------------------------------------------------------------------
 
 export function createPlanet(world: World): Entity {
     const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
@@ -181,16 +402,28 @@ export function createPlanet(world: World): Entity {
 
     const entity = world.createEntity('newTerra');
 
-    // Initial position: angle 0 → right side of orbit
-    entity.addComponent(new TransformComponent(
-        cx + orbitRadius,
-        cy,
-    ));
+    // Position and orbit
+    entity.addComponent(new TransformComponent(cx + orbitRadius, cy));
     entity.addComponent(new OrbitComponent(cx, cy, orbitRadius, ORBIT_SPEED));
     entity.addComponent(new SelectableComponent(HIT_RADIUS));
     entity.addComponent(new RenderComponent('world', (ctx, x, y) => {
         drawPlanet(entity, ctx, x, y);
     }));
+
+    // Generate surface regions
+    const rng = mulberry32(7);
+    const mapWidth = canvas.width;
+    const mapHeight = canvas.height;
+    const cells = generateVoronoi(mapWidth, mapHeight, REGION_COUNT, rng);
+    const regions = assignBiomes(cells, rng, mapWidth, mapHeight);
+
+    const regionData = entity.addComponent(new RegionDataComponent());
+    regionData.regions = regions;
+
+    // Planet view components (lifecycle-driven)
+    entity.addComponent(new PlanetInfoUIComponent());
+    entity.addComponent(new PlanetViewInputComponent());
+    entity.addComponent(new ColoniseUIComponent());
 
     return entity;
 }

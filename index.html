@@ -239,6 +239,98 @@
             width: 340px;
         }
 
+        /* --- Planet Info Panel --- */
+        #planet-info-panel {
+            top: 80px;
+            right: 0;
+            width: 280px;
+            padding: 20px;
+            border-left: 1px solid rgba(79, 168, 255, 0.2);
+            border-bottom: 1px solid rgba(79, 168, 255, 0.2);
+            transform: translateX(100%);
+            transition: transform 0.25s ease-out;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        #planet-info-panel.open {
+            transform: translateX(0);
+        }
+
+        #planet-info-panel .panel-close-btn {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: rgba(192, 200, 216, 0.5);
+            font-size: 18px;
+            cursor: pointer;
+            font-family: inherit;
+            padding: 2px 6px;
+        }
+
+        #planet-info-panel .panel-close-btn:hover {
+            color: #ffffff;
+        }
+
+        #planet-info-panel .ship-name-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        #planet-info-panel .ship-name {
+            font-size: 15px;
+            color: #ffffff;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        #planet-info-panel .divider {
+            border: none;
+            border-top: 1px solid rgba(192, 200, 216, 0.15);
+            margin: 12px 0;
+        }
+
+        #planet-info-panel .lore-text {
+            font-size: 12px;
+            opacity: 0.6;
+            line-height: 1.7;
+        }
+
+        .planet-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .surface-tooltip {
+            position: absolute;
+            top: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(3, 4, 10, 0.95);
+            border: 1px solid rgba(79, 168, 255, 0.3);
+            color: rgba(192, 200, 216, 0.8);
+            font-size: 10px;
+            padding: 4px 10px;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .planet-status-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ccaa44;
+        }
+
         /* --- Sub-view Containers --- */
         #ship-info-panel .view-section {
             display: none;
@@ -452,12 +544,153 @@
             margin-top: 2px;
             line-height: 1.5;
         }
+
+        /* --- Planet View Back Button --- */
+        #planet-view-back {
+            position: fixed;
+            top: 24px;
+            left: 24px;
+            display: none;
+            background: none;
+            border: 1px solid rgba(79, 168, 255, 0.4);
+            color: #4fa8ff;
+            font-family: inherit;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 8px 18px;
+            cursor: pointer;
+            z-index: 20;
+            transition: border-color 0.15s, color 0.15s;
+        }
+
+        #planet-view-back:hover {
+            border-color: #4fa8ff;
+            color: #ffffff;
+        }
+
+        /* --- Colonise Button --- */
+        #colonise-btn {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            background: rgba(212, 160, 32, 0.15);
+            border: 1px solid #d4a020;
+            color: #d4a020;
+            font-family: inherit;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 10px 32px;
+            cursor: pointer;
+            z-index: 20;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        #colonise-btn:hover {
+            background: rgba(212, 160, 32, 0.3);
+            color: #ffffff;
+        }
+
+        /* --- Colonise Confirmation Modal --- */
+        #colonise-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(3, 4, 10, 0.8);
+            z-index: 30;
+        }
+
+        .colonise-modal-box {
+            background: rgba(3, 4, 10, 0.95);
+            border: 1px solid rgba(79, 168, 255, 0.3);
+            padding: 32px 40px;
+            max-width: 420px;
+            text-align: center;
+        }
+
+        .colonise-modal-box .modal-title {
+            font-size: 14px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        .colonise-modal-box .modal-desc {
+            font-size: 12px;
+            opacity: 0.7;
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+
+        .colonise-modal-box .modal-biome {
+            color: #d4a020;
+            font-size: 13px;
+        }
+
+        .colonise-modal-box .modal-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .colonise-modal-box .modal-btn {
+            background: transparent;
+            border: 1px solid rgba(79, 168, 255, 0.4);
+            color: #4fa8ff;
+            font-family: inherit;
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 8px 24px;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+        }
+
+        .colonise-modal-box .modal-btn:hover {
+            border-color: #4fa8ff;
+            color: #ffffff;
+        }
+
+        .colonise-modal-box .modal-btn.confirm {
+            border-color: #d4a020;
+            color: #d4a020;
+        }
+
+        .colonise-modal-box .modal-btn.confirm:hover {
+            background: rgba(212, 160, 32, 0.15);
+            color: #ffffff;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
     <div id="hud-bottom" class="hud-panel"></div>
     <div id="ship-info-panel" class="hud-panel"></div>
+    <div id="planet-info-panel" class="hud-panel"></div>
+
+    <!-- Planet View UI -->
+    <button id="planet-view-back" type="button">&#8592; SYSTEM MAP</button>
+    <button id="colonise-btn" type="button">COLONISE</button>
+    <div id="colonise-modal">
+        <div class="colonise-modal-box">
+            <div class="modal-title">ESTABLISH COLONY</div>
+            <div class="modal-desc">
+                Establish first colony on <span id="colonise-modal-biome" class="modal-biome"></span> terrain?
+                This will commit 50 souls to the surface.
+            </div>
+            <div class="modal-actions">
+                <button id="colonise-modal-cancel" class="modal-btn" type="button">CANCEL</button>
+                <button id="colonise-modal-confirm" class="modal-btn confirm" type="button">CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

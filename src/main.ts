@@ -13,9 +13,14 @@ import { UISystem } from './systems/UISystem';
 import { TransformComponent } from './components/TransformComponent';
 import { OrbitComponent } from './components/OrbitComponent';
 import { MovementComponent } from './components/MovementComponent';
+import { createGameState } from './entities/createGameState';
 import { createBackground } from './entities/createBackground';
 import { createStar } from './entities/createStar';
-import { createPlanet, getOrbitRadius } from './entities/createPlanet';
+import { createPlanet, getOrbitRadius, REGION_COUNT } from './entities/createPlanet';
+import { RegionDataComponent } from './components/RegionDataComponent';
+import { generateVoronoi } from './utils/voronoi';
+import { assignBiomes } from './data/biomes';
+import { mulberry32 } from './utils/prng';
 import { createShip } from './entities/createShip';
 import { createHUD } from './entities/createHUD';
 import { createCrew } from './entities/createCrew';
@@ -48,7 +53,8 @@ function boot(): void {
     world.addSystem(new RenderSystem());
     world.addSystem(new UISystem());
 
-    // Create entities
+    // Create entities (gameState first — systems query it for mode)
+    createGameState(world);
     createBackground(world);
     createStar(world);
     createPlanet(world);
@@ -102,6 +108,26 @@ function boot(): void {
                 if (movement.turnOriginY !== null) movement.turnOriginY += dy;
                 if (movement.targetX !== null) movement.targetX += dx;
                 if (movement.targetY !== null) movement.targetY += dy;
+            }
+        }
+
+        // Regenerate planet surface regions for new canvas dimensions
+        if (planet) {
+            const regionData = planet.getComponent(RegionDataComponent);
+            if (regionData) {
+                const rng = mulberry32(7); // same seed as initial generation
+                const cells = generateVoronoi(canvas.width, canvas.height, REGION_COUNT, rng);
+                const newRegions = assignBiomes(cells, rng, canvas.width, canvas.height);
+
+                // Preserve colonisation state from old regions
+                for (const newRegion of newRegions) {
+                    const oldRegion = regionData.regions.find(r => r.id === newRegion.id);
+                    if (oldRegion && oldRegion.colonised) {
+                        newRegion.colonised = true;
+                    }
+                }
+
+                regionData.regions = newRegions;
             }
         }
     });
