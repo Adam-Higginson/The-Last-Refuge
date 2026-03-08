@@ -252,6 +252,37 @@ describe('OrbitComponent', () => {
         expect(orbit.radius).toBeCloseTo(280);
     });
 
+    it('syncs transform position immediately on CANVAS_RESIZE', () => {
+        const canvas = { width: 800, height: 600 } as HTMLCanvasElement;
+        ServiceLocator.register('canvas', canvas);
+
+        const entity = world.createEntity('orbiter');
+        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
+        const transform = entity.addComponent(new TransformComponent(600, 300));
+        orbit.init();
+
+        // Set angle to pi/2 so transform calculation is non-trivial
+        orbit.angle = Math.PI / 2;
+
+        // Resize to 1200x800
+        canvas.width = 1200;
+        canvas.height = 800;
+
+        eventQueue.emit({
+            type: GameEvents.CANVAS_RESIZE,
+            width: 1200,
+            height: 800,
+            dx: 200,
+            dy: 100,
+        });
+        eventQueue.drain();
+
+        // New radius = Math.min(1200, 800) * 0.35 = 280
+        // At pi/2: x = 600 + 280*cos(pi/2) = 600, y = 400 + 280*sin(pi/2) = 680
+        expect(transform.x).toBeCloseTo(600);
+        expect(transform.y).toBeCloseTo(680);
+    });
+
     it('unsubscribes resize handler on destroy', () => {
         const canvas = { width: 800, height: 600 } as HTMLCanvasElement;
         ServiceLocator.register('canvas', canvas);

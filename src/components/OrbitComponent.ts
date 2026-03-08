@@ -84,6 +84,14 @@ export class OrbitComponent extends Component {
             this.centreY = height / 2;
             const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
             this.radius = getOrbitRadius(canvas);
+
+            // Immediately sync transform so render uses the new orbit position
+            // (without this, update() would have already written the old position)
+            const transform = this.entity.getComponent(TransformComponent);
+            if (transform) {
+                transform.x = this.centreX + this.radius * Math.cos(this.angle);
+                transform.y = this.centreY + this.radius * Math.sin(this.angle);
+            }
         };
 
         this.eventQueue.on(GameEvents.CANVAS_RESIZE, this.resizeHandler);
