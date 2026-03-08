@@ -106,6 +106,9 @@ function boot(): void {
         }
     });
 
+    // Expose world for browser console debugging (dev only)
+    (window as unknown as Record<string, unknown>).__debugWorld = world;
+
     // Start the game loop
     const loop = new GameLoop(world);
     loop.start();
