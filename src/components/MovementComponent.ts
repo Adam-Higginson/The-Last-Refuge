@@ -10,6 +10,8 @@ export class MovementComponent extends Component {
     targetY: number | null;
     speed: number;           // glide speed in px/second
     moving: boolean;
+    facing: number;          // visual facing angle in radians
+    displayBudget: number;   // animated budget radius for range circle visualization
 
     constructor(budgetMax: number, speed = 200) {
         super();
@@ -19,5 +21,7 @@ export class MovementComponent extends Component {
         this.targetY = null;
         this.speed = speed;
         this.moving = false;
+        this.facing = 0;
+        this.displayBudget = budgetMax;
     }
 }
