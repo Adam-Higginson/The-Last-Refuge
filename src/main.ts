@@ -20,6 +20,7 @@ import { createPlanet } from './entities/createPlanet';
 import { createShip } from './entities/createShip';
 import { createHUD } from './entities/createHUD';
 import { createCrew } from './entities/createCrew';
+import { CameraComponent } from './components/CameraComponent';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -49,8 +50,10 @@ function boot(): void {
     world.addSystem(new RenderSystem());
     world.addSystem(new UISystem());
 
-    // Create entities (gameState first — systems query it for mode)
+    // Create entities (gameState and camera first — systems query them)
     createGameState(world);
+    const cameraEntity = world.createEntity('camera');
+    cameraEntity.addComponent(new CameraComponent());
     createBackground(world);
     createStar(world);
     createPlanet(world);
@@ -58,11 +61,9 @@ function boot(): void {
     createCrew(world);
     createHUD(world);
 
-    // Resize handler — updates canvas dimensions and notifies components
+    // Resize handler — updates canvas pixel dimensions.
+    // CameraComponent and RegionDataComponent subscribe to CANVAS_RESIZE.
     window.addEventListener('resize', () => {
-        const oldCx = canvas.width / 2;
-        const oldCy = canvas.height / 2;
-
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
@@ -70,8 +71,6 @@ function boot(): void {
             type: GameEvents.CANVAS_RESIZE,
             width: canvas.width,
             height: canvas.height,
-            dx: canvas.width / 2 - oldCx,
-            dy: canvas.height / 2 - oldCy,
         });
     });
 

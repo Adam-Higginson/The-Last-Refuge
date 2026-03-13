@@ -4,11 +4,9 @@
 // All rendering uses radial gradients with additive blending
 // for a natural, non-cartoon glow.
 
-import { ServiceLocator } from '../core/ServiceLocator';
 import { TransformComponent } from '../components/TransformComponent';
 import { RenderComponent } from '../components/RenderComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
-import { CentredComponent } from '../components/CentredComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -124,15 +122,11 @@ function drawStar(
 }
 
 export function createStar(world: World): Entity {
-    const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
-
     const entity = world.createEntity('star');
-    entity.addComponent(new TransformComponent(
-        canvas.width / 2,
-        canvas.height / 2,
-    ));
+
+    // Star is at world origin (0, 0) — camera maps this to canvas centre
+    entity.addComponent(new TransformComponent(0, 0));
     entity.addComponent(new SelectableComponent(HIT_RADIUS));
-    entity.addComponent(new CentredComponent());
     entity.addComponent(new RenderComponent('world', (ctx, x, y) => {
         drawStar(entity, ctx, x, y);
     }));

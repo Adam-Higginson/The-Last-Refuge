@@ -2,10 +2,13 @@
 // Handles entity selection (left-click) and right-click dispatching.
 // Emits events for clicks on entities. Updates cursor style on hover.
 // Space key is a keyboard shortcut for turn advancement (alongside the HUD END TURN button).
+// All hit-testing and emitted coordinates are in world space — InputSystem converts
+// screen (pixel) coordinates to world coordinates via CameraComponent.
 
 import { System } from '../core/System';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
+import { CameraComponent } from '../components/CameraComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { TransformComponent } from '../components/TransformComponent';
@@ -88,6 +91,17 @@ export class InputSystem extends System {
         window.addEventListener('keydown', this.onKeyDown);
     }
 
+    /** Convert screen coordinates to world coordinates via CameraComponent.
+     *  Falls back to identity (raw screen coords) if no camera entity exists. */
+    private screenToWorld(sx: number, sy: number): { x: number; y: number } {
+        const cameraEntity = this.world.getEntityByName('camera');
+        const camera = cameraEntity?.getComponent(CameraComponent);
+        if (camera) {
+            return camera.screenToWorld(sx, sy);
+        }
+        return { x: sx, y: sy };
+    }
+
     update(_dt: number): void {
         // Skip entity hover/click processing when not in system map mode.
         // Consume pending inputs so they don't accumulate.
@@ -99,6 +113,9 @@ export class InputSystem extends System {
             return;
         }
 
+        // Convert raw screen-space mouse position to world coordinates
+        const worldMouse = this.screenToWorld(this.mouseX, this.mouseY);
+
         const entities = this.world.getEntitiesWithComponent(SelectableComponent);
         let anythingHovered = false;
         let hoveredCursor = '';
@@ -109,12 +126,12 @@ export class InputSystem extends System {
             const transform = entity.getComponent(TransformComponent);
             if (!selectable || !transform) continue;
 
-            // Broadcast cursor position so renderers can draw hover previews
-            selectable.cursorX = this.mouseX;
-            selectable.cursorY = this.mouseY;
+            // Broadcast cursor position in world coords so renderers can draw hover previews
+            selectable.cursorX = worldMouse.x;
+            selectable.cursorY = worldMouse.y;
 
-            const dx = this.mouseX - transform.x;
-            const dy = this.mouseY - transform.y;
+            const dx = worldMouse.x - transform.x;
+            const dy = worldMouse.y - transform.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist <= selectable.hitRadius) {
@@ -155,14 +172,18 @@ export class InputSystem extends System {
 
         // Dispatch right-click: entity right-click if on an entity, else generic right-click
         if (this.pendingRightClick) {
+            const worldClick = this.screenToWorld(
+                this.pendingRightClick.x,
+                this.pendingRightClick.y,
+            );
             let rightClickedEntity = false;
             for (const entity of entities) {
                 const selectable = entity.getComponent(SelectableComponent);
                 const transform = entity.getComponent(TransformComponent);
                 if (!selectable || !transform) continue;
 
-                const rdx = this.pendingRightClick.x - transform.x;
-                const rdy = this.pendingRightClick.y - transform.y;
+                const rdx = worldClick.x - transform.x;
+                const rdy = worldClick.y - transform.y;
                 const rDist = Math.sqrt(rdx * rdx + rdy * rdy);
 
                 if (rDist <= selectable.hitRadius) {
@@ -179,8 +200,8 @@ export class InputSystem extends System {
             if (!rightClickedEntity) {
                 this.eventQueue.emit({
                     type: GameEvents.RIGHT_CLICK,
-                    x: this.pendingRightClick.x,
-                    y: this.pendingRightClick.y,
+                    x: worldClick.x,
+                    y: worldClick.y,
                 });
             }
             this.pendingRightClick = null;

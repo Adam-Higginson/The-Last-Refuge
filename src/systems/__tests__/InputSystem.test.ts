@@ -4,6 +4,7 @@ import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
 import { GameEvents } from '../../core/GameEvents';
 import { InputSystem } from '../InputSystem';
+import { CameraComponent } from '../../components/CameraComponent';
 import { SelectableComponent } from '../../components/SelectableComponent';
 import { TransformComponent } from '../../components/TransformComponent';
 
@@ -388,5 +389,93 @@ describe('InputSystem', () => {
         eventQueue.drain();
 
         expect(emittedEvents).toHaveLength(0);
+    });
+
+    // --- Camera coordinate conversion tests ---
+
+    it('converts screen coords to world coords for hover detection when camera exists', () => {
+        // 800x600 canvas, WORLD_SIZE=1000: scale=0.6, offsetX=400, offsetY=300
+        // Screen (400, 300) → world (0, 0) — canvas centre maps to world origin
+        const cameraEntity = world.createEntity('camera');
+        const camera = cameraEntity.addComponent(new CameraComponent());
+        camera.resize(800, 600);
+
+        const system = new InputSystem();
+        system.init(world);
+
+        // Entity at world origin (0, 0)
+        const entity = world.createEntity('target');
+        entity.addComponent(new TransformComponent(0, 0));
+        const selectable = entity.addComponent(new SelectableComponent(20));
+
+        // Mouse at canvas centre = screen (400, 300) → world (0, 0) — should hit
+        simulateMouseMove(400, 300);
+        system.update(16);
+
+        expect(selectable.hovered).toBe(true);
+    });
+
+    it('uses world coords for cursor position when camera exists', () => {
+        const cameraEntity = world.createEntity('camera');
+        const camera = cameraEntity.addComponent(new CameraComponent());
+        camera.resize(800, 600);
+
+        const system = new InputSystem();
+        system.init(world);
+
+        const entity = world.createEntity('target');
+        entity.addComponent(new TransformComponent(0, 0));
+        const selectable = entity.addComponent(new SelectableComponent(20));
+
+        // Screen (400, 300) → world (0, 0)
+        simulateMouseMove(400, 300);
+        system.update(16);
+
+        expect(selectable.cursorX).toBeCloseTo(0);
+        expect(selectable.cursorY).toBeCloseTo(0);
+    });
+
+    it('converts right-click coords to world space when camera exists', () => {
+        const cameraEntity = world.createEntity('camera');
+        const camera = cameraEntity.addComponent(new CameraComponent());
+        camera.resize(800, 600);
+
+        const system = new InputSystem();
+        system.init(world);
+
+        // Right-click at screen (700, 300)
+        // → world ((700-400)/0.6, (300-300)/0.6) = (500, 0)
+        simulateRightClick(700, 300);
+        system.update(16);
+
+        const emittedEvents: Array<{ type: string; x?: number; y?: number }> = [];
+        eventQueue.on(GameEvents.RIGHT_CLICK, (event) => {
+            emittedEvents.push(event as { type: string; x?: number; y?: number });
+        });
+        eventQueue.drain();
+
+        expect(emittedEvents).toHaveLength(1);
+        expect(emittedEvents[0].x).toBeCloseTo(500);
+        expect(emittedEvents[0].y).toBeCloseTo(0);
+    });
+
+    it('does not hover entity when screen coords are far from world position', () => {
+        const cameraEntity = world.createEntity('camera');
+        const camera = cameraEntity.addComponent(new CameraComponent());
+        camera.resize(800, 600);
+
+        const system = new InputSystem();
+        system.init(world);
+
+        // Entity at world origin
+        const entity = world.createEntity('target');
+        entity.addComponent(new TransformComponent(0, 0));
+        const selectable = entity.addComponent(new SelectableComponent(20));
+
+        // Mouse at screen (0, 0) → world (-666.67, -500) — far from entity
+        simulateMouseMove(0, 0);
+        system.update(16);
+
+        expect(selectable.hovered).toBe(false);
     });
 });

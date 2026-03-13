@@ -3,24 +3,25 @@
 // Listens for TURN_END to reset movement budget.
 // Animates position toward target each tick, syncs facing angle.
 // Blocks turn advancement while movement is in progress.
+// All positions are in world coordinates — no resize handling needed.
 
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { TransformComponent } from './TransformComponent';
-import type { RightClickEvent, CanvasResizeEvent } from '../core/GameEvents';
+import type { RightClickEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
 /** Speed at which displayBudget lerps toward budgetRemaining (units/sec) */
 const DISPLAY_BUDGET_SPEED = 600;
 
 export class MovementComponent extends Component {
-    budgetMax: number;         // max movement distance per turn (px)
+    budgetMax: number;         // max movement distance per turn (world units)
     budgetRemaining: number;   // remaining this turn
-    targetX: number | null;    // where the ship is gliding toward
+    targetX: number | null;    // where the ship is gliding toward (world coords)
     targetY: number | null;
-    speed: number;             // glide speed in px/second
+    speed: number;             // glide speed in world units/second
     moving: boolean;
     facing: number;            // visual facing angle in radians
     displayBudget: number;     // animated budget radius for range circle visualization
@@ -30,7 +31,6 @@ export class MovementComponent extends Component {
     private eventQueue: EventQueue | null = null;
     private rightClickHandler: EventHandler | null = null;
     private turnEndHandler: EventHandler | null = null;
-    private resizeHandler: EventHandler | null = null;
 
     constructor(budgetMax: number, speed = 200) {
         super();
@@ -61,51 +61,8 @@ export class MovementComponent extends Component {
             this.turnOriginY = null;
         };
 
-        this.resizeHandler = (event): void => {
-            const { width, height, dx, dy } = event as CanvasResizeEvent;
-
-            // Derive old dimensions from new dimensions and centre delta
-            const oldW = width - 2 * dx;
-            const oldH = height - 2 * dy;
-            const oldCx = oldW / 2;
-            const oldCy = oldH / 2;
-            const newCx = width / 2;
-            const newCy = height / 2;
-
-            // Scale factor: keep ship at the same proportional distance from
-            // centre relative to the orbit radius (which is min(w,h) * 0.35).
-            const scale = Math.min(width, height) / Math.min(oldW, oldH);
-
-            const scalePoint = (x: number, y: number): { x: number; y: number } => ({
-                x: newCx + (x - oldCx) * scale,
-                y: newCy + (y - oldCy) * scale,
-            });
-
-            const transform = this.entity.getComponent(TransformComponent);
-            if (transform) {
-                const scaled = scalePoint(transform.x, transform.y);
-                transform.x = scaled.x;
-                transform.y = scaled.y;
-                // Clamp to canvas bounds so the ship stays visible after resize
-                const margin = 30;
-                transform.x = Math.max(margin, Math.min(width - margin, transform.x));
-                transform.y = Math.max(margin, Math.min(height - margin, transform.y));
-            }
-            if (this.turnOriginX !== null && this.turnOriginY !== null) {
-                const scaled = scalePoint(this.turnOriginX, this.turnOriginY);
-                this.turnOriginX = scaled.x;
-                this.turnOriginY = scaled.y;
-            }
-            if (this.targetX !== null && this.targetY !== null) {
-                const scaled = scalePoint(this.targetX, this.targetY);
-                this.targetX = scaled.x;
-                this.targetY = scaled.y;
-            }
-        };
-
         this.eventQueue.on(GameEvents.RIGHT_CLICK, this.rightClickHandler);
         this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
-        this.eventQueue.on(GameEvents.CANVAS_RESIZE, this.resizeHandler);
     }
 
     private handleRightClick(targetX: number, targetY: number): void {
@@ -212,9 +169,6 @@ export class MovementComponent extends Component {
         }
         if (this.eventQueue && this.turnEndHandler) {
             this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
-        }
-        if (this.eventQueue && this.resizeHandler) {
-            this.eventQueue.off(GameEvents.CANVAS_RESIZE, this.resizeHandler);
         }
     }
 }

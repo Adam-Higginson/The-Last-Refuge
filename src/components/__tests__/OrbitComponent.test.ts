@@ -27,8 +27,8 @@ describe('OrbitComponent', () => {
 
     it('begins animation on turn:end event', () => {
         const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
+        entity.addComponent(new TransformComponent(350, 0));
         orbit.init();
 
         expect(orbit.animating).toBe(false);
@@ -43,8 +43,8 @@ describe('OrbitComponent', () => {
 
     it('reaches target angle after animation completes', () => {
         const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
+        entity.addComponent(new TransformComponent(350, 0));
         orbit.init();
 
         eventQueue.emit({ type: GameEvents.TURN_END });
@@ -58,8 +58,8 @@ describe('OrbitComponent', () => {
 
     it('interpolates angle gradually during animation', () => {
         const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
+        entity.addComponent(new TransformComponent(350, 0));
         orbit.init();
 
         eventQueue.emit({ type: GameEvents.TURN_END });
@@ -73,8 +73,8 @@ describe('OrbitComponent', () => {
 
     it('snaps to target when new turn starts during animation', () => {
         const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
+        entity.addComponent(new TransformComponent(350, 0));
         orbit.init();
 
         // First turn
@@ -93,8 +93,8 @@ describe('OrbitComponent', () => {
 
     it('accumulates angle across multiple completed turns', () => {
         const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.3));
-        entity.addComponent(new TransformComponent(600, 300));
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.3));
+        entity.addComponent(new TransformComponent(350, 0));
         orbit.init();
 
         for (let i = 0; i < 3; i++) {
@@ -108,21 +108,21 @@ describe('OrbitComponent', () => {
 
     it('syncs transform position from orbit parameters on update', () => {
         const entity = world.createEntity('orbiter');
-        entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
+        entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
         const transform = entity.addComponent(new TransformComponent(0, 0));
         const orbit = entity.getComponent(OrbitComponent);
         orbit?.init();
 
         orbit?.update(1 / 60);
 
-        // angle=0: position should be (cx + r, cy) = (600, 300)
-        expect(transform.x).toBeCloseTo(600);
-        expect(transform.y).toBeCloseTo(300);
+        // angle=0: position should be (cx + r, cy) = (350, 0)
+        expect(transform.x).toBeCloseTo(350);
+        expect(transform.y).toBeCloseTo(0);
     });
 
     it('syncs transform correctly after angle change', () => {
         const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
         const transform = entity.addComponent(new TransformComponent(0, 0));
         orbit.init();
 
@@ -130,19 +130,19 @@ describe('OrbitComponent', () => {
         orbit.angle = Math.PI / 2;
         orbit.update(1 / 60);
 
-        // At pi/2: x = cx + r*cos(pi/2) = 400, y = cy + r*sin(pi/2) = 500
-        expect(transform.x).toBeCloseTo(400);
-        expect(transform.y).toBeCloseTo(500);
+        // At pi/2: x = 0 + 350*cos(pi/2) ≈ 0, y = 0 + 350*sin(pi/2) = 350
+        expect(transform.x).toBeCloseTo(0);
+        expect(transform.y).toBeCloseTo(350);
     });
 
     it('handles multiple orbiting entities independently', () => {
         const e1 = world.createEntity('inner');
-        const orbit1 = e1.addComponent(new OrbitComponent(400, 300, 100, 0.1));
+        const orbit1 = e1.addComponent(new OrbitComponent(0, 0, 100, 0.1));
         e1.addComponent(new TransformComponent(0, 0));
         orbit1.init();
 
         const e2 = world.createEntity('outer');
-        const orbit2 = e2.addComponent(new OrbitComponent(400, 300, 200, 0.2));
+        const orbit2 = e2.addComponent(new OrbitComponent(0, 0, 350, 0.2));
         e2.addComponent(new TransformComponent(0, 0));
         orbit2.init();
 
@@ -157,8 +157,8 @@ describe('OrbitComponent', () => {
 
     it('does not advance angle for non-turn events', () => {
         const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
+        entity.addComponent(new TransformComponent(350, 0));
         orbit.init();
 
         eventQueue.emit({ type: GameEvents.ENTITY_CLICK, entityId: 1 });
@@ -170,8 +170,8 @@ describe('OrbitComponent', () => {
 
     it('emits turn:block with entity-scoped key when animation starts', () => {
         const entity = world.createEntity('orbiter');
-        entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
+        entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
+        entity.addComponent(new TransformComponent(350, 0));
         const orbit = entity.getComponent(OrbitComponent);
         orbit?.init();
 
@@ -190,8 +190,8 @@ describe('OrbitComponent', () => {
 
     it('emits turn:unblock with entity-scoped key when animation completes', () => {
         const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
+        entity.addComponent(new TransformComponent(350, 0));
         orbit.init();
 
         eventQueue.emit({ type: GameEvents.TURN_END });
@@ -211,8 +211,8 @@ describe('OrbitComponent', () => {
 
     it('unsubscribes from turn:end on destroy', () => {
         const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
+        entity.addComponent(new TransformComponent(350, 0));
         orbit.init();
 
         orbit.destroy();
@@ -222,89 +222,5 @@ describe('OrbitComponent', () => {
 
         expect(orbit.angle).toBe(0);
         expect(orbit.animating).toBe(false);
-    });
-
-    it('updates centreX, centreY, and radius on CANVAS_RESIZE', () => {
-        const canvas = { width: 800, height: 600 } as HTMLCanvasElement;
-        ServiceLocator.register('canvas', canvas);
-
-        const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
-        orbit.init();
-
-        // Resize to 1200x800
-        canvas.width = 1200;
-        canvas.height = 800;
-
-        eventQueue.emit({
-            type: GameEvents.CANVAS_RESIZE,
-            width: 1200,
-            height: 800,
-            dx: 200,
-            dy: 100,
-        });
-        eventQueue.drain();
-
-        expect(orbit.centreX).toBe(600);
-        expect(orbit.centreY).toBe(400);
-        // radius = Math.min(1200, 800) * 0.35 = 280
-        expect(orbit.radius).toBeCloseTo(280);
-    });
-
-    it('syncs transform position immediately on CANVAS_RESIZE', () => {
-        const canvas = { width: 800, height: 600 } as HTMLCanvasElement;
-        ServiceLocator.register('canvas', canvas);
-
-        const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        const transform = entity.addComponent(new TransformComponent(600, 300));
-        orbit.init();
-
-        // Set angle to pi/2 so transform calculation is non-trivial
-        orbit.angle = Math.PI / 2;
-
-        // Resize to 1200x800
-        canvas.width = 1200;
-        canvas.height = 800;
-
-        eventQueue.emit({
-            type: GameEvents.CANVAS_RESIZE,
-            width: 1200,
-            height: 800,
-            dx: 200,
-            dy: 100,
-        });
-        eventQueue.drain();
-
-        // New radius = Math.min(1200, 800) * 0.35 = 280
-        // At pi/2: x = 600 + 280*cos(pi/2) = 600, y = 400 + 280*sin(pi/2) = 680
-        expect(transform.x).toBeCloseTo(600);
-        expect(transform.y).toBeCloseTo(680);
-    });
-
-    it('unsubscribes resize handler on destroy', () => {
-        const canvas = { width: 800, height: 600 } as HTMLCanvasElement;
-        ServiceLocator.register('canvas', canvas);
-
-        const entity = world.createEntity('orbiter');
-        const orbit = entity.addComponent(new OrbitComponent(400, 300, 200, 0.15));
-        entity.addComponent(new TransformComponent(600, 300));
-        orbit.init();
-        orbit.destroy();
-
-        eventQueue.emit({
-            type: GameEvents.CANVAS_RESIZE,
-            width: 1200,
-            height: 800,
-            dx: 200,
-            dy: 100,
-        });
-        eventQueue.drain();
-
-        // Centre should remain unchanged
-        expect(orbit.centreX).toBe(400);
-        expect(orbit.centreY).toBe(300);
-        expect(orbit.radius).toBe(200);
     });
 });

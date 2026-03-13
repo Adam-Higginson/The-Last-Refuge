@@ -9,10 +9,6 @@ import { createStar } from '../createStar';
 describe('createStar', () => {
     beforeEach(() => {
         ServiceLocator.clear();
-        ServiceLocator.register('canvas', {
-            width: 800,
-            height: 600,
-        } as unknown as HTMLCanvasElement);
     });
 
     it('creates an entity named "star"', () => {
@@ -36,27 +32,13 @@ describe('createStar', () => {
         expect(render?.layer).toBe('world');
     });
 
-    it('has a TransformComponent at the canvas centre', () => {
+    it('has a TransformComponent at world origin (0, 0)', () => {
         const world = new World();
         const entity = createStar(world);
         const transform = entity.getComponent(TransformComponent);
         expect(transform).not.toBeNull();
-        expect(transform?.x).toBe(400);
-        expect(transform?.y).toBe(300);
-    });
-
-    it('uses canvas dimensions for initial position', () => {
-        ServiceLocator.clear();
-        ServiceLocator.register('canvas', {
-            width: 1920,
-            height: 1080,
-        } as unknown as HTMLCanvasElement);
-
-        const world = new World();
-        const entity = createStar(world);
-        const transform = entity.getComponent(TransformComponent);
-        expect(transform?.x).toBe(960);
-        expect(transform?.y).toBe(540);
+        expect(transform?.x).toBe(0);
+        expect(transform?.y).toBe(0);
     });
 
     it('has a SelectableComponent with hit radius', () => {

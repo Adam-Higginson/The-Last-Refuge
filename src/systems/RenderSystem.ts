@@ -1,13 +1,21 @@
 // RenderSystem.ts — Draws all entities with RenderComponent to the canvas.
 // Sorts by render layer, passes transform data to each entity's draw function.
+// Applies camera transform for world/foreground layers so world-space
+// coordinates map to screen positions. Background and HUD layers are screen-space.
+// Draw functions that need screen-space within world layers (e.g. planet
+// surface, transitions) can reset the transform with ctx.setTransform(1,0,0,1,0,0).
 
 import { System } from '../core/System';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { RenderComponent, RenderLayer } from '../components/RenderComponent';
 import { TransformComponent } from '../components/TransformComponent';
+import { CameraComponent } from '../components/CameraComponent';
 import type { World } from '../core/World';
 
 const LAYER_ORDER: readonly RenderLayer[] = ['background', 'world', 'foreground', 'hud'];
+
+/** Layers that render in world space (camera transform applied). */
+const WORLD_SPACE_LAYERS: ReadonlySet<RenderLayer> = new Set(['world', 'foreground']);
 
 export class RenderSystem extends System {
     private ctx!: CanvasRenderingContext2D;
@@ -28,6 +36,10 @@ export class RenderSystem extends System {
 
         // Clear the entire canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Get camera for world-space transform
+        const cameraEntity = this.world.getEntityByName('camera');
+        const camera = cameraEntity?.getComponent(CameraComponent) ?? null;
 
         // Collect all entities that have a RenderComponent
         const entities = this.world.getEntitiesWithComponent(RenderComponent);
@@ -51,7 +63,13 @@ export class RenderSystem extends System {
             const angle = transform ? transform.angle : 0;
             const scale = transform ? transform.scale : 1;
 
+            // Apply camera transform for world-space layers
+            const useCamera = camera != null && WORLD_SPACE_LAYERS.has(render.layer);
+
             ctx.save();
+            if (useCamera) {
+                camera.applyTransform(ctx);
+            }
             render.draw(ctx, x, y, angle, scale, _alpha);
             ctx.restore();
         }
