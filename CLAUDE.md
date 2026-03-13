@@ -105,6 +105,17 @@ Scope is optional for broad changes that span multiple areas.
 - **Do not amend** previous commits — always create new ones.
 - All commits are GPG-signed (configured globally).
 
+## Mobile Support
+
+The game supports both desktop (mouse) and mobile (touch) input.
+
+- **Touch events** mirror mouse events. `touchstart`/`touchmove` update coordinates, `touchend` triggers a click. Both InputSystem and PlanetViewInputComponent have their own touch listeners.
+- **No pinch-zoom.** Viewport meta sets `maximum-scale=1.0, user-scalable=no`.
+- **Proportional positioning.** Entity positions (e.g. ship spawn) must use canvas-proportional offsets (relative to orbit radius), not absolute pixel values, so they work at any screen size.
+- **Clamp on resize.** MovementComponent clamps the ship to canvas bounds after resize to prevent it going off-screen on narrow viewports.
+- **DOM buttons work automatically.** Browsers synthesise click events from taps, so HUD buttons, panels, and modals need no touch-specific code.
+- **Test at mobile size.** After layout or positioning changes, use `preview_resize` with the `mobile` preset (375×812) to verify nothing is off-screen.
+
 ## Visual Testing (Claude Preview)
 
 Use Claude Preview to manually test the game in a headless browser during development.

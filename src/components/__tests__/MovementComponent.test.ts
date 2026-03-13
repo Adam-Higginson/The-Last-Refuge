@@ -320,70 +320,75 @@ describe('MovementComponent', () => {
         expect(movement.moving).toBe(false);
     });
 
-    it('shifts transform by (dx, dy) on CANVAS_RESIZE', () => {
+    // Resize tests use a 2x scale: 800x600 → 1600x1200 (dx=400, dy=300)
+    // scale = min(1600,1200) / min(800,600) = 2
+    // Ship at (200, 150): offset from old centre (400,300) = (-200,-150)
+    //   → newX = 800 + (-200*2) = 400, newY = 600 + (-150*2) = 300
+
+    it('scales transform proportionally on CANVAS_RESIZE', () => {
         const { transform } = createShipEntity(200, 150, 300);
 
         eventQueue.emit({
             type: GameEvents.CANVAS_RESIZE,
-            width: 1200,
-            height: 800,
-            dx: 50,
-            dy: 30,
+            width: 1600,
+            height: 1200,
+            dx: 400,
+            dy: 300,
         });
         eventQueue.drain();
 
-        expect(transform.x).toBe(250);
-        expect(transform.y).toBe(180);
+        expect(transform.x).toBe(400);
+        expect(transform.y).toBe(300);
     });
 
-    it('shifts movement targets by (dx, dy) on CANVAS_RESIZE', () => {
+    it('scales movement targets proportionally on CANVAS_RESIZE', () => {
         const { movement, selectable } = createShipEntity(100, 100, 300);
         selectable.selected = true;
 
-        // Start a move
+        // Start a move — target at (300, 100)
         eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 300, y: 100 });
         eventQueue.drain();
 
         expect(movement.targetX).toBe(300);
         expect(movement.targetY).toBe(100);
 
-        // Resize
+        // 2x resize: target offset from old centre (400,300) = (-100,-200) → new = 800+(-200), 600+(-400) = (600, 200)
         eventQueue.emit({
             type: GameEvents.CANVAS_RESIZE,
-            width: 1200,
-            height: 800,
-            dx: 50,
-            dy: 30,
+            width: 1600,
+            height: 1200,
+            dx: 400,
+            dy: 300,
         });
         eventQueue.drain();
 
-        expect(movement.targetX).toBe(350);
-        expect(movement.targetY).toBe(130);
+        expect(movement.targetX).toBe(600);
+        expect(movement.targetY).toBe(200);
     });
 
-    it('shifts turnOrigin by (dx, dy) on CANVAS_RESIZE', () => {
+    it('scales turnOrigin proportionally on CANVAS_RESIZE', () => {
         const { movement, selectable } = createShipEntity(100, 100, 300);
         selectable.selected = true;
 
-        // Start a move to set turnOrigin
+        // Start a move to set turnOrigin (at ship's initial position 100,100)
         eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 200, y: 100 });
         eventQueue.drain();
 
         expect(movement.turnOriginX).toBe(100);
         expect(movement.turnOriginY).toBe(100);
 
-        // Resize
+        // 2x resize: turnOrigin offset from old centre (400,300) = (-300,-200) → new = 800+(-600), 600+(-400) = (200, 200)
         eventQueue.emit({
             type: GameEvents.CANVAS_RESIZE,
-            width: 1200,
-            height: 800,
-            dx: 50,
-            dy: 30,
+            width: 1600,
+            height: 1200,
+            dx: 400,
+            dy: 300,
         });
         eventQueue.drain();
 
-        expect(movement.turnOriginX).toBe(150);
-        expect(movement.turnOriginY).toBe(130);
+        expect(movement.turnOriginX).toBe(200);
+        expect(movement.turnOriginY).toBe(200);
     });
 
     it('does not shift null targets on CANVAS_RESIZE', () => {
@@ -394,10 +399,10 @@ describe('MovementComponent', () => {
 
         eventQueue.emit({
             type: GameEvents.CANVAS_RESIZE,
-            width: 1200,
-            height: 800,
-            dx: 50,
-            dy: 30,
+            width: 1600,
+            height: 1200,
+            dx: 400,
+            dy: 300,
         });
         eventQueue.drain();
 
@@ -413,10 +418,10 @@ describe('MovementComponent', () => {
 
         eventQueue.emit({
             type: GameEvents.CANVAS_RESIZE,
-            width: 1200,
-            height: 800,
-            dx: 50,
-            dy: 30,
+            width: 1600,
+            height: 1200,
+            dx: 400,
+            dy: 300,
         });
         eventQueue.drain();
 
