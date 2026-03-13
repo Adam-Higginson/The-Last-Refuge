@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
-export default defineConfig({
-    base: '/The-Last-Refuge/',
+export default defineConfig(({ command }) => ({
+    base: command === 'build' ? '/The-Last-Refuge/' : '/',
     root: '.',
     publicDir: 'public',
     build: {
@@ -24,4 +24,4 @@ export default defineConfig({
             },
         },
     },
-});
+}));
