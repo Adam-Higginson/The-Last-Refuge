@@ -2,6 +2,8 @@
 // Creates and manages DOM elements inside #hud-bottom.
 // Tracks turn blockers to disable the END TURN button during animations.
 
+import './HUDUIComponent.css';
+
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';

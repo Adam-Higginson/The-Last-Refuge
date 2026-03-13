@@ -8,6 +8,8 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { TransformComponent } from './TransformComponent';
+import { getOrbitRadius } from '../entities/createPlanet';
+import type { CanvasResizeEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
 /** Duration of the orbit animation in seconds */
@@ -36,6 +38,7 @@ export class OrbitComponent extends Component {
 
     private eventQueue: EventQueue | null = null;
     private turnEndHandler: EventHandler | null = null;
+    private resizeHandler: EventHandler | null = null;
 
     constructor(centreX: number, centreY: number, radius: number, speed: number) {
         super();
@@ -74,6 +77,24 @@ export class OrbitComponent extends Component {
         };
 
         this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
+
+        this.resizeHandler = (event): void => {
+            const { width, height } = event as CanvasResizeEvent;
+            this.centreX = width / 2;
+            this.centreY = height / 2;
+            const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
+            this.radius = getOrbitRadius(canvas);
+
+            // Immediately sync transform so render uses the new orbit position
+            // (without this, update() would have already written the old position)
+            const transform = this.entity.getComponent(TransformComponent);
+            if (transform) {
+                transform.x = this.centreX + this.radius * Math.cos(this.angle);
+                transform.y = this.centreY + this.radius * Math.sin(this.angle);
+            }
+        };
+
+        this.eventQueue.on(GameEvents.CANVAS_RESIZE, this.resizeHandler);
     }
 
     update(dt: number): void {
@@ -107,6 +128,9 @@ export class OrbitComponent extends Component {
     destroy(): void {
         if (this.eventQueue && this.turnEndHandler) {
             this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
+        }
+        if (this.eventQueue && this.resizeHandler) {
+            this.eventQueue.off(GameEvents.CANVAS_RESIZE, this.resizeHandler);
         }
     }
 }

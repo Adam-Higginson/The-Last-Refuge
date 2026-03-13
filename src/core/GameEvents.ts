@@ -32,6 +32,8 @@ export const GameEvents = {
     PLANET_VIEW_EXIT: 'view:planet:exit',
     /** Colony established on a region. Carries region ID and biome name. */
     COLONISE_CONFIRM: 'colonise:confirm',
+    /** The canvas was resized. Carries new dimensions and centre delta. */
+    CANVAS_RESIZE: 'canvas:resize',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -106,4 +108,16 @@ export interface ColoniseConfirmEvent extends GameEvent {
     regionId: number;
     /** Biome name of the colonised region. */
     biome: string;
+}
+
+export interface CanvasResizeEvent extends GameEvent {
+    type: typeof GameEvents.CANVAS_RESIZE;
+    /** New canvas width in pixels. */
+    width: number;
+    /** New canvas height in pixels. */
+    height: number;
+    /** Horizontal shift of the canvas centre (newCx − oldCx). */
+    dx: number;
+    /** Vertical shift of the canvas centre (newCy − oldCy). */
+    dy: number;
 }

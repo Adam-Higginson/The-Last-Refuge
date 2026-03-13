@@ -1,0 +1,59 @@
+#planet-info-panel {
+    top: 80px;
+    right: 0;
+    width: 280px;
+    padding: 20px;
+    border-left: 1px solid rgba(79, 168, 255, 0.2);
+    border-bottom: 1px solid rgba(79, 168, 255, 0.2);
+    transform: translateX(100%);
+    transition: transform 0.25s ease-out;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+#planet-info-panel.open {
+    transform: translateX(0);
+}
+
+#planet-info-panel .ship-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+#planet-info-panel .ship-name {
+    font-size: 15px;
+    color: #ffffff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+#planet-info-panel .divider {
+    border: none;
+    border-top: 1px solid rgba(192, 200, 216, 0.15);
+    margin: 12px 0;
+}
+
+#planet-info-panel .lore-text {
+    font-size: 12px;
+    opacity: 0.6;
+    line-height: 1.7;
+}
+
+.planet-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.planet-status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ccaa44;
+}

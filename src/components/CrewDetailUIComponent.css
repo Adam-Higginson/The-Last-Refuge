@@ -1,0 +1,92 @@
+.crew-detail-name {
+    font-size: 16px;
+    color: #ffffff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.crew-detail-meta {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-bottom: 12px;
+}
+
+.crew-detail-traits {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.crew-trait-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    color: #4fa8ff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.crew-morale-section {
+    margin-bottom: 14px;
+}
+
+.crew-morale-label {
+    font-size: 11px;
+    opacity: 0.6;
+    text-transform: uppercase;
+}
+
+.crew-morale-value {
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+.crew-morale-bar {
+    height: 6px;
+    background: rgba(192, 200, 216, 0.1);
+    margin-top: 4px;
+}
+
+.crew-morale-fill {
+    height: 100%;
+    transition: width 0.15s ease-out;
+}
+
+.crew-relationships-header {
+    font-size: 11px;
+    opacity: 0.5;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.crew-relationship-row {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(192, 200, 216, 0.06);
+    font-size: 12px;
+}
+
+.crew-relationship-row .rel-name {
+    color: #4fa8ff;
+    cursor: pointer;
+}
+
+.crew-relationship-row .rel-name:hover {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+.crew-relationship-row .rel-type {
+    font-size: 11px;
+    opacity: 0.5;
+    text-transform: uppercase;
+    margin-left: 6px;
+}
+
+.crew-relationship-row .rel-desc {
+    font-size: 11px;
+    opacity: 0.5;
+    margin-top: 2px;
+    line-height: 1.5;
+}

@@ -1,0 +1,142 @@
+#ship-info-panel {
+    top: 80px;
+    right: 0;
+    width: 280px;
+    padding: 20px;
+    border-left: 1px solid rgba(79, 168, 255, 0.2);
+    border-bottom: 1px solid rgba(79, 168, 255, 0.2);
+    transform: translateX(100%);
+    transition: transform 0.25s ease-out, width 0.25s ease-out;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+#ship-info-panel.open {
+    transform: translateX(0);
+}
+
+#ship-info-panel.wide {
+    width: 340px;
+}
+
+#ship-info-panel .ship-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+#ship-info-panel .ship-name {
+    font-size: 15px;
+    color: #ffffff;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+#ship-info-panel .rename-btn {
+    background: none;
+    border: none;
+    color: rgba(79, 168, 255, 0.6);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 4px;
+    font-family: inherit;
+}
+
+#ship-info-panel .rename-btn:hover {
+    color: #4fa8ff;
+}
+
+#ship-info-panel .rename-input {
+    background: rgba(79, 168, 255, 0.08);
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 4px 8px;
+    width: 170px;
+    outline: none;
+}
+
+#ship-info-panel .rename-input:focus {
+    border-color: #4fa8ff;
+}
+
+#ship-info-panel .rename-ok {
+    background: none;
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    color: #4fa8ff;
+    font-family: inherit;
+    font-size: 11px;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+
+#ship-info-panel .divider {
+    border: none;
+    border-top: 1px solid rgba(192, 200, 216, 0.15);
+    margin: 12px 0;
+}
+
+#ship-info-panel .lore-text {
+    font-size: 12px;
+    opacity: 0.6;
+    line-height: 1.7;
+}
+
+#ship-info-panel .crew-count {
+    margin-top: 16px;
+    font-size: 13px;
+}
+
+#ship-info-panel .crew-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: #44cc66;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+#ship-info-panel .ship-range-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+#ship-info-panel .ship-range-label {
+    font-size: 11px;
+    opacity: 0.6;
+}
+
+#ship-info-panel .ship-range-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(192, 200, 216, 0.1);
+    overflow: hidden;
+}
+
+#ship-info-panel .ship-range-fill {
+    height: 100%;
+    width: 100%;
+    background: #44cc66;
+    transition: width 0.15s ease-out;
+}
+
+#ship-info-panel .ship-range-text {
+    min-width: 70px;
+    text-align: right;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* --- Sub-view Containers --- */
+#ship-info-panel .view-section {
+    display: none;
+}
+
+#ship-info-panel .view-section.active {
+    display: block;
+}

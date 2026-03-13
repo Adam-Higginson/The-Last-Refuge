@@ -3,6 +3,8 @@
 // if a colonisable region is selected and the ship is within range.
 // Confirm establishes the colony and emits COLONISE_CONFIRM.
 
+import './ColoniseUIComponent.css';
+
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';

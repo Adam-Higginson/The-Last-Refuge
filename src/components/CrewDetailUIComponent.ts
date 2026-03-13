@@ -3,6 +3,8 @@
 // Reads activeView and selectedCrewEntityId from ShipInfoUIComponent
 // to decide when to show and which crew member to display.
 
+import './CrewDetailUIComponent.css';
+
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { CrewMemberComponent } from './CrewMemberComponent';

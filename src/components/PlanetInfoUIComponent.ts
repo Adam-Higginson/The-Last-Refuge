@@ -3,6 +3,8 @@
 // Shows planet name, biome summary, colony status, and a VIEW SURFACE button
 // that triggers the transition into planet view mode.
 
+import './PlanetInfoUIComponent.css';
+
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
