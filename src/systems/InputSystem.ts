@@ -25,6 +25,9 @@ export class InputSystem extends System {
     private onClick!: (e: MouseEvent) => void;
     private onContextMenu!: (e: MouseEvent) => void;
     private onKeyDown!: (e: KeyboardEvent) => void;
+    private onTouchStart!: (e: TouchEvent) => void;
+    private onTouchMove!: (e: TouchEvent) => void;
+    private onTouchEnd!: (e: TouchEvent) => void;
 
     init(world: World): void {
         super.init(world);
@@ -53,9 +56,35 @@ export class InputSystem extends System {
             }
         };
 
+        // Touch handlers — map touch to the same coordinate/flag pipeline
+        this.onTouchStart = (e: TouchEvent): void => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            if (touch) {
+                this.mouseX = touch.clientX;
+                this.mouseY = touch.clientY;
+            }
+        };
+
+        this.onTouchMove = (e: TouchEvent): void => {
+            const touch = e.touches[0];
+            if (touch) {
+                this.mouseX = touch.clientX;
+                this.mouseY = touch.clientY;
+            }
+        };
+
+        this.onTouchEnd = (e: TouchEvent): void => {
+            e.preventDefault();
+            this.pendingClick = true;
+        };
+
         this.canvas.addEventListener('mousemove', this.onMouseMove);
         this.canvas.addEventListener('click', this.onClick);
         this.canvas.addEventListener('contextmenu', this.onContextMenu);
+        this.canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
+        this.canvas.addEventListener('touchmove', this.onTouchMove, { passive: true });
+        this.canvas.addEventListener('touchend', this.onTouchEnd, { passive: false });
         window.addEventListener('keydown', this.onKeyDown);
     }
 
@@ -168,6 +197,9 @@ export class InputSystem extends System {
         this.canvas.removeEventListener('mousemove', this.onMouseMove);
         this.canvas.removeEventListener('click', this.onClick);
         this.canvas.removeEventListener('contextmenu', this.onContextMenu);
+        this.canvas.removeEventListener('touchstart', this.onTouchStart);
+        this.canvas.removeEventListener('touchmove', this.onTouchMove);
+        this.canvas.removeEventListener('touchend', this.onTouchEnd);
         window.removeEventListener('keydown', this.onKeyDown);
     }
 }
