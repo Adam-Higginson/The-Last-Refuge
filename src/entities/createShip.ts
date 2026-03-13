@@ -277,8 +277,10 @@ export function createShip(world: World): Entity {
 
     const entity = world.createEntity('arkSalvage');
 
-    // Start near the upper-right area of the canvas, away from the planet
-    entity.addComponent(new TransformComponent(cx + 250, cy - 150));
+    // Start near the upper-right area of the canvas, away from the planet.
+    // Use orbit-proportional offsets so the ship stays visible at any canvas size.
+    const orbitR = Math.min(canvas.width, canvas.height) * 0.35;
+    entity.addComponent(new TransformComponent(cx + orbitR * 0.9, cy - orbitR * 0.6));
     entity.addComponent(new MovementComponent(MOVEMENT_BUDGET, GLIDE_SPEED));
     entity.addComponent(new SelectableComponent(HIT_RADIUS));
     entity.addComponent(new RenderComponent('world', (ctx, x, y, angle) => {

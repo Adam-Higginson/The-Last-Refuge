@@ -27,9 +27,10 @@ describe('createShip', () => {
         const entity = createShip(world);
         const transform = entity.getComponent(TransformComponent);
         expect(transform).not.toBeNull();
-        // Positioned offset from centre: cx+250, cy-150
-        expect(transform?.x).toBe(650);
-        expect(transform?.y).toBe(150);
+        // Positioned offset from centre using orbit-proportional offsets
+        // orbitR = Math.min(800,600) * 0.35 = 210; x = 400 + 210*0.9, y = 300 - 210*0.6
+        expect(transform?.x).toBe(589);
+        expect(transform?.y).toBe(174);
     });
 
     it('has a MovementComponent with correct budget and speed', () => {

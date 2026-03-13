@@ -62,11 +62,15 @@ export class MovementComponent extends Component {
         };
 
         this.resizeHandler = (event): void => {
-            const { dx, dy } = event as CanvasResizeEvent;
+            const { width, height, dx, dy } = event as CanvasResizeEvent;
             const transform = this.entity.getComponent(TransformComponent);
             if (transform) {
                 transform.x += dx;
                 transform.y += dy;
+                // Clamp to canvas bounds so the ship stays visible after resize
+                const margin = 30;
+                transform.x = Math.max(margin, Math.min(width - margin, transform.x));
+                transform.y = Math.max(margin, Math.min(height - margin, transform.y));
             }
             if (this.turnOriginX !== null) this.turnOriginX += dx;
             if (this.turnOriginY !== null) this.turnOriginY += dy;
