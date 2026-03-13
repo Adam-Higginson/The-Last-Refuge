@@ -32,7 +32,7 @@ export const GameEvents = {
     PLANET_VIEW_EXIT: 'view:planet:exit',
     /** Colony established on a region. Carries region ID and biome name. */
     COLONISE_CONFIRM: 'colonise:confirm',
-    /** The canvas was resized. Carries new dimensions and centre delta. */
+    /** The canvas was resized. Carries new pixel dimensions. */
     CANVAS_RESIZE: 'canvas:resize',
 } as const;
 
@@ -72,9 +72,9 @@ export interface EntityClickEvent extends GameEvent {
 
 export interface RightClickEvent extends GameEvent {
     type: typeof GameEvents.RIGHT_CLICK;
-    /** Canvas x coordinate of the right-click. */
+    /** World x coordinate of the right-click. */
     x: number;
-    /** Canvas y coordinate of the right-click. */
+    /** World y coordinate of the right-click. */
     y: number;
 }
 
@@ -116,8 +116,4 @@ export interface CanvasResizeEvent extends GameEvent {
     width: number;
     /** New canvas height in pixels. */
     height: number;
-    /** Horizontal shift of the canvas centre (newCx − oldCx). */
-    dx: number;
-    /** Vertical shift of the canvas centre (newCy − oldCy). */
-    dy: number;
 }

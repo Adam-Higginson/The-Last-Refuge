@@ -5,7 +5,7 @@ import { RenderComponent } from '../../components/RenderComponent';
 import { TransformComponent } from '../../components/TransformComponent';
 import { OrbitComponent } from '../../components/OrbitComponent';
 import { SelectableComponent } from '../../components/SelectableComponent';
-import { createPlanet, getOrbitRadius } from '../createPlanet';
+import { createPlanet, ORBIT_RADIUS } from '../createPlanet';
 
 describe('createPlanet', () => {
     beforeEach(() => {
@@ -37,26 +37,25 @@ describe('createPlanet', () => {
         expect(render?.layer).toBe('world');
     });
 
-    it('has a TransformComponent at initial orbit position', () => {
+    it('has a TransformComponent at initial orbit position in world coords', () => {
         const world = new World();
         const entity = createPlanet(world);
         const transform = entity.getComponent(TransformComponent);
         expect(transform).not.toBeNull();
 
-        // Initial angle=0: position at (cx + orbitRadius, cy)
-        // canvas 800x600: cx=400, cy=300, orbitRadius = 600*0.35 = 210
-        expect(transform?.x).toBe(400 + 210);
-        expect(transform?.y).toBe(300);
+        // Initial angle=0: position at (ORBIT_RADIUS, 0) in world space
+        expect(transform?.x).toBe(ORBIT_RADIUS);
+        expect(transform?.y).toBe(0);
     });
 
-    it('has an OrbitComponent with correct parameters', () => {
+    it('has an OrbitComponent with fixed world-space parameters', () => {
         const world = new World();
         const entity = createPlanet(world);
         const orbit = entity.getComponent(OrbitComponent);
         expect(orbit).not.toBeNull();
-        expect(orbit?.centreX).toBe(400);
-        expect(orbit?.centreY).toBe(300);
-        expect(orbit?.radius).toBe(210); // min(800,600) * 0.35
+        expect(orbit?.centreX).toBe(0);
+        expect(orbit?.centreY).toBe(0);
+        expect(orbit?.radius).toBe(ORBIT_RADIUS);
         expect(orbit?.speed).toBe(0.15);
         expect(orbit?.angle).toBe(0);
     });
@@ -70,7 +69,7 @@ describe('createPlanet', () => {
         expect(selectable?.hovered).toBe(false);
     });
 
-    it('uses canvas dimensions for orbit radius', () => {
+    it('orbit parameters are independent of canvas size', () => {
         ServiceLocator.clear();
         ServiceLocator.register('canvas', {
             width: 1920,
@@ -81,21 +80,15 @@ describe('createPlanet', () => {
         const entity = createPlanet(world);
         const orbit = entity.getComponent(OrbitComponent);
 
-        // min(1920, 1080) * 0.35 = 378
-        expect(orbit?.radius).toBe(1080 * 0.35);
-        expect(orbit?.centreX).toBe(960);
-        expect(orbit?.centreY).toBe(540);
+        // World coordinates are fixed — same regardless of canvas dimensions
+        expect(orbit?.radius).toBe(ORBIT_RADIUS);
+        expect(orbit?.centreX).toBe(0);
+        expect(orbit?.centreY).toBe(0);
     });
 });
 
-describe('getOrbitRadius', () => {
-    it('returns 35% of the smaller dimension', () => {
-        const canvas = { width: 800, height: 600 } as HTMLCanvasElement;
-        expect(getOrbitRadius(canvas)).toBe(210); // 600 * 0.35
-    });
-
-    it('uses width when width is smaller', () => {
-        const canvas = { width: 400, height: 600 } as HTMLCanvasElement;
-        expect(getOrbitRadius(canvas)).toBe(140); // 400 * 0.35
+describe('ORBIT_RADIUS', () => {
+    it('is 350 world units (35% of WORLD_SIZE)', () => {
+        expect(ORBIT_RADIUS).toBe(350);
     });
 });

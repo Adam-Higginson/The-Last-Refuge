@@ -1,15 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { World } from '../../core/World';
+import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
 import { RenderSystem } from '../RenderSystem';
 import { RenderComponent } from '../../components/RenderComponent';
 import { TransformComponent } from '../../components/TransformComponent';
+import { CameraComponent } from '../../components/CameraComponent';
 
 function createMockCtx(): CanvasRenderingContext2D {
     return {
         clearRect: vi.fn(),
         save: vi.fn(),
         restore: vi.fn(),
+        translate: vi.fn(),
+        scale: vi.fn(),
     } as unknown as CanvasRenderingContext2D;
 }
 
@@ -126,5 +130,109 @@ describe('RenderSystem', () => {
         system.init(world);
         // Should not throw
         expect(() => system.update(16)).not.toThrow();
+    });
+
+    describe('camera transform', () => {
+        function addCamera(): void {
+            const eventQueue = new EventQueue();
+            ServiceLocator.register('eventQueue', eventQueue);
+            const cam = world.createEntity('camera');
+            const cameraComp = cam.addComponent(new CameraComponent());
+            cameraComp.init();
+        }
+
+        it('applies camera transform to world-layer entities', () => {
+            addCamera();
+            const system = new RenderSystem();
+            system.init(world);
+
+            const entity = world.createEntity('star');
+            entity.addComponent(new TransformComponent(0, 0));
+            entity.addComponent(new RenderComponent('world', vi.fn()));
+
+            system.render(0);
+
+            // Camera applies translate then scale
+            expect(mockCtx.translate).toHaveBeenCalledWith(400, 300);
+            expect(mockCtx.scale).toHaveBeenCalledWith(0.6, 0.6);
+        });
+
+        it('applies camera transform to foreground-layer entities', () => {
+            addCamera();
+            const system = new RenderSystem();
+            system.init(world);
+
+            const entity = world.createEntity('overlay');
+            entity.addComponent(new TransformComponent(0, 0));
+            entity.addComponent(new RenderComponent('foreground', vi.fn()));
+
+            system.render(0);
+
+            expect(mockCtx.translate).toHaveBeenCalled();
+            expect(mockCtx.scale).toHaveBeenCalled();
+        });
+
+        it('does NOT apply camera transform to background layer', () => {
+            addCamera();
+            const system = new RenderSystem();
+            system.init(world);
+
+            const entity = world.createEntity('bg');
+            entity.addComponent(new TransformComponent(0, 0));
+            entity.addComponent(new RenderComponent('background', vi.fn()));
+
+            system.render(0);
+
+            expect(mockCtx.translate).not.toHaveBeenCalled();
+            expect(mockCtx.scale).not.toHaveBeenCalled();
+        });
+
+        it('does NOT apply camera transform to hud layer', () => {
+            addCamera();
+            const system = new RenderSystem();
+            system.init(world);
+
+            const entity = world.createEntity('ui');
+            entity.addComponent(new TransformComponent(0, 0));
+            entity.addComponent(new RenderComponent('hud', vi.fn()));
+
+            system.render(0);
+
+            expect(mockCtx.translate).not.toHaveBeenCalled();
+            expect(mockCtx.scale).not.toHaveBeenCalled();
+        });
+
+        it('always applies camera transform for world layers regardless of game mode', () => {
+            addCamera();
+            // Camera is always applied — draw functions opt into screen space
+            // via ctx.setTransform() when needed (e.g. planet surface rendering)
+            const system = new RenderSystem();
+            system.init(world);
+
+            const entity = world.createEntity('star');
+            entity.addComponent(new TransformComponent(0, 0));
+            entity.addComponent(new RenderComponent('world', vi.fn()));
+
+            system.render(0);
+
+            expect(mockCtx.translate).toHaveBeenCalledWith(400, 300);
+            expect(mockCtx.scale).toHaveBeenCalledWith(0.6, 0.6);
+        });
+
+        it('works without camera entity (no transform applied)', () => {
+            const system = new RenderSystem();
+            system.init(world);
+
+            const drawFn = vi.fn();
+            const entity = world.createEntity('test');
+            entity.addComponent(new TransformComponent(10, 20));
+            entity.addComponent(new RenderComponent('world', drawFn));
+
+            system.render(0);
+
+            // Still draws, just no camera transform
+            expect(drawFn).toHaveBeenCalled();
+            expect(mockCtx.translate).not.toHaveBeenCalled();
+        });
     });
 });

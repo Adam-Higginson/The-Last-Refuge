@@ -6,14 +6,11 @@ import { TransformComponent } from '../../components/TransformComponent';
 import { MovementComponent } from '../../components/MovementComponent';
 import { SelectableComponent } from '../../components/SelectableComponent';
 import { createShip } from '../createShip';
+import { ORBIT_RADIUS } from '../createPlanet';
 
 describe('createShip', () => {
     beforeEach(() => {
         ServiceLocator.clear();
-        ServiceLocator.register('canvas', {
-            width: 800,
-            height: 600,
-        } as unknown as HTMLCanvasElement);
     });
 
     it('creates an entity named "arkSalvage"', () => {
@@ -22,15 +19,15 @@ describe('createShip', () => {
         expect(entity.name).toBe('arkSalvage');
     });
 
-    it('has a TransformComponent with initial position', () => {
+    it('has a TransformComponent with world-space initial position', () => {
         const world = new World();
         const entity = createShip(world);
         const transform = entity.getComponent(TransformComponent);
         expect(transform).not.toBeNull();
-        // Positioned offset from centre using orbit-proportional offsets
-        // orbitR = Math.min(800,600) * 0.35 = 210; x = 400 + 210*0.9, y = 300 - 210*0.6
-        expect(transform?.x).toBe(589);
-        expect(transform?.y).toBe(174);
+        // Positioned using orbit-proportional offsets in world space
+        // x = ORBIT_RADIUS * 0.9 = 315, y = -ORBIT_RADIUS * 0.6 = -210
+        expect(transform?.x).toBe(ORBIT_RADIUS * 0.9);
+        expect(transform?.y).toBe(-ORBIT_RADIUS * 0.6);
     });
 
     it('has a MovementComponent with correct budget and speed', () => {

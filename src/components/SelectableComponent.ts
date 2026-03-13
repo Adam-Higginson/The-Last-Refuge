@@ -8,8 +8,8 @@ export class SelectableComponent extends Component {
     hovered: boolean;
     selected: boolean;
     cursorStyle: string;     // CSS cursor to show on hover
-    cursorX: number;         // current mouse x (canvas coords), written by InputSystem
-    cursorY: number;         // current mouse y (canvas coords), written by InputSystem
+    cursorX: number;         // current mouse x (world coords), written by InputSystem
+    cursorY: number;         // current mouse y (world coords), written by InputSystem
 
     constructor(hitRadius: number, cursorStyle = 'pointer') {
         super();

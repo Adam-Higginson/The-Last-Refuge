@@ -28,8 +28,6 @@ describe('RegionDataComponent', () => {
             type: GameEvents.CANVAS_RESIZE,
             width: 800,
             height: 600,
-            dx: 0,
-            dy: 0,
         });
         eventQueue.drain();
 
@@ -45,8 +43,6 @@ describe('RegionDataComponent', () => {
             type: GameEvents.CANVAS_RESIZE,
             width: 800,
             height: 600,
-            dx: 0,
-            dy: 0,
         });
         eventQueue.drain();
 
@@ -63,8 +59,6 @@ describe('RegionDataComponent', () => {
             type: GameEvents.CANVAS_RESIZE,
             width: 800,
             height: 600,
-            dx: 0,
-            dy: 0,
         });
         eventQueue.drain();
 
@@ -77,8 +71,6 @@ describe('RegionDataComponent', () => {
             type: GameEvents.CANVAS_RESIZE,
             width: 1024,
             height: 768,
-            dx: 112,
-            dy: 84,
         });
         eventQueue.drain();
 
@@ -96,8 +88,6 @@ describe('RegionDataComponent', () => {
             type: GameEvents.CANVAS_RESIZE,
             width: 800,
             height: 600,
-            dx: 0,
-            dy: 0,
         });
         eventQueue.drain();
 

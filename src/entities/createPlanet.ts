@@ -23,7 +23,7 @@ import { mulberry32 } from '../utils/prng';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
-/** Planet body radius in pixels */
+/** Planet body radius in world units */
 const PLANET_RADIUS = 12;
 
 /** Hit radius for hover/click detection (slightly larger than visual) */
@@ -35,10 +35,8 @@ const ORBIT_SPEED = 0.15;
 /** Number of Voronoi cells for the surface map */
 export const REGION_COUNT = 8;
 
-/** Calculate the orbit radius as 35% of the smaller canvas dimension */
-export function getOrbitRadius(canvas: HTMLCanvasElement): number {
-    return Math.min(canvas.width, canvas.height) * 0.35;
-}
+/** Orbit radius in world units (35% of WORLD_SIZE = 1000) */
+export const ORBIT_RADIUS = 350;
 
 // ---------------------------------------------------------------------------
 // System map drawing (globe)
@@ -85,11 +83,8 @@ function drawPlanetGlobe(
         ctx.setLineDash([]);
     }
 
-    // Atmospheric glow
-    const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
-    const starX = canvas.width / 2;
-    const starY = canvas.height / 2;
-    const angleToStar = Math.atan2(starY - y, starX - x);
+    // Atmospheric glow — star is at world origin (0, 0)
+    const angleToStar = Math.atan2(0 - y, 0 - x);
 
     const glowX = x + Math.cos(angleToStar) * (r * 0.3);
     const glowY = y + Math.sin(angleToStar) * (r * 0.3);
@@ -179,6 +174,10 @@ function drawPlanetSurface(
     ctx: CanvasRenderingContext2D,
 ): void {
     const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
+
+    // Planet surface renders in screen space — reset camera transform
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
     const regionData = entity.getComponent(RegionDataComponent);
     if (!regionData) return;
 
@@ -299,28 +298,34 @@ function drawTransitionToPlanet(
     if (progress < 0.5) {
         // Phase 1 (0→0.5): Planet globe scales up, everything else fades
         const phase = progress / 0.5; // 0→1
-        const scale = 1 + phase * 30; // grow from 1x to 31x
+        const zoomScale = 1 + phase * 30; // grow from 1x to 31x
         const fadeAlpha = 1 - phase;
 
         // Draw fading background entities (they'll be drawn by RenderSystem normally)
-        // Just draw the planet growing
+        // Just draw the planet growing (still in world space — camera is applied)
         ctx.save();
         ctx.globalAlpha = fadeAlpha;
         ctx.translate(x, y);
-        ctx.scale(scale, scale);
+        ctx.scale(zoomScale, zoomScale);
         ctx.translate(-x, -y);
         drawPlanetGlobe(entity, ctx, x, y);
         ctx.restore();
 
-        // Overlay darkening
+        // Overlay darkening — switch to screen space
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = `rgba(3, 4, 10, ${phase * 0.8})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
     } else if (progress < 0.6) {
-        // Phase 2 (0.5→0.6): Black screen
+        // Phase 2 (0.5→0.6): Black screen — screen space
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = '#03040a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
     } else {
-        // Phase 3 (0.6→1.0): Surface map fades in
+        // Phase 3 (0.6→1.0): Surface map fades in (drawPlanetSurface resets to screen space)
         const phase = (progress - 0.6) / 0.4; // 0→1
 
         ctx.save();
@@ -328,9 +333,12 @@ function drawTransitionToPlanet(
         drawPlanetSurface(entity, ctx);
         ctx.restore();
 
-        // Remaining darkness
+        // Remaining darkness — screen space
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = `rgba(3, 4, 10, ${1 - phase})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
     }
 }
 
@@ -342,7 +350,7 @@ function drawTransitionToSystem(
     const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
 
     if (progress < 0.4) {
-        // Phase 1 (0→0.4): Surface map fades out
+        // Phase 1 (0→0.4): Surface map fades out (drawPlanetSurface resets to screen space)
         const phase = progress / 0.4;
 
         ctx.save();
@@ -350,18 +358,29 @@ function drawTransitionToSystem(
         drawPlanetSurface(entity, ctx);
         ctx.restore();
 
+        // Overlay — screen space
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = `rgba(3, 4, 10, ${phase})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
     } else if (progress < 0.5) {
-        // Phase 2 (0.4→0.5): Black screen
+        // Phase 2 (0.4→0.5): Black screen — screen space
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = '#03040a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
     } else {
         // Phase 3 (0.5→1.0): Fade back to normal (system entities restore visibility)
         const phase = (progress - 0.5) / 0.5;
 
+        // Overlay — screen space
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = `rgba(3, 4, 10, ${1 - phase})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
     }
 }
 
@@ -396,21 +415,18 @@ function drawPlanet(
 
 export function createPlanet(world: World): Entity {
     const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
-    const orbitRadius = getOrbitRadius(canvas);
 
     const entity = world.createEntity('newTerra');
 
-    // Position and orbit
-    entity.addComponent(new TransformComponent(cx + orbitRadius, cy));
-    entity.addComponent(new OrbitComponent(cx, cy, orbitRadius, ORBIT_SPEED));
+    // Position and orbit — fixed world coordinates, centred on star at (0, 0)
+    entity.addComponent(new TransformComponent(ORBIT_RADIUS, 0));
+    entity.addComponent(new OrbitComponent(0, 0, ORBIT_RADIUS, ORBIT_SPEED));
     entity.addComponent(new SelectableComponent(HIT_RADIUS));
     entity.addComponent(new RenderComponent('world', (ctx, x, y) => {
         drawPlanet(entity, ctx, x, y);
     }));
 
-    // Generate surface regions
+    // Generate surface regions (screen-space — used only in planet view mode)
     const rng = mulberry32(7);
     const mapWidth = canvas.width;
     const mapHeight = canvas.height;

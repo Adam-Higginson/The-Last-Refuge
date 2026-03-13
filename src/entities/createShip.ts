@@ -4,7 +4,6 @@
 // Movement range shown as a gradient disc with edge ring when selected,
 // smoothly shrinking as budget is spent. Colour shifts green → red.
 
-import { ServiceLocator } from '../core/ServiceLocator';
 import { TransformComponent } from '../components/TransformComponent';
 import { RenderComponent } from '../components/RenderComponent';
 import { MovementComponent } from '../components/MovementComponent';
@@ -12,13 +11,14 @@ import { SelectableComponent } from '../components/SelectableComponent';
 import { ShipInfoUIComponent } from '../components/ShipInfoUIComponent';
 import { CrewManifestUIComponent } from '../components/CrewManifestUIComponent';
 import { CrewDetailUIComponent } from '../components/CrewDetailUIComponent';
+import { ORBIT_RADIUS } from './createPlanet';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
-/** Movement budget in pixels per turn */
+/** Movement budget in world units per turn */
 const MOVEMENT_BUDGET = 300;
 
-/** Glide speed in pixels per second */
+/** Glide speed in world units per second */
 const GLIDE_SPEED = 200;
 
 /** Hit radius for hover/click detection */
@@ -271,16 +271,11 @@ function drawShip(
 }
 
 export function createShip(world: World): Entity {
-    const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
-    const cx = canvas.width / 2;
-    const cy = canvas.height / 2;
-
     const entity = world.createEntity('arkSalvage');
 
-    // Start near the upper-right area of the canvas, away from the planet.
-    // Use orbit-proportional offsets so the ship stays visible at any canvas size.
-    const orbitR = Math.min(canvas.width, canvas.height) * 0.35;
-    entity.addComponent(new TransformComponent(cx + orbitR * 0.9, cy - orbitR * 0.6));
+    // Start near the upper-right area in world space, away from the planet.
+    // Proportional to orbit radius so the ship is always well-positioned.
+    entity.addComponent(new TransformComponent(ORBIT_RADIUS * 0.9, -ORBIT_RADIUS * 0.6));
     entity.addComponent(new MovementComponent(MOVEMENT_BUDGET, GLIDE_SPEED));
     entity.addComponent(new SelectableComponent(HIT_RADIUS));
     entity.addComponent(new RenderComponent('world', (ctx, x, y, angle) => {
