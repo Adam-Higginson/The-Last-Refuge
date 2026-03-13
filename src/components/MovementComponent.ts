@@ -63,19 +63,44 @@ export class MovementComponent extends Component {
 
         this.resizeHandler = (event): void => {
             const { width, height, dx, dy } = event as CanvasResizeEvent;
+
+            // Derive old dimensions from new dimensions and centre delta
+            const oldW = width - 2 * dx;
+            const oldH = height - 2 * dy;
+            const oldCx = oldW / 2;
+            const oldCy = oldH / 2;
+            const newCx = width / 2;
+            const newCy = height / 2;
+
+            // Scale factor: keep ship at the same proportional distance from
+            // centre relative to the orbit radius (which is min(w,h) * 0.35).
+            const scale = Math.min(width, height) / Math.min(oldW, oldH);
+
+            const scalePoint = (x: number, y: number): { x: number; y: number } => ({
+                x: newCx + (x - oldCx) * scale,
+                y: newCy + (y - oldCy) * scale,
+            });
+
             const transform = this.entity.getComponent(TransformComponent);
             if (transform) {
-                transform.x += dx;
-                transform.y += dy;
+                const scaled = scalePoint(transform.x, transform.y);
+                transform.x = scaled.x;
+                transform.y = scaled.y;
                 // Clamp to canvas bounds so the ship stays visible after resize
                 const margin = 30;
                 transform.x = Math.max(margin, Math.min(width - margin, transform.x));
                 transform.y = Math.max(margin, Math.min(height - margin, transform.y));
             }
-            if (this.turnOriginX !== null) this.turnOriginX += dx;
-            if (this.turnOriginY !== null) this.turnOriginY += dy;
-            if (this.targetX !== null) this.targetX += dx;
-            if (this.targetY !== null) this.targetY += dy;
+            if (this.turnOriginX !== null && this.turnOriginY !== null) {
+                const scaled = scalePoint(this.turnOriginX, this.turnOriginY);
+                this.turnOriginX = scaled.x;
+                this.turnOriginY = scaled.y;
+            }
+            if (this.targetX !== null && this.targetY !== null) {
+                const scaled = scalePoint(this.targetX, this.targetY);
+                this.targetX = scaled.x;
+                this.targetY = scaled.y;
+            }
         };
 
         this.eventQueue.on(GameEvents.RIGHT_CLICK, this.rightClickHandler);
