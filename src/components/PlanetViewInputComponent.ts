@@ -29,6 +29,9 @@ export class PlanetViewInputComponent extends Component {
     private onClick: ((e: MouseEvent) => void) | null = null;
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
     private onBackClick: (() => void) | null = null;
+    private onTouchStart: ((e: TouchEvent) => void) | null = null;
+    private onTouchMove: ((e: TouchEvent) => void) | null = null;
+    private onTouchEnd: ((e: TouchEvent) => void) | null = null;
     private backBtn: HTMLElement | null = null;
 
     init(): void {
@@ -42,6 +45,25 @@ export class PlanetViewInputComponent extends Component {
             this.mouseY = e.clientY;
         };
         this.canvas.addEventListener('mousemove', this.onMouseMove);
+
+        // Touch — track finger position for region hit-testing
+        this.onTouchStart = (e: TouchEvent): void => {
+            const touch = e.touches[0];
+            if (touch) {
+                this.mouseX = touch.clientX;
+                this.mouseY = touch.clientY;
+            }
+        };
+        this.canvas.addEventListener('touchstart', this.onTouchStart, { passive: true });
+
+        this.onTouchMove = (e: TouchEvent): void => {
+            const touch = e.touches[0];
+            if (touch) {
+                this.mouseX = touch.clientX;
+                this.mouseY = touch.clientY;
+            }
+        };
+        this.canvas.addEventListener('touchmove', this.onTouchMove, { passive: true });
 
         // Click — select/deselect region
         this.onClick = (_e: MouseEvent): void => {
@@ -60,6 +82,23 @@ export class PlanetViewInputComponent extends Component {
             }
         };
         this.canvas.addEventListener('click', this.onClick);
+
+        // Touch end — select/deselect region (mirrors click handler)
+        this.onTouchEnd = (e: TouchEvent): void => {
+            // Use last tracked touch position (from touchmove or touchstart in InputSystem)
+            const gameMode = this.getGameMode();
+            if (!gameMode || gameMode.mode !== 'planet') return;
+
+            e.preventDefault();
+            if (this.hoveredRegionId === -1) {
+                this.selectedRegionId = -1;
+            } else if (this.hoveredRegionId === this.selectedRegionId) {
+                this.selectedRegionId = -1;
+            } else {
+                this.selectedRegionId = this.hoveredRegionId;
+            }
+        };
+        this.canvas.addEventListener('touchend', this.onTouchEnd, { passive: false });
 
         // Escape key — exit planet view
         this.onKeyDown = (e: KeyboardEvent): void => {
@@ -125,6 +164,15 @@ export class PlanetViewInputComponent extends Component {
         }
         if (this.canvas && this.onClick) {
             this.canvas.removeEventListener('click', this.onClick);
+        }
+        if (this.canvas && this.onTouchStart) {
+            this.canvas.removeEventListener('touchstart', this.onTouchStart);
+        }
+        if (this.canvas && this.onTouchMove) {
+            this.canvas.removeEventListener('touchmove', this.onTouchMove);
+        }
+        if (this.canvas && this.onTouchEnd) {
+            this.canvas.removeEventListener('touchend', this.onTouchEnd);
         }
         if (this.onKeyDown) {
             window.removeEventListener('keydown', this.onKeyDown);
