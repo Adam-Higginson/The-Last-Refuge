@@ -193,6 +193,7 @@
     justify-content: center;
     flex-shrink: 0;
     font-size: 11px;
+    cursor: pointer;
 }
 
 .crew-checkbox.checked {
@@ -205,6 +206,12 @@
     flex: 1;
     color: #ffffff;
     font-size: 12px;
+    cursor: pointer;
+}
+
+.crew-name:hover {
+    color: #4fa8ff;
+    text-decoration: underline;
 }
 
 .crew-role {
@@ -284,20 +291,6 @@
 .transfer-roster ::-webkit-scrollbar { width: 4px; }
 .transfer-roster ::-webkit-scrollbar-track { background: transparent; }
 .transfer-roster ::-webkit-scrollbar-thumb { background: rgba(79, 168, 255, 0.2); }
-
-/* --- Crew name clickable --- */
-.crew-name {
-    cursor: pointer;
-}
-
-.crew-name:hover {
-    color: #4fa8ff;
-    text-decoration: underline;
-}
-
-.crew-checkbox {
-    cursor: pointer;
-}
 
 /* --- Detail panel --- */
 .crew-detail-panel {

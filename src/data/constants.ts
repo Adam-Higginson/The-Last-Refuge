@@ -1,8 +1,5 @@
 // constants.ts — Shared gameplay constants.
 
-/** Maximum distance (px) between ship and planet for colonisation / planet descent. */
-export const COLONISE_RANGE = 150;
-
 /** Fog of war grid dimensions (cells per axis). World is divided into gridSize x gridSize cells. */
 export const FOG_GRID_SIZE = 100;
 

@@ -1,8 +1,7 @@
 // ShipInfoUIComponent.ts — Ship info panel that slides in from the right.
 // Opens when the ship is selected (left-click), closes on deselection.
-// Manages three sub-views: ship overview, crew manifest, and crew detail.
-// Sibling components (CrewManifestUIComponent, CrewDetailUIComponent) read
-// activeView and selectedCrewEntityId to coordinate their display.
+// Shows ship overview with crew count, range, and buttons to open the
+// crew roster (TransferScreenComponent) or centre camera on ship.
 
 import './ShipInfoUIComponent.css';
 
@@ -13,6 +12,7 @@ import { MovementComponent } from './MovementComponent';
 import { TransformComponent } from './TransformComponent';
 import { CameraComponent } from './CameraComponent';
 import { TransferScreenComponent } from './TransferScreenComponent';
+import { getCrewCounts } from '../utils/crewUtils';
 import type { World } from '../core/World';
 
 export type PanelView = 'overview' | 'manifest' | 'detail';
@@ -89,8 +89,8 @@ export class ShipInfoUIComponent extends Component {
                     Extiris Slaver Vessel, designation unknown.
                     Captured during the Keth-7 exodus.
                 </div>
-                <div class="crew-count">
-                    <span class="crew-dot"></span>50 SOULS ABOARD
+                <div class="crew-count" id="ship-crew-count">
+                    <span class="crew-dot"></span>
                 </div>
                 <div class="ship-range-section">
                     <span class="ship-range-label">RANGE</span>
@@ -204,11 +204,18 @@ export class ShipInfoUIComponent extends Component {
             }
         }
 
-        // Update range display and colonise button when panel is open and on overview
+        // Update range display and crew count when panel is open and on overview
         if (this.panelOpen && this.activeView === 'overview') {
             const movement = this.entity.getComponent(MovementComponent);
             if (movement) {
                 this.updateRangeDisplay(movement.budgetRemaining, movement.budgetMax);
+            }
+
+            const crewCountEl = document.getElementById('ship-crew-count');
+            if (crewCountEl) {
+                const world = ServiceLocator.get<World>('world');
+                const counts = getCrewCounts(world);
+                crewCountEl.innerHTML = `<span class="crew-dot"></span>${counts.ship} ABOARD / ${counts.colony} COLONISTS`;
             }
         }
     }

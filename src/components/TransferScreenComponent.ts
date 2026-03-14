@@ -47,6 +47,7 @@ export class TransferScreenComponent extends Component {
 
         this.onKeyDown = (e: KeyboardEvent): void => {
             if (e.code === 'Escape') {
+                e.stopImmediatePropagation();
                 if (this.detailCrewId !== null) {
                     this.detailCrewId = null;
                     this.rebuild();
@@ -319,6 +320,29 @@ export class TransferScreenComponent extends Component {
     }
 
     private transferSelected(destination: CrewLocation, world: World): void {
+        // Check if transferring FROM the ship would violate minimums
+        if (this.viewingLocation.type === 'ship' && destination.type === 'colony') {
+            const minimums = checkShipMinimums(world);
+            const transferring = this.getTransferringRoleCounts(world);
+
+            const soldiersAfter = minimums.soldiers - transferring.Soldier;
+            const engineersAfter = minimums.engineers - transferring.Engineer;
+            const warnings: string[] = [];
+
+            if (soldiersAfter < 2 && minimums.soldiersOk) {
+                warnings.push(`Ship will have ${soldiersAfter} Soldiers (minimum 2)`);
+            }
+            if (engineersAfter < 3 && minimums.engineersOk) {
+                warnings.push(`Ship will have ${engineersAfter} Engineers (minimum 3)`);
+            }
+
+            if (warnings.length > 0) {
+                // eslint-disable-next-line no-alert
+                const proceed = confirm(`WARNING:\n${warnings.join('\n')}\n\nProceed with transfer?`);
+                if (!proceed) return;
+            }
+        }
+
         const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
         let count = 0;
 
@@ -326,7 +350,8 @@ export class TransferScreenComponent extends Component {
             const entity = world.getEntity(id);
             const crew = entity?.getComponent(CrewMemberComponent);
             if (crew) {
-                crew.location = destination;
+                // Each crew gets their own location object (avoid shared reference)
+                crew.location = { ...destination };
                 count++;
             }
         }
@@ -336,7 +361,19 @@ export class TransferScreenComponent extends Component {
         }
 
         this.selectedCrewIds.clear();
+        // Switch view to the destination so user sees the transferred crew
+        this.viewingLocation = destination;
         this.rebuild();
+    }
+
+    private getTransferringRoleCounts(world: World): Record<CrewRole, number> {
+        const counts: Record<CrewRole, number> = { Engineer: 0, Soldier: 0, Medic: 0, Scientist: 0, Civilian: 0 };
+        for (const id of this.selectedCrewIds) {
+            const entity = world.getEntity(id);
+            const crew = entity?.getComponent(CrewMemberComponent);
+            if (crew) counts[crew.role]++;
+        }
+        return counts;
     }
 
     private getCrewAtViewing(world: World): Entity[] {

@@ -10,8 +10,6 @@ import { MovementComponent } from '../components/MovementComponent';
 import { MoveConfirmComponent } from '../components/MoveConfirmComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { ShipInfoUIComponent } from '../components/ShipInfoUIComponent';
-import { CrewManifestUIComponent } from '../components/CrewManifestUIComponent';
-import { CrewDetailUIComponent } from '../components/CrewDetailUIComponent';
 import { CameraComponent } from '../components/CameraComponent';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { getPlanetConfig } from '../data/planets';
@@ -325,8 +323,6 @@ export function createShip(world: World): Entity {
     }));
     entity.addComponent(new MoveConfirmComponent());
     entity.addComponent(new ShipInfoUIComponent());
-    entity.addComponent(new CrewManifestUIComponent());
-    entity.addComponent(new CrewDetailUIComponent());
 
     return entity;
 }
