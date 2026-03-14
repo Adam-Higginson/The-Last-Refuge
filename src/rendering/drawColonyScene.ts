@@ -189,7 +189,7 @@ function drawClouds(ctx: CanvasRenderingContext2D, w: number, horizonY: number, 
     ctx.restore();
 }
 
-// --- Horizon features ---
+// --- Rolling hills and horizon features ---
 
 function drawHorizonFeatures(
     ctx: CanvasRenderingContext2D,
@@ -198,29 +198,64 @@ function drawHorizonFeatures(
     visuals: BiomeVisuals,
     seed: number,
 ): void {
-    if (visuals.horizonFeature === 'none') return;
+    // Layer 1: Far rolling hills (subtle, hazy)
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = visuals.groundDark;
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY);
+    for (let x = 0; x <= w; x += 4) {
+        const hillY = horizonY - 15
+            - Math.sin(x / 200 + seed * 0.7) * 20
+            - Math.sin(x / 80 + seed * 1.3) * 8
+            - Math.abs(Math.sin(x / 350 + seed * 0.3)) * 25;
+        ctx.lineTo(x, hillY);
+    }
+    ctx.lineTo(w, horizonY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
 
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+    // Layer 2: Mid rolling hills (more visible)
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = visuals.groundBase;
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY);
+    for (let x = 0; x <= w; x += 4) {
+        const hillY = horizonY - 5
+            - Math.sin(x / 150 + seed * 1.1) * 15
+            - Math.sin(x / 60 + seed * 2.1) * 6;
+        ctx.lineTo(x, hillY);
+    }
+    ctx.lineTo(w, horizonY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
 
+    // Feature-specific details on top of hills
     if (visuals.horizonFeature === 'mountains' || visuals.horizonFeature === 'volcanoes') {
-        for (let i = 0; i < 7; i++) {
-            const cx = (i + 0.5) * w / 7 + Math.sin(seed + i * 3.7) * w * 0.04;
-            const peakH = horizonY * (0.12 + Math.abs(Math.sin(seed * 1.3 + i * 2.1)) * 0.18);
-            const baseW = w / 7 * 1.3;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+        for (let i = 0; i < 9; i++) {
+            const cx = (i + 0.3) * w / 9 + Math.sin(seed + i * 3.7) * w * 0.03;
+            const peakH = horizonY * (0.1 + Math.abs(Math.sin(seed * 1.3 + i * 2.1)) * 0.2);
+            const baseW = w / 9 * 1.4;
             ctx.beginPath();
             ctx.moveTo(cx - baseW / 2, horizonY);
-            ctx.lineTo(cx, horizonY - peakH);
-            ctx.lineTo(cx + baseW / 2, horizonY);
+            ctx.quadraticCurveTo(cx - baseW * 0.15, horizonY - peakH * 0.7, cx, horizonY - peakH);
+            ctx.quadraticCurveTo(cx + baseW * 0.15, horizonY - peakH * 0.7, cx + baseW / 2, horizonY);
             ctx.closePath();
             ctx.fill();
         }
     } else if (visuals.horizonFeature === 'trees') {
-        for (let i = 0; i < 15; i++) {
-            const cx = (i + 0.3) * w / 15 + Math.sin(seed + i * 2.3) * w * 0.02;
-            const treeH = horizonY * (0.05 + Math.abs(Math.sin(seed + i * 1.7)) * 0.07);
-            const treeW = w / 15 * 0.9;
+        // Dense tree line on the hills
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        for (let i = 0; i < 30; i++) {
+            const cx = (i + 0.2) * w / 30 + Math.sin(seed + i * 2.3) * w * 0.01;
+            const treeH = 8 + Math.abs(Math.sin(seed + i * 1.7)) * 12;
+            const treeW = w / 30 * 0.7;
             ctx.beginPath();
-            ctx.arc(cx, horizonY - treeH * 0.3, treeW / 2, Math.PI, 0);
+            ctx.arc(cx, horizonY - treeH * 0.5 - 5, treeW / 2, Math.PI, 0);
             ctx.lineTo(cx + treeW / 2, horizonY);
             ctx.lineTo(cx - treeW / 2, horizonY);
             ctx.closePath();
@@ -270,7 +305,7 @@ function drawNaturalGround(
     ctx.restore();
 }
 
-// --- Ground dressing (grass, rocks, ice, ferns) ---
+// --- Ground dressing (grass, rocks, ice, ferns) — dense coverage ---
 
 function drawGroundDressing(
     ctx: CanvasRenderingContext2D,
@@ -281,52 +316,98 @@ function drawGroundDressing(
     seed: number,
 ): void {
     ctx.save();
-    ctx.globalAlpha = 0.4;
+    const terrainH = h - horizonY;
 
-    for (let i = 0; i < 40; i++) {
-        const ds = seed * 3.1 + i * 11.7;
-        const dx = (Math.sin(ds) * 0.5 + 0.5) * w;
-        const dy = horizonY + (Math.sin(ds * 1.7) * 0.5 + 0.5) * (h - horizonY) * 0.9;
+    // Dense coverage — 150+ elements
+    const count = 150;
+
+    for (let i = 0; i < count; i++) {
+        const ds = seed * 3.1 + i * 7.13;
+        const dx = (Math.sin(ds * 1.1) * 0.5 + 0.5) * w;
+        const depthRatio = (Math.sin(ds * 1.7) * 0.5 + 0.5);
+        const dy = horizonY + depthRatio * terrainH * 0.85 + terrainH * 0.05;
+
+        // Scale with depth (smaller near horizon, larger at bottom)
+        const scale = 0.4 + depthRatio * 0.6;
+        // Fade with depth (more transparent near horizon)
+        ctx.globalAlpha = 0.2 + depthRatio * 0.4;
 
         if (visuals.dressing === 'grass') {
-            // Small grass tufts
-            ctx.strokeStyle = visuals.groundLight;
-            ctx.lineWidth = 1;
-            for (let j = 0; j < 3; j++) {
-                const gx = dx + (j - 1) * 3;
+            // Grass tufts — multiple blades per tuft
+            const bladeCount = 3 + Math.floor(Math.abs(Math.sin(ds * 2.3)) * 4);
+            ctx.strokeStyle = i % 3 === 0 ? visuals.groundLight : visuals.groundBase;
+            ctx.lineWidth = 0.8 * scale;
+            for (let j = 0; j < bladeCount; j++) {
+                const gx = dx + (j - bladeCount / 2) * 2.5 * scale;
+                const bladeH = (4 + Math.abs(Math.sin(ds + j * 1.3)) * 6) * scale;
+                const lean = Math.sin(ds + j * 0.7) * 3 * scale;
                 ctx.beginPath();
                 ctx.moveTo(gx, dy);
-                ctx.lineTo(gx + Math.sin(ds + j) * 3, dy - 4 - Math.random() * 4);
+                ctx.quadraticCurveTo(gx + lean * 0.5, dy - bladeH * 0.6, gx + lean, dy - bladeH);
                 ctx.stroke();
             }
+
+            // Occasional wildflower
+            if (i % 12 === 0) {
+                ctx.fillStyle = i % 24 === 0 ? '#e8d040' : '#d060a0';
+                ctx.beginPath();
+                ctx.arc(dx + Math.sin(ds) * 3, dy - 6 * scale, 1.5 * scale, 0, Math.PI * 2);
+                ctx.fill();
+            }
         } else if (visuals.dressing === 'rocks') {
-            // Small rocks
-            ctx.fillStyle = visuals.groundLight;
+            // Scattered rocks of varying sizes
+            const rockW = (2 + Math.abs(Math.sin(ds * 1.5)) * 6) * scale;
+            const rockH = rockW * 0.5;
+            ctx.fillStyle = i % 2 === 0 ? visuals.groundLight : '#5a4a3a';
             ctx.beginPath();
-            ctx.ellipse(dx, dy, 3 + Math.abs(Math.sin(ds)) * 4, 2, 0, 0, Math.PI * 2);
+            ctx.ellipse(dx, dy, rockW, rockH, Math.sin(ds) * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            // Rock highlight
+            ctx.fillStyle = 'rgba(255,255,255,0.08)';
+            ctx.beginPath();
+            ctx.ellipse(dx - rockW * 0.2, dy - rockH * 0.3, rockW * 0.5, rockH * 0.3, 0, 0, Math.PI * 2);
             ctx.fill();
         } else if (visuals.dressing === 'ice') {
-            // Ice crystals
-            ctx.fillStyle = 'rgba(200, 220, 255, 0.3)';
-            ctx.beginPath();
-            ctx.moveTo(dx, dy - 4);
-            ctx.lineTo(dx + 3, dy);
-            ctx.lineTo(dx, dy + 4);
-            ctx.lineTo(dx - 3, dy);
-            ctx.closePath();
-            ctx.fill();
+            // Ice crystals and snow patches
+            if (i % 3 === 0) {
+                // Crystal
+                ctx.fillStyle = 'rgba(200, 220, 255, 0.3)';
+                const s = 3 * scale;
+                ctx.beginPath();
+                ctx.moveTo(dx, dy - s);
+                ctx.lineTo(dx + s * 0.7, dy);
+                ctx.lineTo(dx, dy + s);
+                ctx.lineTo(dx - s * 0.7, dy);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Snow patch
+                ctx.fillStyle = 'rgba(230, 240, 255, 0.2)';
+                ctx.beginPath();
+                ctx.ellipse(dx, dy, 5 * scale, 2 * scale, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
         } else if (visuals.dressing === 'ferns') {
-            // Small fern shapes
-            ctx.strokeStyle = '#2a8a2a';
-            ctx.lineWidth = 1;
+            // Dense fern/undergrowth
+            ctx.strokeStyle = i % 2 === 0 ? '#2a8a2a' : '#1a6a1a';
+            ctx.lineWidth = 0.8 * scale;
+            const fernH = (5 + Math.abs(Math.sin(ds)) * 5) * scale;
+            // Main stem
             ctx.beginPath();
             ctx.moveTo(dx, dy);
-            ctx.lineTo(dx - 4, dy - 6);
-            ctx.moveTo(dx, dy);
-            ctx.lineTo(dx + 4, dy - 6);
-            ctx.moveTo(dx, dy - 2);
-            ctx.lineTo(dx, dy - 8);
+            ctx.lineTo(dx, dy - fernH);
             ctx.stroke();
+            // Fronds
+            for (let j = 1; j <= 3; j++) {
+                const fy = dy - j * fernH * 0.25;
+                const fw = (4 - j) * 2 * scale;
+                ctx.beginPath();
+                ctx.moveTo(dx, fy);
+                ctx.lineTo(dx - fw, fy - 2 * scale);
+                ctx.moveTo(dx, fy);
+                ctx.lineTo(dx + fw, fy - 2 * scale);
+                ctx.stroke();
+            }
         }
     }
     ctx.restore();
@@ -340,34 +421,54 @@ function drawPaths(
     h: number,
     region: Region,
 ): void {
-    if (region.buildings.length < 2) return;
+    if (region.buildings.length < 1) return;
 
     const horizonY = h * 0.35;
     const centreX = w / 2;
     const centreY = horizonY + (h - horizonY) * 0.35;
     const gridPositions = getSlotGridPositions(region.buildingSlots);
 
-    ctx.save();
-    ctx.globalAlpha = 0.2;
-    ctx.strokeStyle = 'rgba(100, 80, 60, 0.8)';
-    ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
-
-    // Connect occupied buildings with worn paths
     const occupiedIndices = region.buildings.map(b => b.slotIndex);
-    for (let i = 0; i < occupiedIndices.length - 1; i++) {
-        const a = gridPositions[occupiedIndices[i]];
-        const b = gridPositions[occupiedIndices[i + 1]];
-        if (!a || !b) continue;
+    if (occupiedIndices.length === 0) return;
 
-        const posA = gridToScreen(a.gridX, a.gridY, centreX, centreY);
-        const posB = gridToScreen(b.gridX, b.gridY, centreX, centreY);
+    ctx.save();
 
-        ctx.beginPath();
-        ctx.moveTo(posA.x, posA.y + TILE_HEIGHT * 0.3);
-        ctx.lineTo(posB.x, posB.y + TILE_HEIGHT * 0.3);
-        ctx.stroke();
+    // Draw paths between all occupied buildings (star topology from first building)
+    for (let i = 0; i < occupiedIndices.length; i++) {
+        for (let j = i + 1; j < occupiedIndices.length; j++) {
+            const a = gridPositions[occupiedIndices[i]];
+            const b = gridPositions[occupiedIndices[j]];
+            if (!a || !b) continue;
+
+            const posA = gridToScreen(a.gridX, a.gridY, centreX, centreY);
+            const posB = gridToScreen(b.gridX, b.gridY, centreX, centreY);
+            const ay = posA.y + TILE_HEIGHT * 0.3;
+            const by = posB.y + TILE_HEIGHT * 0.3;
+
+            // Dirt path — wide, brown, slightly transparent
+            ctx.globalAlpha = 0.35;
+            ctx.strokeStyle = '#6a5a3a';
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(posA.x, ay);
+            // Slight curve for natural feel
+            const midX = (posA.x + posB.x) / 2 + (posA.y - posB.y) * 0.1;
+            const midY = (ay + by) / 2;
+            ctx.quadraticCurveTo(midX, midY, posB.x, by);
+            ctx.stroke();
+
+            // Lighter worn centre line
+            ctx.globalAlpha = 0.15;
+            ctx.strokeStyle = '#8a7a5a';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(posA.x, ay);
+            ctx.quadraticCurveTo(midX, midY, posB.x, by);
+            ctx.stroke();
+        }
     }
+
     ctx.restore();
 }
 
