@@ -38,6 +38,8 @@ export const GameEvents = {
     RESOURCES_UPDATED: 'resources:updated',
     /** A resource went into deficit (below 0). Carries resource type and deficit amount. */
     RESOURCE_DEFICIT: 'resources:deficit',
+    /** Crew member(s) transferred between locations. */
+    CREW_TRANSFERRED: 'crew:transferred',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -132,4 +134,10 @@ export interface ResourceDeficitEvent extends GameEvent {
     resource: string;
     /** How much below zero (positive number). */
     deficit: number;
+}
+
+export interface CrewTransferredEvent extends GameEvent {
+    type: typeof GameEvents.CREW_TRANSFERRED;
+    /** Number of crew transferred. */
+    count: number;
 }

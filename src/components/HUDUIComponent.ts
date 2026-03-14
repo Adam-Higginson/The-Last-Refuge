@@ -11,6 +11,7 @@ import { DateUIComponent } from './DateUIComponent';
 import { GameModeComponent } from './GameModeComponent';
 import { CameraComponent } from './CameraComponent';
 import { TransformComponent } from './TransformComponent';
+import { TransferScreenComponent } from './TransferScreenComponent';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { TurnBlockEvent, TurnUnblockEvent } from '../core/GameEvents';
 import type { World } from '../core/World';
@@ -38,6 +39,7 @@ export class HUDUIComponent extends Component {
         this.container.innerHTML = `
             <span id="hud-date">JAN 01, 2700</span>
             <span id="hud-build" style="font-size:10px; opacity:0.4; margin-left:auto; margin-right:8px;">BUILD ${__BUILD_TIME__}</span>
+            <button id="hud-crew-btn" class="hud-btn" type="button">CREW</button>
             <button id="hud-centre-ship" class="hud-btn" type="button">CENTRE</button>
             <button id="hud-end-turn" class="hud-btn" type="button">END TURN</button>
         `;
@@ -65,6 +67,15 @@ export class HUDUIComponent extends Component {
             }
         };
         this.centreShipBtn?.addEventListener('click', this.onCentreShipClick);
+
+        // CREW button — opens transfer screen
+        const crewBtn = document.getElementById('hud-crew-btn');
+        crewBtn?.addEventListener('click', () => {
+            const transferScreen = this.entity.getComponent(TransferScreenComponent);
+            if (transferScreen && !transferScreen.isOpen) {
+                transferScreen.open();
+            }
+        });
 
         // Track blockers for button state
         this.turnBlockHandler = (event): void => {
