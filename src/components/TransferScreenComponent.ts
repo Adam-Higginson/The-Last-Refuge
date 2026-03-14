@@ -45,12 +45,12 @@ export class TransferScreenComponent extends Component {
         this.container = document.getElementById('transfer-screen');
     }
 
-    /** Open the transfer screen. */
-    open(): void {
+    /** Open the transfer screen, optionally pre-set to a specific location. */
+    open(location?: CrewLocation): void {
         if (!this.container) return;
         this.isOpen = true;
         this.selectedCrewIds.clear();
-        this.viewingLocation = { type: 'ship' };
+        this.viewingLocation = location ?? { type: 'ship' };
         this.detailCrewId = null;
         this.rebuild();
         this.container.classList.add('open');

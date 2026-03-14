@@ -22,6 +22,30 @@
     color: #ffffff;
 }
 
+#colony-roster-btn {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    background: rgba(79, 168, 255, 0.15);
+    border: 1px solid rgba(79, 168, 255, 0.6);
+    color: #4fa8ff;
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 10px 32px;
+    cursor: pointer;
+    z-index: 20;
+    transition: background 0.15s, color 0.15s;
+}
+
+#colony-roster-btn:hover {
+    background: rgba(79, 168, 255, 0.3);
+    color: #ffffff;
+}
+
 /* --- Colonise Confirmation Modal --- */
 #colonise-modal {
     position: fixed;

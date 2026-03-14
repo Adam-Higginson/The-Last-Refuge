@@ -12,6 +12,7 @@ import { GameModeComponent } from './GameModeComponent';
 import { RegionDataComponent } from './RegionDataComponent';
 import { PlanetViewInputComponent } from './PlanetViewInputComponent';
 import { TransformComponent } from './TransformComponent';
+import { TransferScreenComponent } from './TransferScreenComponent';
 import type { EventQueue } from '../core/EventQueue';
 import { FOG_DETAIL_RADIUS } from '../data/constants';
 import type { World } from '../core/World';
@@ -24,6 +25,7 @@ export class ColoniseUIComponent extends Component {
     private modalBiome: HTMLElement | null = null;
     private modalConfirm: HTMLElement | null = null;
     private modalCancel: HTMLElement | null = null;
+    private colonyRosterBtn: HTMLElement | null = null;
     private pendingRegionId: number | null = null;
     private onColoniseBtnClick: (() => void) | null = null;
     private onConfirmClick: (() => void) | null = null;
@@ -88,12 +90,30 @@ export class ColoniseUIComponent extends Component {
             if (this.modal) this.modal.style.display = 'none';
         };
         this.modalCancel?.addEventListener('click', this.onCancelClick);
+
+        // Colony roster button — opens transfer screen for the selected colony
+        this.colonyRosterBtn = document.getElementById('colony-roster-btn');
+        this.colonyRosterBtn?.addEventListener('click', () => {
+            const inputComp = this.entity.getComponent(PlanetViewInputComponent);
+            if (!inputComp || !this.world) return;
+
+            const hud = this.world.getEntityByName('hud');
+            const transferScreen = hud?.getComponent(TransferScreenComponent);
+            if (transferScreen && !transferScreen.isOpen) {
+                transferScreen.open({
+                    type: 'colony',
+                    planetEntityId: this.entity.id,
+                    regionId: inputComp.selectedRegionId,
+                });
+            }
+        });
     }
 
     update(_dt: number): void {
         const gameMode = this.getGameMode();
         if (!gameMode || gameMode.mode !== 'planet') {
             if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
+            if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'none';
             if (this.modal) this.modal.style.display = 'none';
             this.pendingRegionId = null;
             return;
@@ -102,19 +122,26 @@ export class ColoniseUIComponent extends Component {
         // Don't toggle button while modal is open
         if (this.modal && this.modal.style.display === 'flex') return;
 
-        // Check if selected region is colonisable and not yet colonised
+        // Check selected region
         const inputComp = this.entity.getComponent(PlanetViewInputComponent);
         const regionData = this.entity.getComponent(RegionDataComponent);
         if (!inputComp || !regionData) {
             if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
+            if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'none';
             return;
         }
 
         const selectedRegion = regionData.regions.find(r => r.id === inputComp.selectedRegionId);
-        if (selectedRegion && selectedRegion.canColonise && !selectedRegion.colonised) {
+
+        if (selectedRegion && selectedRegion.colonised) {
+            // Colonised region — show roster button, hide colonise
+            if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
+            if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'block';
+        } else if (selectedRegion && selectedRegion.canColonise && !selectedRegion.colonised) {
+            // Colonisable region — show colonise button, hide roster
+            if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'none';
             if (this.coloniseBtn) {
                 this.coloniseBtn.style.display = 'block';
-                // Grey out if ship not in range
                 if (this.isShipInRange()) {
                     this.coloniseBtn.classList.remove('disabled');
                     this.coloniseBtn.title = '';
@@ -125,6 +152,7 @@ export class ColoniseUIComponent extends Component {
             }
         } else {
             if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
+            if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'none';
         }
     }
 
