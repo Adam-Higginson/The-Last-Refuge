@@ -101,7 +101,7 @@ describe('leaderUtils', () => {
     it('removeLeader clears isLeader', () => {
         const { entity, crew } = addCrew(world, 'a', 'Civilian', { planetEntityId: 10, regionId: 1 });
         crew.isLeader = true;
-        removeLeader(entity.id, world);
+        removeLeader(world, entity.id);
         expect(crew.isLeader).toBe(false);
     });
 
@@ -133,7 +133,7 @@ describe('leaderUtils', () => {
     it('removeCaptain clears isCaptain', () => {
         const { entity, crew } = addCrew(world, 'a', 'Soldier');
         crew.isCaptain = true;
-        removeCaptain(entity.id, world);
+        removeCaptain(world, entity.id);
         expect(crew.isCaptain).toBe(false);
     });
 });

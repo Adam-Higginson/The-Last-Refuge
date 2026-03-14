@@ -41,7 +41,7 @@ export function appointLeader(world: World, crewEntityId: number): boolean {
 }
 
 /** Remove a crew member's leader status. */
-export function removeLeader(crewEntityId: number, world: World): boolean {
+export function removeLeader(world: World, crewEntityId: number): boolean {
     const entity = world.getEntity(crewEntityId);
     const crew = entity?.getComponent(CrewMemberComponent);
     if (!crew) return false;
@@ -67,7 +67,7 @@ export function appointCaptain(world: World, crewEntityId: number): boolean {
 }
 
 /** Remove a crew member's captain status. */
-export function removeCaptain(crewEntityId: number, world: World): boolean {
+export function removeCaptain(world: World, crewEntityId: number): boolean {
     const entity = world.getEntity(crewEntityId);
     const crew = entity?.getComponent(CrewMemberComponent);
     if (!crew) return false;

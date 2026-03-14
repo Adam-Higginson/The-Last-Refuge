@@ -476,7 +476,6 @@ export class TransferScreenComponent extends Component {
             }
         }
         if (leaderWarnings.length > 0) {
-            // eslint-disable-next-line no-alert
             const proceed = confirm(`WARNING:\n${leaderWarnings.join('\n')}\n\nProceed with transfer?`);
             if (!proceed) return;
         }
@@ -490,11 +489,11 @@ export class TransferScreenComponent extends Component {
             if (crew) {
                 // Demote leader/captain on transfer
                 if (crew.isLeader) {
-                    removeLeader(id, world);
+                    removeLeader(world, id);
                     eventQueue.emit({ type: GameEvents.LEADER_REMOVED });
                 }
                 if (crew.isCaptain) {
-                    removeCaptain(id, world);
+                    removeCaptain(world, id);
                     eventQueue.emit({ type: GameEvents.CAPTAIN_REMOVED });
                 }
                 // Each crew gets their own location object (avoid shared reference)

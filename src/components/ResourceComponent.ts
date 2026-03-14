@@ -115,12 +115,23 @@ export class ResourceComponent extends Component {
 
     /** Get the total net rate including multipliers and dynamic population consumption. */
     getNetRate(resource: ResourceType): number {
-        let rate = this.getModifierRate(resource);
-        // Apply percentage multipliers to the positive portion
-        const multiplier = this.getMultiplier(resource);
-        if (multiplier !== 0 && rate > 0) {
-            rate += rate * multiplier;
+        // Split modifiers into production (positive) and consumption (negative)
+        let production = 0;
+        let consumption = 0;
+        for (const m of this.modifiers) {
+            if (m.resource === resource) {
+                if (m.amount > 0) production += m.amount;
+                else consumption += m.amount;
+            }
         }
+
+        // Apply percentage multipliers to production only
+        const multiplier = this.getMultiplier(resource);
+        if (multiplier !== 0) {
+            production += production * multiplier;
+        }
+
+        let rate = production + consumption;
         if (resource === 'food') {
             rate -= this.getPopulationCount() * FOOD_PER_PERSON;
         }
@@ -172,11 +183,8 @@ export class ResourceComponent extends Component {
     }
 
     getPopulationCount(): number {
-        try {
-            const world = ServiceLocator.get<World>('world');
-            return world.getEntitiesWithComponent(CrewMemberComponent).length;
-        } catch {
-            return 0;
-        }
+        if (!ServiceLocator.has('world')) return 0;
+        const world = ServiceLocator.get<World>('world');
+        return world.getEntitiesWithComponent(CrewMemberComponent).length;
     }
 }

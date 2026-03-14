@@ -1,4 +1,7 @@
 // leaderBonuses.ts — Static data tables for leader role bonuses and trait bonuses.
+// NOTE: These bonuses are currently display-only in the UI. Actual gameplay effects
+// (resource modifiers, morale changes) will be applied by LeaderBonusComponent
+// when it is implemented in Phase 3 Step 9 (Polish & Balance).
 
 import type { CrewRole, Trait } from '../components/CrewMemberComponent';
 
@@ -80,9 +83,9 @@ export const LEADER_TRAIT_BONUSES: Partial<Record<Trait, LeaderBonus>> = {
         ],
     },
     Analytical: {
-        description: '+10% building efficiency',
+        description: '+10% building efficiency (future)',
         effects: [
-            { text: '+10% building efficiency', sentiment: 'positive' },
+            { text: '+10% building efficiency (future)', sentiment: 'neutral' },
         ],
     },
     Hopeful: {
@@ -108,9 +111,9 @@ export const LEADER_TRAIT_BONUSES: Partial<Record<Trait, LeaderBonus>> = {
         ],
     },
     Protective: {
-        description: 'Colony takes less damage from events',
+        description: 'Less damage from events (future)',
         effects: [
-            { text: 'Less damage from events', sentiment: 'positive' },
+            { text: 'Less damage from events (future)', sentiment: 'neutral' },
         ],
     },
 };

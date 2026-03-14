@@ -95,7 +95,12 @@ export class ColoniseUIComponent extends Component {
         this.colonyRosterBtn = document.getElementById('colony-roster-btn');
         this.colonyRosterBtn?.addEventListener('click', () => {
             const inputComp = this.entity.getComponent(PlanetViewInputComponent);
-            if (!inputComp || !this.world) return;
+            const regionData = this.entity.getComponent(RegionDataComponent);
+            if (!inputComp || !this.world || !regionData) return;
+
+            // Verify region is actually colonised
+            const region = regionData.regions.find(r => r.id === inputComp.selectedRegionId);
+            if (!region?.colonised) return;
 
             const hud = this.world.getEntityByName('hud');
             const transferScreen = hud?.getComponent(TransferScreenComponent);

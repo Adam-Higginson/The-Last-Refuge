@@ -17,9 +17,14 @@
     transition: background 0.15s, color 0.15s;
 }
 
-#colonise-btn:hover {
+#colonise-btn:hover:not(.disabled) {
     background: rgba(212, 160, 32, 0.3);
     color: #ffffff;
+}
+
+#colonise-btn.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
 }
 
 #colony-roster-btn {
