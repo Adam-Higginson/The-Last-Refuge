@@ -28,6 +28,7 @@ export class TransferScreenComponent extends Component {
     private container: HTMLElement | null = null;
     private selectedCrewIds = new Set<number>();
     private viewingLocation: CrewLocation = { type: 'ship' };
+    private detailCrewId: number | null = null;
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
     init(): void {
@@ -40,11 +41,19 @@ export class TransferScreenComponent extends Component {
         this.isOpen = true;
         this.selectedCrewIds.clear();
         this.viewingLocation = { type: 'ship' };
+        this.detailCrewId = null;
         this.rebuild();
         this.container.classList.add('open');
 
         this.onKeyDown = (e: KeyboardEvent): void => {
-            if (e.code === 'Escape') this.close();
+            if (e.code === 'Escape') {
+                if (this.detailCrewId !== null) {
+                    this.detailCrewId = null;
+                    this.rebuild();
+                } else {
+                    this.close();
+                }
+            }
         };
         window.addEventListener('keydown', this.onKeyDown);
     }
@@ -90,6 +99,7 @@ export class TransferScreenComponent extends Component {
                         ${this.buildCrewRows(world)}
                     </div>
                 </div>
+                ${this.detailCrewId !== null ? this.buildDetailPanel(world) : ''}
             </div>
             <div class="transfer-bar ${hasSelection ? 'has-selection' : ''}">
                 <div class="transfer-info ${hasSelection ? 'active' : ''}">
@@ -168,8 +178,8 @@ export class TransferScreenComponent extends Component {
 
             return `
                 <div class="crew-row ${isSelected ? 'selected' : ''}" data-crew-id="${entity.id}">
-                    <div class="crew-checkbox ${isSelected ? 'checked' : ''}">${isSelected ? '✓' : ''}</div>
-                    <div class="crew-name">${c.fullName}</div>
+                    <div class="crew-checkbox ${isSelected ? 'checked' : ''}" data-checkbox="${entity.id}">${isSelected ? '✓' : ''}</div>
+                    <div class="crew-name" data-detail="${entity.id}">${c.fullName}</div>
                     <div class="crew-role">${c.role}</div>
                     <div class="crew-morale-dot ${moraleClass}"></div>
                     <div class="crew-age">${c.age}</div>
@@ -192,10 +202,11 @@ export class TransferScreenComponent extends Component {
             this.rebuild();
         });
 
-        // Crew row clicks (toggle selection)
-        for (const row of this.container.querySelectorAll('.crew-row')) {
-            row.addEventListener('click', () => {
-                const id = Number((row as HTMLElement).dataset.crewId);
+        // Checkbox clicks (toggle selection)
+        for (const cb of this.container.querySelectorAll('.crew-checkbox')) {
+            cb.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = Number((cb as HTMLElement).dataset.checkbox);
                 if (this.selectedCrewIds.has(id)) {
                     this.selectedCrewIds.delete(id);
                 } else {
@@ -204,6 +215,22 @@ export class TransferScreenComponent extends Component {
                 this.rebuild();
             });
         }
+
+        // Name clicks (open detail)
+        for (const name of this.container.querySelectorAll('.crew-name')) {
+            name.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = Number((name as HTMLElement).dataset.detail);
+                this.detailCrewId = id;
+                this.rebuild();
+            });
+        }
+
+        // Detail panel close
+        this.container.querySelector('#detail-close')?.addEventListener('click', () => {
+            this.detailCrewId = null;
+            this.rebuild();
+        });
 
         // Location card clicks
         for (const card of this.container.querySelectorAll('.location-card')) {
@@ -234,6 +261,49 @@ export class TransferScreenComponent extends Component {
                 }
             });
         }
+    }
+
+    private buildDetailPanel(world: World): string {
+        if (this.detailCrewId === null) return '';
+
+        const entity = world.getEntity(this.detailCrewId);
+        const c = entity?.getComponent(CrewMemberComponent);
+        if (!c) return '';
+
+        const moraleClass = c.morale >= 60 ? 'morale-high' : c.morale >= 30 ? 'morale-mid' : 'morale-low';
+        const moraleWidth = Math.max(0, Math.min(100, c.morale));
+        const locationLabel = getLocationLabel(world, c.location);
+
+        const relationshipRows = c.relationships.map(r =>
+            `<div class="detail-relationship">
+                <span class="detail-rel-name">${r.targetName}</span>
+                <span class="detail-rel-type">${r.type}</span>
+                <div class="detail-rel-desc">${r.description}</div>
+            </div>`,
+        ).join('');
+
+        return `
+            <div class="crew-detail-panel">
+                <button class="hud-btn" id="detail-close" type="button">← BACK</button>
+                <div class="detail-name">${c.fullName}</div>
+                <div class="detail-meta">${c.role} — AGE ${c.age}</div>
+                <div class="detail-location">ASSIGNED: ${locationLabel}</div>
+                <hr class="divider">
+                <div class="detail-section-title">MORALE</div>
+                <div class="detail-morale-bar">
+                    <div class="detail-morale-fill ${moraleClass}" style="width:${moraleWidth}%"></div>
+                </div>
+                <div class="detail-morale-value">${c.morale}/100</div>
+                <div class="detail-section-title">TRAITS</div>
+                <div class="detail-traits">
+                    ${c.traits.map(t => `<span class="detail-trait">${t}</span>`).join('')}
+                </div>
+                ${c.relationships.length > 0 ? `
+                    <div class="detail-section-title">RELATIONSHIPS</div>
+                    <div class="detail-relationships">${relationshipRows}</div>
+                ` : ''}
+            </div>
+        `;
     }
 
     private transferSelected(destination: CrewLocation, world: World): void {

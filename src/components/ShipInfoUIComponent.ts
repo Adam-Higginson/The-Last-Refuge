@@ -98,7 +98,6 @@ export class ShipInfoUIComponent extends Component {
                     <span class="ship-range-text" id="ship-range-text">300 / 300</span>
                 </div>
                 <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px">
-                    <button class="hud-btn" id="ship-view-manifest-btn" type="button">VIEW MANIFEST</button>
                     <button class="hud-btn" id="ship-crew-roster-btn" type="button">CREW ROSTER</button>
                     <button class="hud-btn" id="ship-centre-btn" type="button">CENTRE ON SHIP</button>
                 </div>
@@ -125,12 +124,6 @@ export class ShipInfoUIComponent extends Component {
             if (selectable) {
                 selectable.selected = false;
             }
-        });
-
-        // VIEW MANIFEST button
-        const manifestBtn = document.getElementById('ship-view-manifest-btn');
-        manifestBtn?.addEventListener('click', () => {
-            this.activeView = 'manifest';
         });
 
         // CREW ROSTER button — opens transfer screen (on the HUD entity)

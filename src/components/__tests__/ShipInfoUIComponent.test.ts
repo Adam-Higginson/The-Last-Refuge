@@ -265,14 +265,7 @@ describe('ShipInfoUIComponent', () => {
         expect(info.selectedCrewEntityId).toBeNull();
     });
 
-    it('switches to manifest view when VIEW MANIFEST is clicked', () => {
-        const { info, selectable } = createShipWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        manifestBtn.click();
-        expect(info.activeView).toBe('manifest');
-    });
+    // VIEW MANIFEST button removed — crew roster replaces it
 
     it('adds wide class when activeView is manifest', () => {
         const { info, selectable } = createShipWithInfoPanel();
