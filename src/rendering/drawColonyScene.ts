@@ -674,7 +674,7 @@ function drawTimeIndicator(
     ctx.fillStyle = dayNight.phase === 'night' ? '#8090a0' : '#ffffff';
     ctx.font = '11px "Share Tech Mono", "Courier New", monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(timeStr, w - 16, 28);
+    ctx.fillText(timeStr, w - 16, 55);
     ctx.restore();
 }
 
@@ -867,7 +867,7 @@ function drawColonyLabel(ctx: CanvasRenderingContext2D, w: number, region: Regio
     ctx.globalAlpha = 0.8;
     ctx.font = '14px "Share Tech Mono", "Courier New", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(`COLONY — ${region.biome.toUpperCase()}`, w / 2, 30);
+    ctx.fillText(`COLONY — ${region.biome.toUpperCase()}`, w / 2, 55);
     ctx.globalAlpha = 1.0;
 }
 
