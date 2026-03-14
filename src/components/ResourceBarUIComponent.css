@@ -69,11 +69,14 @@
     color: #c0c8d8;
     font-size: 11px;
     line-height: 1.5;
-    white-space: nowrap;
+    max-width: 240px;
+    white-space: normal;
     z-index: 20;
     pointer-events: none;
 }
 
-.resource-item:hover .resource-tooltip {
+/* Desktop: hover. Mobile: tap (via :active) */
+.resource-item:hover .resource-tooltip,
+.resource-item:active .resource-tooltip {
     display: block;
 }

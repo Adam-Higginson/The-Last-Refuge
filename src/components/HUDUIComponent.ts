@@ -38,7 +38,7 @@ export class HUDUIComponent extends Component {
         this.container.innerHTML = `
             <span id="hud-date">JAN 01, 2700</span>
             <span id="hud-build" style="font-size:10px; opacity:0.4; margin-left:auto; margin-right:8px;">BUILD ${__BUILD_TIME__}</span>
-            <button id="hud-centre-ship" class="hud-btn" type="button">CENTRE ON SHIP</button>
+            <button id="hud-centre-ship" class="hud-btn" type="button">CENTRE</button>
             <button id="hud-end-turn" class="hud-btn" type="button">END TURN</button>
         `;
 
