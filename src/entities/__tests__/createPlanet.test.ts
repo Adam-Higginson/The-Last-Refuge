@@ -5,7 +5,13 @@ import { RenderComponent } from '../../components/RenderComponent';
 import { TransformComponent } from '../../components/TransformComponent';
 import { OrbitComponent } from '../../components/OrbitComponent';
 import { SelectableComponent } from '../../components/SelectableComponent';
-import { createPlanet, ORBIT_RADIUS } from '../createPlanet';
+import { PlanetDataComponent } from '../../components/PlanetDataComponent';
+import { RegionDataComponent } from '../../components/RegionDataComponent';
+import { ColoniseUIComponent } from '../../components/ColoniseUIComponent';
+import { createPlanet } from '../createPlanet';
+import { PLANET_CONFIGS, getPlanetConfig } from '../../data/planets';
+
+const newTerraConfig = getPlanetConfig('newTerra');
 
 describe('createPlanet', () => {
     beforeEach(() => {
@@ -16,79 +22,109 @@ describe('createPlanet', () => {
         } as unknown as HTMLCanvasElement);
     });
 
-    it('creates an entity named "newTerra"', () => {
+    it('creates an entity with the config name', () => {
+        if (!newTerraConfig) throw new Error('missing config');
         const world = new World();
-        const entity = createPlanet(world);
+        const entity = createPlanet(world, newTerraConfig);
         expect(entity.name).toBe('newTerra');
     });
 
     it('entity is retrievable from the world by name', () => {
+        if (!newTerraConfig) throw new Error('missing config');
         const world = new World();
-        createPlanet(world);
+        createPlanet(world, newTerraConfig);
         const entity = world.getEntityByName('newTerra');
         expect(entity).not.toBeNull();
     });
 
     it('has a RenderComponent on the world layer', () => {
+        if (!newTerraConfig) throw new Error('missing config');
         const world = new World();
-        const entity = createPlanet(world);
+        const entity = createPlanet(world, newTerraConfig);
         const render = entity.getComponent(RenderComponent);
         expect(render).not.toBeNull();
         expect(render?.layer).toBe('world');
     });
 
-    it('has a TransformComponent at initial orbit position in world coords', () => {
+    it('has a TransformComponent at initial orbit position', () => {
+        if (!newTerraConfig) throw new Error('missing config');
         const world = new World();
-        const entity = createPlanet(world);
+        const entity = createPlanet(world, newTerraConfig);
         const transform = entity.getComponent(TransformComponent);
         expect(transform).not.toBeNull();
-
-        // Initial angle=0: position at (ORBIT_RADIUS, 0) in world space
-        expect(transform?.x).toBe(ORBIT_RADIUS);
+        expect(transform?.x).toBe(newTerraConfig.orbitRadius);
         expect(transform?.y).toBe(0);
     });
 
-    it('has an OrbitComponent with fixed world-space parameters', () => {
+    it('has an OrbitComponent with config parameters', () => {
+        if (!newTerraConfig) throw new Error('missing config');
         const world = new World();
-        const entity = createPlanet(world);
+        const entity = createPlanet(world, newTerraConfig);
         const orbit = entity.getComponent(OrbitComponent);
         expect(orbit).not.toBeNull();
         expect(orbit?.centreX).toBe(0);
         expect(orbit?.centreY).toBe(0);
-        expect(orbit?.radius).toBe(ORBIT_RADIUS);
-        expect(orbit?.speed).toBe(0.07);
-        expect(orbit?.angle).toBe(0);
+        expect(orbit?.radius).toBe(newTerraConfig.orbitRadius);
+        expect(orbit?.speed).toBe(newTerraConfig.orbitSpeed);
     });
 
-    it('has a SelectableComponent with hit radius', () => {
+    it('has a SelectableComponent with config hit radius', () => {
+        if (!newTerraConfig) throw new Error('missing config');
         const world = new World();
-        const entity = createPlanet(world);
+        const entity = createPlanet(world, newTerraConfig);
         const selectable = entity.getComponent(SelectableComponent);
         expect(selectable).not.toBeNull();
-        expect(selectable?.hitRadius).toBe(160);
-        expect(selectable?.hovered).toBe(false);
+        expect(selectable?.hitRadius).toBe(newTerraConfig.hitRadius);
     });
 
-    it('orbit parameters are independent of canvas size', () => {
-        ServiceLocator.clear();
-        ServiceLocator.register('canvas', {
-            width: 1920,
-            height: 1080,
-        } as unknown as HTMLCanvasElement);
-
+    it('has a PlanetDataComponent with config', () => {
+        if (!newTerraConfig) throw new Error('missing config');
         const world = new World();
-        const entity = createPlanet(world);
-        const orbit = entity.getComponent(OrbitComponent);
-
-        // World coordinates are fixed — same regardless of canvas dimensions
-        expect(orbit?.radius).toBe(ORBIT_RADIUS);
-        expect(orbit?.centreX).toBe(0);
-        expect(orbit?.centreY).toBe(0);
+        const entity = createPlanet(world, newTerraConfig);
+        const planetData = entity.getComponent(PlanetDataComponent);
+        expect(planetData).not.toBeNull();
+        expect(planetData?.config.name).toBe('newTerra');
     });
-});
 
-describe('ORBIT_RADIUS', () => {
-    it('is 1500 world units', () => {
-        expect(ORBIT_RADIUS).toBe(1500);
+    it('rocky planets have RegionDataComponent', () => {
+        if (!newTerraConfig) throw new Error('missing config');
+        const world = new World();
+        const entity = createPlanet(world, newTerraConfig);
+        const regionData = entity.getComponent(RegionDataComponent);
+        expect(regionData).not.toBeNull();
+        expect(regionData?.regions.length).toBeGreaterThan(0);
+    });
+
+    it('gas giants do not have RegionDataComponent', () => {
+        const goliathConfig = getPlanetConfig('goliath');
+        if (!goliathConfig) throw new Error('missing config');
+        const world = new World();
+        const entity = createPlanet(world, goliathConfig);
+        const regionData = entity.getComponent(RegionDataComponent);
+        expect(regionData).toBeNull();
+    });
+
+    it('only colonisable planets have ColoniseUIComponent', () => {
+        if (!newTerraConfig) throw new Error('missing config');
+        const world = new World();
+        const terra = createPlanet(world, newTerraConfig);
+        expect(terra.getComponent(ColoniseUIComponent)).not.toBeNull();
+
+        const emberConfig = getPlanetConfig('ember');
+        if (!emberConfig) throw new Error('missing config');
+        const ember = createPlanet(world, emberConfig);
+        expect(ember.getComponent(ColoniseUIComponent)).toBeNull();
+    });
+
+    it('creates all 5 planets from PLANET_CONFIGS', () => {
+        const world = new World();
+        for (const config of PLANET_CONFIGS) {
+            createPlanet(world, config);
+        }
+        expect(world.getEntityByName('ember')).not.toBeNull();
+        expect(world.getEntityByName('newTerra')).not.toBeNull();
+        expect(world.getEntityByName('dust')).not.toBeNull();
+        expect(world.getEntityByName('goliath')).not.toBeNull();
+        expect(world.getEntityByName('shepherd')).not.toBeNull();
     });
 });

@@ -7,11 +7,12 @@
 import { TransformComponent } from '../components/TransformComponent';
 import { RenderComponent } from '../components/RenderComponent';
 import { MovementComponent } from '../components/MovementComponent';
+import { MoveConfirmComponent } from '../components/MoveConfirmComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { ShipInfoUIComponent } from '../components/ShipInfoUIComponent';
 import { CrewManifestUIComponent } from '../components/CrewManifestUIComponent';
 import { CrewDetailUIComponent } from '../components/CrewDetailUIComponent';
-import { ORBIT_RADIUS } from './createPlanet';
+import { getPlanetConfig } from '../data/planets';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -124,6 +125,12 @@ function drawShip(
             ctx.stroke();
             ctx.restore();
         }
+    }
+
+    // --- Pending move marker (tap-to-confirm on mobile) ---
+    const moveConfirm = entity.getComponent(MoveConfirmComponent);
+    if (selected && movement && !movement.moving && moveConfirm) {
+        moveConfirm.renderMarker(ctx, x, y, movement.budgetRemaining);
     }
 
     // --- Movement range disc (anchored to turn origin, visible when selected) ---
@@ -273,14 +280,15 @@ function drawShip(
 export function createShip(world: World): Entity {
     const entity = world.createEntity('arkSalvage');
 
-    // Start near the upper-right area in world space, away from the planet.
-    // Proportional to orbit radius so the ship is always well-positioned.
-    entity.addComponent(new TransformComponent(ORBIT_RADIUS * 0.9, -ORBIT_RADIUS * 0.6));
+    // Start near New Terra's orbit — proportional to its orbit radius
+    const newTerraOrbit = getPlanetConfig('newTerra')?.orbitRadius ?? 1500;
+    entity.addComponent(new TransformComponent(newTerraOrbit * 0.9, -newTerraOrbit * 0.6));
     entity.addComponent(new MovementComponent(MOVEMENT_BUDGET, GLIDE_SPEED));
     entity.addComponent(new SelectableComponent(HIT_RADIUS));
     entity.addComponent(new RenderComponent('world', (ctx, x, y, angle) => {
         drawShip(entity, ctx, x, y, angle);
     }));
+    entity.addComponent(new MoveConfirmComponent());
     entity.addComponent(new ShipInfoUIComponent());
     entity.addComponent(new CrewManifestUIComponent());
     entity.addComponent(new CrewDetailUIComponent());
