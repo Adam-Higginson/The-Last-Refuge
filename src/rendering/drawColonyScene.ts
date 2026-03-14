@@ -156,6 +156,7 @@ export function drawColonyScene(
     drawStars(ctx, w, horizonY, dayNight);
     drawHorizonFeatures(ctx, w, horizonY, visuals, region.id);
     drawNaturalGround(ctx, w, h, horizonY, visuals, region.id);
+    drawTerrainUndulation(ctx, w, h, horizonY, visuals, region.id);
     drawGroundDressing(ctx, w, h, horizonY, visuals, region.id);
     drawPaths(ctx, w, h, region);
     const slotRects = drawBuildingSlots(ctx, w, h, region, t);
@@ -165,6 +166,7 @@ export function drawColonyScene(
     drawCrewOnSurface(ctx, entity, region, slotRects, t, dtSeconds);
     drawParticles(ctx, dtSeconds);
     drawAmbientParticles(ctx, w, h, visuals, t);
+    drawForegroundTrees(ctx, w, h, visuals, region.id, t);
     drawAmbientOverlay(ctx, w, h, dayNight);
 
     // Weather effects drawn AFTER ambient overlay so rain is visible on dark nights
@@ -785,6 +787,166 @@ function drawNonGrassDressing(
             }
         }
     }
+    ctx.restore();
+}
+
+// --- Terrain undulation — gentle hills and rises ---
+
+function drawTerrainUndulation(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    horizonY: number,
+    visuals: BiomeVisuals,
+    seed: number,
+): void {
+    const terrainH = h - horizonY;
+
+    ctx.save();
+
+    // Mid-ground hills — 2 gentle bumps in the terrain
+    for (let i = 0; i < 2; i++) {
+        const hs = seed * 4.7 + i * 31.3;
+        const hillCx = w * (0.25 + i * 0.5) + Math.sin(hs) * w * 0.1;
+        const hillTop = horizonY + terrainH * (0.15 + Math.sin(hs * 1.3) * 0.08);
+        const hillW = w * (0.25 + Math.abs(Math.sin(hs * 2.1)) * 0.15);
+        const hillH = terrainH * 0.12;
+
+        // Hill body — slightly lighter than surrounding ground
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = visuals.groundLight;
+        ctx.beginPath();
+        ctx.moveTo(hillCx - hillW, horizonY + terrainH * 0.35);
+        ctx.quadraticCurveTo(hillCx - hillW * 0.3, hillTop, hillCx, hillTop);
+        ctx.quadraticCurveTo(hillCx + hillW * 0.3, hillTop, hillCx + hillW, horizonY + terrainH * 0.35);
+        ctx.closePath();
+        ctx.fill();
+
+        // Shadow on far side of hill
+        ctx.globalAlpha = 0.04;
+        ctx.fillStyle = '#1a2a10';
+        ctx.beginPath();
+        ctx.moveTo(hillCx, hillTop);
+        ctx.quadraticCurveTo(hillCx + hillW * 0.4, hillTop + hillH * 0.3, hillCx + hillW * 0.8, hillTop + hillH);
+        ctx.lineTo(hillCx + hillW * 0.3, hillTop + hillH);
+        ctx.quadraticCurveTo(hillCx + hillW * 0.1, hillTop + hillH * 0.5, hillCx, hillTop);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Ground rise at horizon — terrain crests slightly, overlapping treeline base
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = visuals.groundBase;
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY + 8);
+    for (let x = 0; x <= w; x += 5) {
+        const rise = Math.sin(x / 120 + seed * 0.9) * 4 + Math.sin(x / 50 + seed * 2.1) * 2;
+        ctx.lineTo(x, horizonY + 3 + rise);
+    }
+    ctx.lineTo(w, horizonY + 15);
+    ctx.lineTo(0, horizonY + 15);
+    ctx.closePath();
+    ctx.fill();
+
+    // Foreground rise — slight slope upward toward camera at bottom of screen
+    ctx.globalAlpha = 0.1;
+    ctx.fillStyle = visuals.groundDark;
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let x = 0; x <= w; x += 5) {
+        const rise = h - terrainH * 0.08 - Math.sin(x / 200 + seed * 1.5) * 8;
+        ctx.lineTo(x, rise);
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+}
+
+// --- Foreground trees — frame the scene ---
+
+function drawForegroundTrees(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    visuals: BiomeVisuals,
+    seed: number,
+    t: number,
+): void {
+    if (visuals.horizonFeature !== 'trees') return;
+
+    const dayNight = getDayNightState();
+    const isNight = dayNight.ambientLight < 0.3;
+    const weather = getWeatherInfo();
+    const windLean = weather.windAngle * 15;
+
+    ctx.save();
+
+    // 3 large foreground trees, partially cropped by screen edges
+    const trees = [
+        { x: -20, side: 'left' as const },
+        { x: w + 20, side: 'right' as const },
+        { x: w * 0.08, side: 'left' as const },
+    ];
+
+    for (let i = 0; i < trees.length; i++) {
+        const tree = trees[i];
+        const ts = seed * 5.1 + i * 17.3;
+        const tx = tree.x + Math.sin(ts) * 15;
+        const treeH = h * 0.55 + Math.abs(Math.sin(ts * 1.3)) * h * 0.1;
+        const trunkW = 12 + Math.abs(Math.sin(ts * 2.1)) * 6;
+        const canopyW = 50 + Math.abs(Math.sin(ts * 1.7)) * 25;
+
+        // Visible sway — foreground trees sway more
+        const sway = Math.sin(t / 1500 + i * 2.1) * 5 + windLean * 1.5;
+
+        // Trunk base at bottom of screen
+        const trunkBaseY = h + 10;
+        const trunkTopY = h - treeH * 0.6;
+
+        // Trunk — very dark, partially off-screen
+        ctx.globalAlpha = isNight ? 0.5 : 0.7;
+        ctx.fillStyle = isNight ? '#0a0a08' : '#2a2018';
+        ctx.beginPath();
+        ctx.moveTo(tx - trunkW, trunkBaseY);
+        ctx.quadraticCurveTo(tx - trunkW * 0.8 + sway * 0.2, trunkTopY + treeH * 0.3, tx - trunkW * 0.3 + sway * 0.5, trunkTopY);
+        ctx.lineTo(tx + trunkW * 0.3 + sway * 0.5, trunkTopY);
+        ctx.quadraticCurveTo(tx + trunkW * 0.8 + sway * 0.2, trunkTopY + treeH * 0.3, tx + trunkW, trunkBaseY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Canopy — large, dark, overlapping silhouette
+        ctx.globalAlpha = isNight ? 0.4 : 0.55;
+        ctx.fillStyle = isNight ? '#050805' : '#1a2a12';
+
+        // Multiple overlapping circles for organic canopy
+        const canopyCx = tx + sway;
+        const canopyCy = trunkTopY - canopyW * 0.2;
+        for (let c = 0; c < 5; c++) {
+            const cx = canopyCx + Math.sin(ts + c * 1.7) * canopyW * 0.3;
+            const cy = canopyCy + Math.sin(ts + c * 2.3) * canopyW * 0.15;
+            const cr = canopyW * (0.4 + Math.abs(Math.sin(ts + c * 0.9)) * 0.25);
+            ctx.beginPath();
+            ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Dappled light patches on ground beneath tree
+        if (!isNight) {
+            ctx.globalAlpha = 0.04;
+            ctx.fillStyle = '#aacc88';
+            for (let d = 0; d < 4; d++) {
+                const dx = tx + Math.sin(ts + d * 3.1) * 25;
+                const dy = h - 20 + Math.sin(ts + d * 2.7) * 15;
+                const dr = 8 + Math.sin(ts + d) * 5;
+                ctx.beginPath();
+                ctx.ellipse(dx, dy, dr, dr * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
     ctx.restore();
 }
 
