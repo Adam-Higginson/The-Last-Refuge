@@ -1,0 +1,49 @@
+#hud-resource-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    padding: 8px 16px;
+    background: rgba(3, 4, 10, 0.75);
+    border-bottom: 1px solid rgba(79, 168, 255, 0.15);
+    font-size: 13px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.resource-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.5px;
+}
+
+.resource-icon {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.resource-icon--food { color: #66bb6a; }
+.resource-icon--materials { color: #b0a080; }
+.resource-icon--energy { color: #ffca28; }
+
+.resource-value {
+    color: #c0c8d8;
+}
+
+.resource-cap {
+    color: rgba(192, 200, 216, 0.4);
+    font-size: 11px;
+}
+
+.resource-rate {
+    font-size: 11px;
+    margin-left: 4px;
+}
+
+.resource-rate--positive { color: #66bb6a; }
+.resource-rate--negative { color: #ef5350; }
+.resource-rate--zero { color: rgba(192, 200, 216, 0.3); }
