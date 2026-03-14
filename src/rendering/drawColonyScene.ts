@@ -8,6 +8,8 @@ import { getBuildingType } from '../data/buildings';
 import { getCrewAtColony } from '../utils/crewUtils';
 import { drawBuilding } from './colonyBuildingSprites';
 import { advanceClock, getDayNightState } from './colonyDayNight';
+import { advanceWeather, drawWeatherEffects, getWeatherInfo } from './colonyWeather';
+import type { WeatherInfo } from './colonyWeather';
 import type { DayNightState } from './colonyDayNight';
 import {
     gridToScreen,
@@ -113,15 +115,16 @@ export function drawColonyScene(
     const visuals = getVisuals(region.biome);
     const horizonY = h * 0.35;
 
-    // Advance day/night clock
+    // Compute frame delta and advance systems
     const now = performance.now();
-    if (lastFrameTime > 0) {
-        const dtSeconds = (now - lastFrameTime) / 1000;
-        advanceClock(dtSeconds);
-    }
+    const dtSeconds = lastFrameTime > 0 ? (now - lastFrameTime) / 1000 : 0;
     lastFrameTime = now;
 
+    advanceClock(dtSeconds);
     const dayNight = getDayNightState();
+    advanceWeather(Math.min(dtSeconds, 0.1), dayNight);
+
+    const weather = getWeatherInfo();
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
@@ -135,9 +138,16 @@ export function drawColonyScene(
     drawBuildingShadows(ctx, region, slotRects, dayNight);
     drawColonists(ctx, entity, region, slotRects, t);
     drawAmbientParticles(ctx, w, h, visuals, t);
+    drawWeatherEffects(ctx, w, h, t);
+
+    // Wet sheen on buildings during rain
+    if (weather.rainIntensity > 0) {
+        drawWetSheen(ctx, slotRects, weather.rainIntensity);
+    }
+
     drawAmbientOverlay(ctx, w, h, dayNight);
     drawColonyLabel(ctx, w, region);
-    drawTimeIndicator(ctx, w, dayNight);
+    drawTimeIndicator(ctx, w, dayNight, weather);
 
     return slotRects;
 }
@@ -717,17 +727,50 @@ function drawTimeIndicator(
     ctx: CanvasRenderingContext2D,
     w: number,
     dayNight: DayNightState,
+    weather: WeatherInfo,
 ): void {
     const hours = Math.floor(dayNight.hour);
     const minutes = Math.floor((dayNight.hour - hours) * 60);
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+    // Weather icon
+    let weatherIcon = '';
+    if (weather.rainIntensity > 0.5) weatherIcon = ' 🌧';
+    else if (weather.overcastAmount > 0.3) weatherIcon = ' ☁';
 
     ctx.save();
     ctx.globalAlpha = 0.4;
     ctx.fillStyle = dayNight.phase === 'night' ? '#8090a0' : '#ffffff';
     ctx.font = '11px "Share Tech Mono", "Courier New", monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(timeStr, w - 16, 55);
+    ctx.fillText(`${timeStr}${weatherIcon}`, w - 16, 55);
+    ctx.restore();
+}
+
+// --- Wet sheen on buildings during rain ---
+
+function drawWetSheen(
+    ctx: CanvasRenderingContext2D,
+    slotRects: ColonySlotRect[],
+    rainIntensity: number,
+): void {
+    ctx.save();
+    ctx.globalAlpha = rainIntensity * 0.12;
+
+    for (const rect of slotRects) {
+        if (!rect.occupied) continue;
+
+        // Shiny wet highlight on top of buildings
+        const cx = rect.x + rect.width / 2;
+        const cy = rect.y + rect.height * 0.3;
+        const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, rect.width * 0.4);
+        glow.addColorStop(0, 'rgba(180, 210, 240, 0.6)');
+        glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rect.width * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+    }
     ctx.restore();
 }
 
