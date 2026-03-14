@@ -25,11 +25,7 @@ import {
     removeLeader,
     removeCaptain,
 } from '../utils/leaderUtils';
-import {
-    getLeaderBonusDescriptions,
-    SHIP_ROLE_DESCRIPTIONS,
-    COLONY_ROLE_DESCRIPTIONS,
-} from '../data/leaderBonuses';
+import { getLeaderBonusDescriptions } from '../data/leaderBonuses';
 import { FOOD_PER_PERSON } from '../data/resources';
 import type { CrewLocation, CrewRole } from './CrewMemberComponent';
 import type { EventQueue } from '../core/EventQueue';
@@ -331,14 +327,9 @@ export class TransferScreenComponent extends Component {
         const moraleWidth = Math.max(0, Math.min(100, c.morale));
         const locationLabel = getLocationLabel(world, c.location);
 
-        // Contributions — what this person provides at their location
-        const roleDesc = c.location.type === 'ship'
-            ? SHIP_ROLE_DESCRIPTIONS[c.role]
-            : COLONY_ROLE_DESCRIPTIONS[c.role];
-
+        // Contributions — what this person costs/provides
         const contributions = [
-            `${c.role} at ${c.location.type === 'ship' ? 'ship' : 'colony'}: ${roleDesc}`,
-            `-${FOOD_PER_PERSON} food/turn (consumption)`,
+            `-${FOOD_PER_PERSON} food/turn`,
         ];
 
         // Leader/captain bonuses
