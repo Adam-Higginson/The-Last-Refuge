@@ -329,8 +329,8 @@ export class InputSystem extends System {
             const transform = entity.getComponent(TransformComponent);
             if (!selectable || !transform) continue;
 
-            // Ship is always interactable; other entities need fog check
-            if (entity.name !== 'arkSalvage') {
+            // Ship and star are always interactable; other entities need fog check
+            if (entity.name !== 'arkSalvage' && entity.name !== 'star') {
                 if (getEntityFogZone(transform.x, transform.y) !== 'active') {
                     selectable.hovered = false;
                     continue;
@@ -405,7 +405,7 @@ export class InputSystem extends System {
                 if (!selectable || !transform) continue;
 
                 // Fog gating for right-click too
-                if (entity.name !== 'arkSalvage') {
+                if (entity.name !== 'arkSalvage' && entity.name !== 'star') {
                     if (getEntityFogZone(transform.x, transform.y) !== 'active') {
                         continue;
                     }
