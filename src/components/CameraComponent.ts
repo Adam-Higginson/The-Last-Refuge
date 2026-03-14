@@ -23,6 +23,9 @@ export const MAX_ZOOM = 10.0;
 /** Default zoom — close-up framing the inner system. */
 export const DEFAULT_ZOOM = 5.0;
 
+/** Pan clamp factor — max pan distance as a fraction of WORLD_SIZE. */
+export const PAN_CLAMP_FACTOR = 0.8;
+
 /** Exponential smoothing time constant for zoom interpolation (seconds). */
 const ZOOM_SMOOTHING = 0.06;
 
@@ -182,9 +185,17 @@ export class CameraComponent extends Component {
         this.offsetY = this.canvasHeight / 2 - this.panY * this.scale;
     }
 
+    /** Set the camera centre to a world position (clamped). */
+    panTo(worldX: number, worldY: number): void {
+        this.panX = worldX;
+        this.panY = worldY;
+        this.isZoomAnimating = false;
+        this.clampPan();
+    }
+
     /** Soft-clamp pan so the star (world origin) remains reachable. */
     private clampPan(): void {
-        const maxPan = this.worldSize * 0.8;
+        const maxPan = this.worldSize * PAN_CLAMP_FACTOR;
         this.panX = Math.max(-maxPan, Math.min(maxPan, this.panX));
         this.panY = Math.max(-maxPan, Math.min(maxPan, this.panY));
         this.recalculate();
