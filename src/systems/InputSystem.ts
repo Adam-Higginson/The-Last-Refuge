@@ -300,9 +300,7 @@ export class InputSystem extends System {
                 const worldPos = minimapComp.minimapToWorld(this.mouseX, this.mouseY);
                 const camera = this.getCamera();
                 if (camera) {
-                    camera.panX = worldPos.x;
-                    camera.panY = worldPos.y;
-                    camera.resize(camera.canvasWidth, camera.canvasHeight);
+                    camera.panTo(worldPos.x, worldPos.y);
                 }
                 this.pendingClick = false;
             }

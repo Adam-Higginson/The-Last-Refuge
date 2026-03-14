@@ -51,17 +51,12 @@ function drawMinimap(
         const transform = planetEntity.getComponent(TransformComponent);
         if (!planetData || !transform) continue;
 
-        // Skip hidden planets
-        if (fog) {
-            const vis = fog.getVisibilityAtWorld(transform.x, transform.y);
-            if (vis === TileVisibility.Hidden) continue;
-        }
+        const vis = fog?.getVisibilityAtWorld(transform.x, transform.y) ?? TileVisibility.Active;
+        if (vis === TileVisibility.Hidden) continue;
 
         const pos = minimap.worldToMinimap(transform.x, transform.y);
         const dotR = planetData.config.type === 'gas-giant' ? 3 : 2;
 
-        // Dim revealed planets
-        const vis = fog?.getVisibilityAtWorld(transform.x, transform.y) ?? TileVisibility.Active;
         ctx.globalAlpha = vis === TileVisibility.Active ? 1.0 : 0.4;
         ctx.fillStyle = planetData.config.palette.body;
         ctx.beginPath();

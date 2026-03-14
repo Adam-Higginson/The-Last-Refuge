@@ -10,7 +10,7 @@ import { GameModeComponent } from './GameModeComponent';
 import { FogOfWarComponent, TileVisibility } from './FogOfWarComponent';
 import { TransformComponent } from './TransformComponent';
 import { RenderComponent } from './RenderComponent';
-import { WORLD_SIZE } from './CameraComponent';
+import { WORLD_SIZE, PAN_CLAMP_FACTOR } from './CameraComponent';
 import { FOG_GRID_SIZE } from '../data/constants';
 import type { CanvasResizeEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
@@ -32,10 +32,10 @@ const MINIMAP_MARGIN = 12;
 const MINIMAP_BOTTOM_OFFSET = 48;
 
 /** World extent mapped into the minimap (matches camera pan clamp). */
-const WORLD_EXTENT = WORLD_SIZE * 0.8;
+const WORLD_EXTENT = WORLD_SIZE * PAN_CLAMP_FACTOR;
 
 /** Fog cell colours by visibility state. */
-const FOG_COLOURS: Record<number, string> = {
+const FOG_COLOURS: Record<TileVisibility, string> = {
     [TileVisibility.Hidden]: 'rgba(0, 0, 0, 0)',
     [TileVisibility.Revealed]: 'rgba(40, 50, 70, 1)',
     [TileVisibility.Active]: 'rgba(70, 90, 130, 1)',
@@ -82,8 +82,10 @@ export class MinimapComponent extends Component {
     }
 
     update(_dt: number): void {
-        // Hide minimap outside system view
-        const gameMode = this.entity.getComponent(GameModeComponent);
+        // Hide minimap outside system view (GameModeComponent lives on gameState)
+        const world = ServiceLocator.get<World>('world');
+        const gameState = world.getEntityByName('gameState');
+        const gameMode = gameState?.getComponent(GameModeComponent);
         const render = this.entity.getComponent(RenderComponent);
 
         if (gameMode && gameMode.mode !== 'system') {

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
+import { GameEvents } from '../../core/GameEvents';
 import { ServiceLocator } from '../../core/ServiceLocator';
 import { MinimapComponent } from '../MinimapComponent';
 import { GameModeComponent } from '../GameModeComponent';
@@ -8,11 +9,12 @@ import { RenderComponent } from '../RenderComponent';
 
 describe('MinimapComponent', () => {
     let world: World;
+    let eventQueue: EventQueue;
     let minimap: MinimapComponent;
 
     beforeEach(() => {
         ServiceLocator.clear();
-        const eventQueue = new EventQueue();
+        eventQueue = new EventQueue();
         world = new World();
         ServiceLocator.register('eventQueue', eventQueue);
         ServiceLocator.register('world', world);
@@ -21,12 +23,11 @@ describe('MinimapComponent', () => {
             height: 768,
         } as unknown as HTMLCanvasElement);
 
-        // Minimap needs a gameState entity (for GameModeComponent lookups)
+        // GameModeComponent lives on gameState (not on the minimap entity)
         const gameState = world.createEntity('gameState');
         gameState.addComponent(new GameModeComponent());
 
         const entity = world.createEntity('minimap');
-        entity.addComponent(new GameModeComponent());
         entity.addComponent(new RenderComponent('hud', () => {}));
         minimap = entity.addComponent(new MinimapComponent());
         minimap.init();
@@ -41,7 +42,6 @@ describe('MinimapComponent', () => {
     });
 
     it('uses smaller size on narrow canvas', () => {
-        // Simulate narrow canvas by re-registering
         ServiceLocator.clear();
         ServiceLocator.register('eventQueue', new EventQueue());
         ServiceLocator.register('world', world);
@@ -51,7 +51,6 @@ describe('MinimapComponent', () => {
         } as unknown as HTMLCanvasElement);
 
         const entity = world.createEntity('minimap2');
-        entity.addComponent(new GameModeComponent());
         entity.addComponent(new RenderComponent('hud', () => {}));
         const narrow = entity.addComponent(new MinimapComponent());
         narrow.init();
@@ -103,12 +102,12 @@ describe('MinimapComponent', () => {
         expect(minimap.hitTest(minimap.screenX + minimap.size, minimap.screenY + minimap.size)).toBe(true);
     });
 
-    // --- Visibility gating ---
+    // --- Visibility gating (reads from gameState, not minimap entity) ---
 
     it('hides minimap in planet view', () => {
-        const entity = minimap.entity;
-        const gameMode = entity.getComponent(GameModeComponent);
-        const render = entity.getComponent(RenderComponent);
+        const gameState = world.getEntityByName('gameState');
+        const gameMode = gameState?.getComponent(GameModeComponent);
+        const render = minimap.entity.getComponent(RenderComponent);
         if (!gameMode || !render) throw new Error('missing components');
 
         gameMode.mode = 'planet';
@@ -118,5 +117,20 @@ describe('MinimapComponent', () => {
         gameMode.mode = 'system';
         minimap.update(1 / 60);
         expect(render.visible).toBe(true);
+    });
+
+    // --- Lifecycle ---
+
+    it('unsubscribes resize handler on destroy', () => {
+        minimap.destroy();
+
+        // Emit resize — should not change position (handler removed)
+        const oldX = minimap.screenX;
+        const oldY = minimap.screenY;
+        eventQueue.emit({ type: GameEvents.CANVAS_RESIZE, width: 500, height: 400 });
+        eventQueue.drain();
+
+        expect(minimap.screenX).toBe(oldX);
+        expect(minimap.screenY).toBe(oldY);
     });
 });

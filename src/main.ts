@@ -70,9 +70,7 @@ function boot(): void {
     const camera = cameraEntity.getComponent(CameraComponent);
     const shipTransform = ship.getComponent(TransformComponent);
     if (camera && shipTransform) {
-        camera.panX = shipTransform.x;
-        camera.panY = shipTransform.y;
-        camera.resize(canvas.width, canvas.height);
+        camera.panTo(shipTransform.x, shipTransform.y);
     }
 
     // Resize handler — updates canvas pixel dimensions.
