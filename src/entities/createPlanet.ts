@@ -15,6 +15,8 @@ import { CameraComponent } from '../components/CameraComponent';
 import { FogOfWarComponent, getEntityFogZone } from '../components/FogOfWarComponent';
 import { PlanetViewInputComponent } from '../components/PlanetViewInputComponent';
 import { ColoniseUIComponent } from '../components/ColoniseUIComponent';
+import { ColonyBuildingComponent } from '../components/ColonyBuildingComponent';
+import { BuildMenuUIComponent } from '../components/BuildMenuUIComponent';
 import { PlanetInfoUIComponent } from '../components/PlanetInfoUIComponent';
 import { generateVoronoi } from '../utils/voronoi';
 import { assignBiomes } from '../data/biomes';
@@ -921,9 +923,11 @@ export function createPlanet(world: World, config: PlanetConfig): Entity {
     entity.addComponent(new PlanetInfoUIComponent());
     entity.addComponent(new PlanetViewInputComponent());
 
-    // Only colonisable planets get the colonise UI
+    // Only colonisable planets get the colonise UI and building system
     if (config.colonisable) {
         entity.addComponent(new ColoniseUIComponent());
+        entity.addComponent(new ColonyBuildingComponent());
+        entity.addComponent(new BuildMenuUIComponent());
     }
 
     return entity;
