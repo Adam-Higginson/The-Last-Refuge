@@ -8,8 +8,12 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { DateUIComponent } from './DateUIComponent';
+import { GameModeComponent } from './GameModeComponent';
+import { CameraComponent } from './CameraComponent';
+import { TransformComponent } from './TransformComponent';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { TurnBlockEvent, TurnUnblockEvent } from '../core/GameEvents';
+import type { World } from '../core/World';
 
 export class HUDUIComponent extends Component {
     private eventQueue: EventQueue | null = null;
@@ -21,6 +25,8 @@ export class HUDUIComponent extends Component {
     private turnBlockHandler: EventHandler | null = null;
     private turnUnblockHandler: EventHandler | null = null;
     private onEndTurnClick: (() => void) | null = null;
+    private centreShipBtn: HTMLButtonElement | null = null;
+    private onCentreShipClick: (() => void) | null = null;
 
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
@@ -32,6 +38,7 @@ export class HUDUIComponent extends Component {
         this.container.innerHTML = `
             <span id="hud-date">JAN 01, 2700</span>
             <span id="hud-build" style="font-size:10px; opacity:0.4; margin-left:auto; margin-right:8px;">BUILD ${__BUILD_TIME__}</span>
+            <button id="hud-centre-ship" class="hud-btn" type="button">CENTRE ON SHIP</button>
             <button id="hud-end-turn" class="hud-btn" type="button">END TURN</button>
         `;
 
@@ -44,6 +51,20 @@ export class HUDUIComponent extends Component {
             this.eventQueue?.emit({ type: GameEvents.TURN_ADVANCE });
         };
         this.endTurnBtn?.addEventListener('click', this.onEndTurnClick);
+
+        // CENTRE ON SHIP button
+        this.centreShipBtn = document.getElementById('hud-centre-ship') as HTMLButtonElement | null;
+        this.onCentreShipClick = (): void => {
+            const world = ServiceLocator.get<World>('world');
+            const ship = world.getEntityByName('arkSalvage');
+            const shipTransform = ship?.getComponent(TransformComponent);
+            const cameraEntity = world.getEntityByName('camera');
+            const camera = cameraEntity?.getComponent(CameraComponent);
+            if (shipTransform && camera) {
+                camera.panTo(shipTransform.x, shipTransform.y);
+            }
+        };
+        this.centreShipBtn?.addEventListener('click', this.onCentreShipClick);
 
         // Track blockers for button state
         this.turnBlockHandler = (event): void => {
@@ -70,6 +91,15 @@ export class HUDUIComponent extends Component {
 
         // Update END TURN button state
         this.updateButtonState();
+
+        // Hide CENTRE ON SHIP during planet view
+        if (this.centreShipBtn) {
+            const world = ServiceLocator.get<World>('world');
+            const gameState = world.getEntityByName('gameState');
+            const gameMode = gameState?.getComponent(GameModeComponent);
+            this.centreShipBtn.style.display =
+                gameMode && gameMode.mode !== 'system' ? 'none' : '';
+        }
     }
 
     private updateButtonState(): void {
@@ -84,6 +114,9 @@ export class HUDUIComponent extends Component {
     destroy(): void {
         if (this.endTurnBtn && this.onEndTurnClick) {
             this.endTurnBtn.removeEventListener('click', this.onEndTurnClick);
+        }
+        if (this.centreShipBtn && this.onCentreShipClick) {
+            this.centreShipBtn.removeEventListener('click', this.onCentreShipClick);
         }
         if (this.eventQueue && this.turnBlockHandler) {
             this.eventQueue.off(GameEvents.TURN_BLOCK, this.turnBlockHandler);

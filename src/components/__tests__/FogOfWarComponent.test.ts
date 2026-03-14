@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { World } from '../../core/World';
 import { ServiceLocator } from '../../core/ServiceLocator';
-import { FogOfWarComponent, TileVisibility } from '../FogOfWarComponent';
+import { FogOfWarComponent, TileVisibility, getEntityFogZone } from '../FogOfWarComponent';
 import { TransformComponent } from '../TransformComponent';
 import { GameModeComponent } from '../GameModeComponent';
 import {
@@ -202,5 +202,68 @@ describe('FogOfWarComponent', () => {
         fog.update(1 / 60);
         // No cells should be marked Active since update was skipped
         expect(fog.getVisibilityAtWorld(0, 0)).toBe(TileVisibility.Hidden);
+    });
+
+    // --- Last known position tracking ---
+
+    it('recordPosition stores and getLastKnownPosition retrieves', () => {
+        fog.recordPosition(42, 1000, -500);
+        const pos = fog.getLastKnownPosition(42);
+        expect(pos).toEqual({ x: 1000, y: -500 });
+    });
+
+    it('recordPosition updates existing position', () => {
+        fog.recordPosition(42, 1000, -500);
+        fog.recordPosition(42, 2000, 300);
+        expect(fog.getLastKnownPosition(42)).toEqual({ x: 2000, y: 300 });
+    });
+
+    it('getLastKnownPosition returns undefined for unknown entity', () => {
+        expect(fog.getLastKnownPosition(999)).toBeUndefined();
+    });
+
+    // --- getEntityFogZone standalone helper ---
+
+    it('getEntityFogZone returns active near ship', () => {
+        const ship = world.createEntity('arkSalvage');
+        ship.addComponent(new TransformComponent(0, 0));
+        fog.update(1 / 60);
+
+        expect(getEntityFogZone(100, 0)).toBe('active');
+    });
+
+    it('getEntityFogZone returns blip at medium distance', () => {
+        const ship = world.createEntity('arkSalvage');
+        ship.addComponent(new TransformComponent(0, 0));
+        fog.update(1 / 60);
+
+        const dist = (FOG_DETAIL_RADIUS + FOG_BLIP_RADIUS) / 2;
+        expect(getEntityFogZone(dist, 0)).toBe('blip');
+    });
+
+    it('getEntityFogZone returns hidden far from ship', () => {
+        const ship = world.createEntity('arkSalvage');
+        ship.addComponent(new TransformComponent(0, 0));
+        fog.update(1 / 60);
+
+        expect(getEntityFogZone(FOG_BLIP_RADIUS + 500, 0)).toBe('hidden');
+    });
+
+    it('getEntityFogZone returns active when ship has no transform', () => {
+        // Ship exists but without TransformComponent
+        world.createEntity('arkSalvage');
+        fog.update(1 / 60);
+
+        expect(getEntityFogZone(100, 0)).toBe('active');
+    });
+
+    it('getEntityFogZone returns active when no fog component exists', () => {
+        // Create a world without fog
+        ServiceLocator.clear();
+        const noFogWorld = new World();
+        ServiceLocator.register('world', noFogWorld);
+        noFogWorld.createEntity('gameState');
+
+        expect(getEntityFogZone(5000, 5000)).toBe('active');
     });
 });

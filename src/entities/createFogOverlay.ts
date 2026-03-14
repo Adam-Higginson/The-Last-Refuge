@@ -117,6 +117,21 @@ function drawFogOverlay(
     fc.arc(shipScreen.x, shipScreen.y, blipScreenR, 0, Math.PI * 2);
     fc.fill();
 
+    // Star is always visible — punch a soft hole at world origin
+    const starScreen = camera.worldToScreen(0, 0);
+    const starR = camera.worldToScreenDist(120);
+    const starGrad = fc.createRadialGradient(
+        starScreen.x, starScreen.y, 0,
+        starScreen.x, starScreen.y, starR,
+    );
+    starGrad.addColorStop(0, 'rgba(0, 0, 0, 0.7)');
+    starGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.3)');
+    starGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    fc.fillStyle = starGrad;
+    fc.beginPath();
+    fc.arc(starScreen.x, starScreen.y, starR, 0, Math.PI * 2);
+    fc.fill();
+
     // Reset compositing and draw fog onto main canvas
     fc.globalCompositeOperation = 'source-over';
     ctx.drawImage(fogCanvas, 0, 0);
