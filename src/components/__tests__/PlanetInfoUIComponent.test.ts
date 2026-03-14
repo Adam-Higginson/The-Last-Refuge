@@ -172,9 +172,9 @@ describe('PlanetInfoUIComponent', () => {
         const selectable = entity.addComponent(new SelectableComponent(20));
         const regionData = entity.addComponent(new RegionDataComponent());
         regionData.regions = [
-            { id: 0, biome: 'Temperate Plains', colour: '#5a9a4a', vertices: [], canColonise: true, isLandingZone: true, colonised: false },
-            { id: 1, biome: 'Temperate Plains', colour: '#5a9a4a', vertices: [], canColonise: true, isLandingZone: false, colonised: false },
-            { id: 2, biome: 'Arctic Wastes', colour: '#b8d0e0', vertices: [], canColonise: true, isLandingZone: false, colonised: false },
+            { id: 0, biome: 'Temperate Plains', colour: '#5a9a4a', vertices: [], canColonise: true, isLandingZone: true, colonised: false, buildings: [], buildingSlots: 0 },
+            { id: 1, biome: 'Temperate Plains', colour: '#5a9a4a', vertices: [], canColonise: true, isLandingZone: false, colonised: false, buildings: [], buildingSlots: 0 },
+            { id: 2, biome: 'Arctic Wastes', colour: '#b8d0e0', vertices: [], canColonise: true, isLandingZone: false, colonised: false, buildings: [], buildingSlots: 0 },
         ];
         const info = entity.addComponent(new PlanetInfoUIComponent());
         info.init();

@@ -48,6 +48,12 @@ export const GameEvents = {
     CAPTAIN_APPOINTED: 'captain:appointed',
     /** The ship captain was removed. */
     CAPTAIN_REMOVED: 'captain:removed',
+    /** A building started construction. */
+    BUILDING_STARTED: 'building:started',
+    /** A building completed construction. */
+    BUILDING_COMPLETED: 'building:completed',
+    /** A building was demolished. */
+    BUILDING_DEMOLISHED: 'building:demolished',
 } as const;
 
 // ---------------------------------------------------------------------------
