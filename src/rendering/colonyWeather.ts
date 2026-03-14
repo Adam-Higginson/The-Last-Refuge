@@ -164,21 +164,22 @@ function drawRain(
     intensity: number,
 ): void {
     ctx.save();
-    ctx.strokeStyle = 'rgba(180, 200, 220, 0.3)';
-    ctx.lineWidth = 1;
 
-    const dropCount = Math.floor(80 * intensity);
+    const dropCount = Math.floor(200 * intensity);
     for (let i = 0; i < dropCount; i++) {
         const seed = i * 7.31;
-        const speed = 800 + Math.sin(seed) * 200;
-        const rx = (Math.sin(seed * 1.3) * 0.5 + 0.5) * w + Math.sin(seed * 0.7) * 30;
-        const ry = ((t * speed / 1000 + seed * 50) % (h + 40)) - 20;
-        const len = 12 + Math.sin(seed * 2) * 5;
+        const speed = 1200 + Math.sin(seed) * 300;
+        const rx = (Math.sin(seed * 1.3) * 0.5 + 0.5) * (w + 60) - 30;
+        const ry = ((t * speed / 1000 + seed * 50) % (h + 60)) - 30;
+        const len = 15 + Math.sin(seed * 2) * 8;
+        const windOffset = -4; // Slight angle from wind
 
-        ctx.globalAlpha = (0.15 + Math.sin(seed) * 0.1) * intensity;
+        ctx.globalAlpha = (0.3 + Math.sin(seed) * 0.15) * intensity;
+        ctx.strokeStyle = 'rgba(180, 200, 230, 0.8)';
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(rx, ry);
-        ctx.lineTo(rx - 2, ry + len);
+        ctx.lineTo(rx + windOffset, ry + len);
         ctx.stroke();
     }
     ctx.restore();
@@ -193,10 +194,10 @@ function drawPuddleRipples(
 ): void {
     const horizonY = h * 0.35;
     ctx.save();
-    ctx.strokeStyle = 'rgba(180, 200, 220, 0.15)';
-    ctx.lineWidth = 0.5;
+    ctx.strokeStyle = 'rgba(200, 220, 240, 0.4)';
+    ctx.lineWidth = 1;
 
-    const rippleCount = Math.floor(15 * intensity);
+    const rippleCount = Math.floor(25 * intensity);
     for (let i = 0; i < rippleCount; i++) {
         const seed = i * 11.7 + 5;
         const rx = (Math.sin(seed * 1.5) * 0.5 + 0.5) * w;

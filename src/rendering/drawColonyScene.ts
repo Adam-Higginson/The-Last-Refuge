@@ -155,14 +155,13 @@ export function drawColonyScene(
     drawBuildingShadows(ctx, region, slotRects, dayNight);
     drawColonists(ctx, entity, region, slotRects, t);
     drawAmbientParticles(ctx, w, h, visuals, t);
-    drawWeatherEffects(ctx, w, h, t);
+    drawAmbientOverlay(ctx, w, h, dayNight);
 
-    // Wet sheen on buildings during rain
+    // Weather effects drawn AFTER ambient overlay so rain is visible on dark nights
+    drawWeatherEffects(ctx, w, h, t);
     if (weather.rainIntensity > 0) {
         drawWetSheen(ctx, slotRects, weather.rainIntensity);
     }
-
-    drawAmbientOverlay(ctx, w, h, dayNight);
     drawColonyLabel(ctx, w, region);
     drawTimeIndicator(ctx, w, dayNight, weather);
 
