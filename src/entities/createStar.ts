@@ -130,8 +130,8 @@ function drawStar(
     const fontSize = camera ? 14 / camera.scale : 14;
 
     ctx.save();
-    ctx.globalAlpha = 0.7;
-    ctx.fillStyle = '#ffe8a0';
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#c0c8d8';
     ctx.font = `${fontSize}px "Share Tech Mono", "Courier New", monospace`;
     ctx.textAlign = 'center';
     ctx.fillText('SOLACE', x, y + 120 + fontSize * 1.5);
