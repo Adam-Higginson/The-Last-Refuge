@@ -140,11 +140,44 @@ export function drawWeatherEffects(
 ): void {
     const weather = getWeatherInfo();
 
-    // Overcast sky darkening
+    // Overcast sky darkening — grey wash over the whole scene
     if (weather.overcastAmount > 0) {
         ctx.save();
+        // Darken sky area more heavily
+        const horizonY = h * 0.35;
+        ctx.globalAlpha = weather.overcastAmount * 0.4;
+        ctx.fillStyle = '#2a2a35';
+        ctx.fillRect(0, 0, w, horizonY + 10);
+        // Dim ground less
         ctx.globalAlpha = weather.overcastAmount * 0.15;
-        ctx.fillStyle = '#303040';
+        ctx.fillRect(0, horizonY, w, h - horizonY);
+        ctx.restore();
+    }
+
+    // Thick overcast clouds layer
+    if (weather.overcastAmount > 0.2) {
+        ctx.save();
+        ctx.globalAlpha = weather.overcastAmount * 0.3;
+        ctx.fillStyle = '#404858';
+        const horizonY = h * 0.35;
+        for (let i = 0; i < 8; i++) {
+            const cx = ((t * 0.003 + i * w * 0.15) % (w + 200)) - 100;
+            const cy = horizonY * (0.1 + i * 0.08);
+            const cw = 120 + i * 20;
+            const ch = 25 + i * 5;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, cw, ch, 0, 0, Math.PI * 2);
+            ctx.ellipse(cx + cw * 0.3, cy - ch * 0.3, cw * 0.6, ch * 0.7, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    // Desaturate/cool shift during overcast
+    if (weather.overcastAmount > 0.1) {
+        ctx.save();
+        ctx.globalAlpha = weather.overcastAmount * 0.1;
+        ctx.fillStyle = 'rgba(80, 100, 130, 1)';
         ctx.fillRect(0, 0, w, h);
         ctx.restore();
     }

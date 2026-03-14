@@ -145,7 +145,7 @@ export function drawColonyScene(
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    drawSky(ctx, w, h, horizonY, visuals, t, dayNight);
+    drawSky(ctx, w, h, horizonY, visuals, t, dayNight, weather);
     drawStars(ctx, w, horizonY, dayNight);
     drawHorizonFeatures(ctx, w, horizonY, visuals, region.id);
     drawNaturalGround(ctx, w, h, horizonY, visuals, region.id);
@@ -178,6 +178,7 @@ function drawSky(
     _visuals: BiomeVisuals,
     t: number,
     dayNight: DayNightState,
+    weather: WeatherInfo,
 ): void {
     // Sky gradient driven by day/night cycle
     const grad = ctx.createLinearGradient(0, 0, 0, horizonY + 10);
@@ -194,15 +195,15 @@ function drawSky(
     ctx.fillStyle = hazeGrad;
     ctx.fillRect(0, horizonY - h * 0.1, w, h * 0.1 + 10);
 
-    // Sun/moon
+    // Sun/moon — dimmed by overcast
     const sunProgress = Math.max(0, Math.min(1, dayNight.celestialAngle / Math.PI));
     const sunX = w * (0.1 + sunProgress * 0.8);
-    // Sun Y: horizon at celestialHeight=0, higher when positive, below when negative
     const sunY = horizonY - dayNight.celestialHeight * horizonY * 0.75;
     const pulse = 0.85 + 0.15 * Math.sin(t / 3000);
+    const weatherDim = 1 - weather.overcastAmount * 0.8; // Sun fades behind clouds
 
-    // Only render if not too far below horizon
-    if (dayNight.celestialHeight > -0.15) {
+    // Only render if not too far below horizon and not fully overcast
+    if (dayNight.celestialHeight > -0.15 && weatherDim > 0.05) {
         const sunR = dayNight.phase === 'night' ? w * 0.03 : w * 0.05;
 
         // Fade out as it dips below horizon
@@ -231,9 +232,9 @@ function drawSky(
             ctx.fill();
             ctx.restore();
         } else {
-            // Sun — warm glow with bloom, fades as it dips below horizon
+            // Sun — warm glow with bloom, fades behind clouds and below horizon
             ctx.save();
-            ctx.globalAlpha = horizonFade;
+            ctx.globalAlpha = horizonFade * weatherDim;
             const bloomR = sunR * 3;
             const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, bloomR);
 
