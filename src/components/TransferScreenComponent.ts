@@ -336,27 +336,27 @@ export class TransferScreenComponent extends Component {
         const bonusLines = getLeaderBonusLines(c.role, c.traits);
         let leaderSection: string;
 
-        const renderBonusLines = (prefix: string, cssBase: string): string =>
+        const renderBonusLines = (prefix: string): string =>
             bonusLines.map(line => {
-                const cls = line.sentiment === 'negative' ? 'negative' : line.sentiment === 'positive' ? cssBase : '';
+                const cls = line.sentiment === 'negative' ? 'negative' : line.sentiment === 'positive' ? 'active' : 'potential';
                 return `<div class="detail-bonus ${cls}">${prefix} ${line.text}</div>`;
             }).join('');
 
         if (c.isLeader) {
             leaderSection = `
                 <div class="detail-section-title">LEADER BONUSES (ACTIVE)</div>
-                <div class="detail-bonus-list">${renderBonusLines('✓', 'active')}</div>
+                <div class="detail-bonus-list">${renderBonusLines('✓')}</div>
             `;
         } else if (c.isCaptain) {
             leaderSection = `
                 <div class="detail-section-title">CAPTAIN BONUSES (ACTIVE)</div>
-                <div class="detail-bonus-list">${renderBonusLines('✓', 'active')}</div>
+                <div class="detail-bonus-list">${renderBonusLines('✓')}</div>
             `;
         } else {
             const appointLabel = c.location.type === 'ship' ? 'CAPTAIN' : 'LEADER';
             leaderSection = `
                 <div class="detail-section-title">IF APPOINTED AS ${appointLabel}</div>
-                <div class="detail-bonus-list">${renderBonusLines('→', 'potential')}</div>
+                <div class="detail-bonus-list">${renderBonusLines('→')}</div>
                 <button class="hud-btn" id="detail-appoint-btn" type="button" style="margin-top:8px">
                     APPOINT AS ${appointLabel}
                 </button>
