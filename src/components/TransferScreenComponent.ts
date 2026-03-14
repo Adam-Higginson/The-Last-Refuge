@@ -262,9 +262,45 @@ export class TransferScreenComponent extends Component {
             const crew = crewEntity?.getComponent(CrewMemberComponent);
             if (!crew) return;
 
+            const isShip = crew.location.type === 'ship';
+            const roleLabel = isShip ? 'Captain' : 'Colony Leader';
+            const newBonuses = getLeaderBonusLines(crew.role, crew.traits);
+
+            // Build confirmation message
+            const msgLines: string[] = [];
+            msgLines.push(`APPOINT ${crew.fullName.toUpperCase()} AS ${roleLabel.toUpperCase()}?`);
+            msgLines.push('');
+
+            // Check for existing leader/captain being replaced
+            let currentHolder: CrewMemberComponent | null = null;
+            if (isShip) {
+                const cap = getShipCaptain(world);
+                currentHolder = cap?.getComponent(CrewMemberComponent) ?? null;
+            } else if (crew.location.type === 'colony') {
+                const lead = getColonyLeader(world, crew.location.planetEntityId, crew.location.regionId);
+                currentHolder = lead?.getComponent(CrewMemberComponent) ?? null;
+            }
+
+            if (currentHolder) {
+                msgLines.push(`Replaces: ${currentHolder.fullName}`);
+                msgLines.push('');
+                const oldBonuses = getLeaderBonusLines(currentHolder.role, currentHolder.traits);
+                for (const b of oldBonuses) {
+                    msgLines.push(`  ✗ Loses: ${b.text}`);
+                }
+                msgLines.push('');
+            }
+
+            for (const b of newBonuses) {
+                msgLines.push(`  ✓ Gains: ${b.text}`);
+            }
+
+            const proceed = confirm(msgLines.join('\n'));
+            if (!proceed) return;
+
             const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
 
-            if (crew.location.type === 'ship') {
+            if (isShip) {
                 appointCaptain(world, this.detailCrewId);
                 eventQueue.emit({ type: GameEvents.CAPTAIN_APPOINTED });
             } else {
