@@ -232,6 +232,17 @@ export class TransferScreenComponent extends Component {
             this.rebuild();
         });
 
+        // Relationship clicks — navigate to that person's detail
+        for (const rel of this.container.querySelectorAll('.detail-relationship')) {
+            rel.addEventListener('click', () => {
+                const targetId = Number((rel as HTMLElement).dataset.relTarget);
+                if (targetId) {
+                    this.detailCrewId = targetId;
+                    this.rebuild();
+                }
+            });
+        }
+
         // Location card clicks
         for (const card of this.container.querySelectorAll('.location-card')) {
             card.addEventListener('click', () => {
@@ -275,7 +286,7 @@ export class TransferScreenComponent extends Component {
         const locationLabel = getLocationLabel(world, c.location);
 
         const relationshipRows = c.relationships.map(r =>
-            `<div class="detail-relationship">
+            `<div class="detail-relationship" data-rel-target="${r.targetId}">
                 <span class="detail-rel-name">${r.targetName}</span>
                 <span class="detail-rel-type">${r.type}</span>
                 <div class="detail-rel-desc">${r.description}</div>
