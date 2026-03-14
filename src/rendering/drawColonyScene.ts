@@ -734,9 +734,10 @@ function drawTimeIndicator(
     const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
     // Weather icon
-    let weatherIcon = '';
-    if (weather.rainIntensity > 0.5) weatherIcon = ' 🌧';
-    else if (weather.overcastAmount > 0.3) weatherIcon = ' ☁';
+    let weatherIcon = ' ☀';
+    if (weather.rainIntensity > 0.1) weatherIcon = ' 🌧';
+    else if (weather.overcastAmount > 0.1) weatherIcon = ' ☁';
+    if (dayNight.phase === 'night') weatherIcon = weather.overcastAmount > 0.1 ? ' ☁' : ' 🌙';
 
     ctx.save();
     ctx.globalAlpha = 0.4;
