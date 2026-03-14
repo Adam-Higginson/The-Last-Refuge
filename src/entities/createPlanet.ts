@@ -18,6 +18,7 @@ import { ColoniseUIComponent } from '../components/ColoniseUIComponent';
 import { ColonyBuildingComponent } from '../components/ColonyBuildingComponent';
 import { BuildMenuUIComponent } from '../components/BuildMenuUIComponent';
 import { PlanetInfoUIComponent } from '../components/PlanetInfoUIComponent';
+import { drawColonyScene, drawTransitionToColony, drawTransitionFromColony } from '../rendering/drawColonyScene';
 import { generateVoronoi } from '../utils/voronoi';
 import { assignBiomes } from '../data/biomes';
 import { polygonCentroid } from '../utils/geometry';
@@ -878,6 +879,12 @@ function drawPlanetDispatch(
         drawTransitionToPlanet(entity, ctx, x, y, gameMode.transitionProgress, config);
     } else if (gameMode.mode === 'transitioning-to-system' && isViewedPlanet) {
         drawTransitionToSystem(entity, ctx, gameMode.transitionProgress, config);
+    } else if (gameMode.mode === 'colony' && isViewedPlanet && gameMode.colonyRegionId !== null) {
+        drawColonyScene(entity, ctx, gameMode.colonyRegionId);
+    } else if (gameMode.mode === 'transitioning-to-colony' && isViewedPlanet && gameMode.colonyRegionId !== null) {
+        drawTransitionToColony(entity, ctx, gameMode.colonyRegionId, gameMode.transitionProgress);
+    } else if (gameMode.mode === 'transitioning-to-planet-from-colony' && isViewedPlanet && gameMode.colonyRegionId !== null) {
+        drawTransitionFromColony(entity, ctx, gameMode.colonyRegionId, gameMode.transitionProgress);
     }
     // Non-viewed planets are not rendered during planet view / transitions
 }

@@ -54,6 +54,10 @@ export const GameEvents = {
     BUILDING_COMPLETED: 'building:completed',
     /** A building was demolished. */
     BUILDING_DEMOLISHED: 'building:demolished',
+    /** Request transition to colony view. Carries planet entity ID and region ID. */
+    COLONY_VIEW_ENTER: 'view:colony:enter',
+    /** Request transition back to planet surface from colony view. */
+    COLONY_VIEW_EXIT: 'view:colony:exit',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -182,4 +186,16 @@ export interface BuildingCompletedEvent extends GameEvent {
 
 export interface BuildingDemolishedEvent extends GameEvent {
     type: typeof GameEvents.BUILDING_DEMOLISHED;
+}
+
+export interface ColonyViewEnterEvent extends GameEvent {
+    type: typeof GameEvents.COLONY_VIEW_ENTER;
+    /** Planet entity ID. */
+    entityId: number;
+    /** Region ID of the colony. */
+    regionId: number;
+}
+
+export interface ColonyViewExitEvent extends GameEvent {
+    type: typeof GameEvents.COLONY_VIEW_EXIT;
 }
