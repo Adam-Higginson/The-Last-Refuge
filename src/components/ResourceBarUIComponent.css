@@ -1,0 +1,82 @@
+#hud-resource-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    padding: 8px 16px;
+    background: rgba(3, 4, 10, 0.75);
+    border-bottom: 1px solid rgba(79, 168, 255, 0.15);
+    font-size: 13px;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+.resource-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.5px;
+    position: relative;
+    cursor: default;
+}
+
+.resource-label {
+    color: rgba(192, 200, 216, 0.5);
+    font-size: 10px;
+    letter-spacing: 1px;
+}
+
+.resource-icon {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.resource-icon--food { color: #66bb6a; }
+.resource-icon--materials { color: #b0a080; }
+.resource-icon--energy { color: #ffca28; }
+
+.resource-value {
+    color: #c0c8d8;
+}
+
+.resource-cap {
+    color: rgba(192, 200, 216, 0.4);
+    font-size: 11px;
+}
+
+.resource-rate {
+    font-size: 11px;
+    margin-left: 4px;
+}
+
+.resource-rate--positive { color: #66bb6a; }
+.resource-rate--negative { color: #ef5350; }
+.resource-rate--zero { color: rgba(192, 200, 216, 0.3); }
+
+.resource-tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: rgba(3, 4, 10, 0.95);
+    border: 1px solid rgba(79, 168, 255, 0.25);
+    color: #c0c8d8;
+    font-size: 11px;
+    line-height: 1.5;
+    max-width: 240px;
+    white-space: normal;
+    z-index: 20;
+    pointer-events: none;
+}
+
+/* Desktop: hover. Mobile: tap (via :active) */
+.resource-item:hover .resource-tooltip,
+.resource-item:active .resource-tooltip {
+    display: block;
+}

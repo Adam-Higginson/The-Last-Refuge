@@ -34,6 +34,10 @@ export const GameEvents = {
     COLONISE_CONFIRM: 'colonise:confirm',
     /** The canvas was resized. Carries new pixel dimensions. */
     CANVAS_RESIZE: 'canvas:resize',
+    /** Resources were updated after turn resolution. */
+    RESOURCES_UPDATED: 'resources:updated',
+    /** A resource went into deficit (below 0). Carries resource type and deficit amount. */
+    RESOURCE_DEFICIT: 'resources:deficit',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -116,4 +120,16 @@ export interface CanvasResizeEvent extends GameEvent {
     width: number;
     /** New canvas height in pixels. */
     height: number;
+}
+
+export interface ResourcesUpdatedEvent extends GameEvent {
+    type: typeof GameEvents.RESOURCES_UPDATED;
+}
+
+export interface ResourceDeficitEvent extends GameEvent {
+    type: typeof GameEvents.RESOURCE_DEFICIT;
+    /** Which resource is in deficit. */
+    resource: string;
+    /** How much below zero (positive number). */
+    deficit: number;
 }
