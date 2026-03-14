@@ -65,7 +65,7 @@ describe('createPlanet', () => {
         const entity = createPlanet(world);
         const selectable = entity.getComponent(SelectableComponent);
         expect(selectable).not.toBeNull();
-        expect(selectable?.hitRadius).toBe(80);
+        expect(selectable?.hitRadius).toBe(160);
         expect(selectable?.hovered).toBe(false);
     });
 

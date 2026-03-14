@@ -46,7 +46,7 @@ describe('createStar', () => {
         const entity = createStar(world);
         const selectable = entity.getComponent(SelectableComponent);
         expect(selectable).not.toBeNull();
-        expect(selectable?.hitRadius).toBe(100);
+        expect(selectable?.hitRadius).toBe(150);
         expect(selectable?.hovered).toBe(false);
     });
 });

@@ -325,6 +325,6 @@ describe('CameraComponent', () => {
     it('exports zoom constants', () => {
         expect(MIN_ZOOM).toBe(0.5);
         expect(MAX_ZOOM).toBe(10.0);
-        expect(DEFAULT_ZOOM).toBe(2.5);
+        expect(DEFAULT_ZOOM).toBe(5.0);
     });
 });

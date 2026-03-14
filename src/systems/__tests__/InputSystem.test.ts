@@ -461,9 +461,9 @@ describe('InputSystem', () => {
         const system = new InputSystem();
         system.init(world);
 
-        // scale = 0.15, offsetX = 400, offsetY = 300
+        // scale = 0.30, offsetX = 400, offsetY = 300
         // Right-click at screen (700, 300)
-        // → world ((700-400)/0.15, (300-300)/0.15) = (2000, 0)
+        // → world ((700-400)/0.30, (300-300)/0.30) = (1000, 0)
         simulateRightClick(700, 300);
         system.update(16);
 
@@ -474,7 +474,7 @@ describe('InputSystem', () => {
         eventQueue.drain();
 
         expect(emittedEvents).toHaveLength(1);
-        expect(emittedEvents[0].x).toBeCloseTo(2000);
+        expect(emittedEvents[0].x).toBeCloseTo(1000);
         expect(emittedEvents[0].y).toBeCloseTo(0);
     });
 

@@ -24,10 +24,10 @@ import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
 /** Planet body radius in world units */
-const PLANET_RADIUS = 48;
+const PLANET_RADIUS = 120;
 
 /** Hit radius for hover/click detection (slightly larger than visual) */
-const HIT_RADIUS = 80;
+const HIT_RADIUS = 160;
 
 /** Orbit speed in radians per turn (Kepler-ish scaling from old 0.15 at radius 350) */
 const ORBIT_SPEED = 0.07;

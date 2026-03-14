@@ -20,8 +20,8 @@ export const MIN_ZOOM = 0.5;
 /** Maximum zoom multiplier — fine detail. */
 export const MAX_ZOOM = 10.0;
 
-/** Default zoom — frames inner system (star + New Terra orbit). */
-export const DEFAULT_ZOOM = 2.5;
+/** Default zoom — close-up framing the inner system. */
+export const DEFAULT_ZOOM = 5.0;
 
 /** Exponential smoothing time constant for zoom interpolation (seconds). */
 const ZOOM_SMOOTHING = 0.06;
