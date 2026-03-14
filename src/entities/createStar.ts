@@ -4,9 +4,12 @@
 // All rendering uses radial gradients with additive blending
 // for a natural, non-cartoon glow.
 
+import { ServiceLocator } from '../core/ServiceLocator';
 import { TransformComponent } from '../components/TransformComponent';
 import { RenderComponent } from '../components/RenderComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
+import { CameraComponent } from '../components/CameraComponent';
+import { StarInfoUIComponent } from '../components/StarInfoUIComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -119,6 +122,21 @@ function drawStar(
         ctx.arc(x, y, 540, 0, Math.PI * 2);
         ctx.fill();
     }
+
+    // --- Name label ---
+    const world = ServiceLocator.get<World>('world');
+    const cameraEntity = world.getEntityByName('camera');
+    const camera = cameraEntity?.getComponent(CameraComponent);
+    const fontSize = camera ? 14 / camera.scale : 14;
+
+    ctx.save();
+    ctx.globalAlpha = 1.0;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${fontSize}px "Share Tech Mono", "Courier New", monospace`;
+    ctx.textAlign = 'center';
+    // Position below the outermost glow layer (radius 2160) so it's outside the bright area
+    ctx.fillText('SOLACE', x, y + 300 + fontSize * 2);
+    ctx.restore();
 }
 
 export function createStar(world: World): Entity {
@@ -130,6 +148,7 @@ export function createStar(world: World): Entity {
     entity.addComponent(new RenderComponent('world', (ctx, x, y) => {
         drawStar(entity, ctx, x, y);
     }));
+    entity.addComponent(new StarInfoUIComponent());
 
     return entity;
 }

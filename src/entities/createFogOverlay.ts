@@ -119,7 +119,7 @@ function drawFogOverlay(
 
     // Star is always visible — punch a soft hole at world origin
     const starScreen = camera.worldToScreen(0, 0);
-    const starR = camera.worldToScreenDist(120);
+    const starR = camera.worldToScreenDist(400);
     const starGrad = fc.createRadialGradient(
         starScreen.x, starScreen.y, 0,
         starScreen.x, starScreen.y, starR,
