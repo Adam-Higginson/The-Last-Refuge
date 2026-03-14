@@ -28,13 +28,10 @@ export class HUDUIComponent extends Component {
         this.container = document.getElementById('hud-bottom');
         if (!this.container) return;
 
-        // Build timestamp at module load time (changes on each HMR/reload)
-        const buildTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
         // Build inner HTML
         this.container.innerHTML = `
             <span id="hud-date">JAN 01, 2700</span>
-            <span id="hud-build" style="font-size:10px; opacity:0.4; margin-left:auto; margin-right:8px;">BUILD ${buildTime}</span>
+            <span id="hud-build" style="font-size:10px; opacity:0.4; margin-left:auto; margin-right:8px;">BUILD ${__BUILD_TIME__}</span>
             <button id="hud-end-turn" class="hud-btn" type="button">END TURN</button>
         `;
 

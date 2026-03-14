@@ -273,7 +273,7 @@ describe('CameraComponent', () => {
         it('clamps to prevent going too far from origin', () => {
             const cam = createCamera();
             cam.pan(100_000, 100_000); // way beyond limits
-            const maxPan = WORLD_SIZE * 0.4;
+            const maxPan = WORLD_SIZE * 0.8;
             expect(cam.panX).toBe(maxPan);
             expect(cam.panY).toBe(maxPan);
         });

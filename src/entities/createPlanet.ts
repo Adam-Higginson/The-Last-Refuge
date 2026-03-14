@@ -751,8 +751,12 @@ export function createPlanet(world: World, config: PlanetConfig): Entity {
     entity.addComponent(new PlanetDataComponent(config));
 
     // Position and orbit — fixed world coordinates, centred on star at (0, 0)
-    entity.addComponent(new TransformComponent(config.orbitRadius, 0));
-    entity.addComponent(new OrbitComponent(0, 0, config.orbitRadius, config.orbitSpeed));
+    const startX = config.orbitRadius * Math.cos(config.startAngle);
+    const startY = config.orbitRadius * Math.sin(config.startAngle);
+    entity.addComponent(new TransformComponent(startX, startY));
+    const orbit = new OrbitComponent(0, 0, config.orbitRadius, config.orbitSpeed);
+    orbit.angle = config.startAngle;
+    entity.addComponent(orbit);
     entity.addComponent(new SelectableComponent(config.hitRadius));
     entity.addComponent(new RenderComponent('world', (ctx, x, y) => {
         drawPlanetDispatch(entity, ctx, x, y);

@@ -52,8 +52,10 @@ describe('createPlanet', () => {
         const entity = createPlanet(world, newTerraConfig);
         const transform = entity.getComponent(TransformComponent);
         expect(transform).not.toBeNull();
-        expect(transform?.x).toBe(newTerraConfig.orbitRadius);
-        expect(transform?.y).toBe(0);
+        const expectedX = newTerraConfig.orbitRadius * Math.cos(newTerraConfig.startAngle);
+        const expectedY = newTerraConfig.orbitRadius * Math.sin(newTerraConfig.startAngle);
+        expect(transform?.x).toBeCloseTo(expectedX);
+        expect(transform?.y).toBeCloseTo(expectedY);
     });
 
     it('has an OrbitComponent with config parameters', () => {

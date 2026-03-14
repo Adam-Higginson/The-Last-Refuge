@@ -4,6 +4,11 @@ export default defineConfig(({ command }) => ({
     base: command === 'build' ? '/The-Last-Refuge/' : '/',
     root: '.',
     publicDir: 'public',
+    define: {
+        __BUILD_TIME__: JSON.stringify(
+            new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+        ),
+    },
     server: {
         host: '0.0.0.0',
     },
