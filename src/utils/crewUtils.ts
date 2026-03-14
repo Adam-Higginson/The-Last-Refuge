@@ -1,6 +1,7 @@
 // crewUtils.ts — Crew location query helpers.
 
 import { CrewMemberComponent } from '../components/CrewMemberComponent';
+import { RegionDataComponent } from '../components/RegionDataComponent';
 import { SHIP_MIN_SOLDIERS, SHIP_MIN_ENGINEERS } from '../data/constants';
 import type { CrewRole, CrewLocation } from '../components/CrewMemberComponent';
 import type { World } from '../core/World';
@@ -68,10 +69,29 @@ export function checkShipMinimums(world: World): {
     };
 }
 
-/** Get all unique colony locations that have crew assigned. */
+/** Get all colony locations (from colonised regions + crew assignments). */
 export function getColonyLocations(world: World): { planetEntityId: number; regionId: number; count: number; label: string }[] {
     const colonies = new Map<string, { planetEntityId: number; regionId: number; count: number }>();
 
+    // Find colonised regions from RegionDataComponent
+    for (const entity of world.getEntitiesWithComponent(RegionDataComponent)) {
+        const regionData = entity.getComponent(RegionDataComponent);
+        if (!regionData) continue;
+        for (const region of regionData.regions) {
+            if (region.colonised) {
+                const key = `${entity.id}:${region.id}`;
+                if (!colonies.has(key)) {
+                    colonies.set(key, {
+                        planetEntityId: entity.id,
+                        regionId: region.id,
+                        count: 0,
+                    });
+                }
+            }
+        }
+    }
+
+    // Count crew at each colony
     for (const entity of world.getEntitiesWithComponent(CrewMemberComponent)) {
         const crew = entity.getComponent(CrewMemberComponent);
         if (!crew || crew.location.type !== 'colony') continue;
