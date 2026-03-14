@@ -7,8 +7,8 @@ import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import { getBuildingType } from '../data/buildings';
 import { getCrewAtColony } from '../utils/crewUtils';
 import { drawBuilding } from './colonyBuildingSprites';
-import { advanceClock, getDayNightState } from './colonyDayNight';
-import { advanceWeather, drawWeatherEffects, getWeatherInfo } from './colonyWeather';
+import { advanceClock, getDayNightState, setGameHour, getGameHour } from './colonyDayNight';
+import { advanceWeather, drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
 import type { WeatherInfo } from './colonyWeather';
 import type { DayNightState } from './colonyDayNight';
 import {
@@ -95,6 +95,21 @@ function getVisuals(biome: BiomeName): BiomeVisuals {
 /** Last frame timestamp for delta time calculation. */
 let lastFrameTime = 0;
 
+/** Debug keyboard handler (W = cycle weather, T = advance time 3 hours). */
+let debugKeysRegistered = false;
+function registerDebugKeys(): void {
+    if (debugKeysRegistered) return;
+    debugKeysRegistered = true;
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.code === 'KeyW' && !e.ctrlKey && !e.metaKey) {
+            forceNextWeather();
+        }
+        if (e.code === 'KeyT' && !e.ctrlKey && !e.metaKey) {
+            setGameHour(getGameHour() + 3);
+        }
+    });
+}
+
 // --- Main draw function ---
 
 export function drawColonyScene(
@@ -108,6 +123,8 @@ export function drawColonyScene(
 
     const region = regionData.regions.find(r => r.id === regionId);
     if (!region) return [];
+
+    registerDebugKeys();
 
     const w = canvas.width;
     const h = canvas.height;

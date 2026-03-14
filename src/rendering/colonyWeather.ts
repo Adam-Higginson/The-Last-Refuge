@@ -36,6 +36,16 @@ let transitionProgress = 1; // Start fully transitioned
 let nextChangeHour = 8; // First change at 8am
 let lastHour = -1;
 
+/** Force cycle to next weather state (debug). */
+export function forceNextWeather(): void {
+    const cycle: WeatherState[] = ['clear', 'overcast', 'rain'];
+    const idx = cycle.indexOf(currentWeather);
+    const next = cycle[(idx + 1) % cycle.length];
+    previousWeather = currentWeather;
+    currentWeather = next;
+    transitionProgress = 0;
+}
+
 /** Pick a random next weather state. Weighted toward clear. */
 function pickNextWeather(currentState: WeatherState, isNight: boolean): WeatherState {
     const roll = Math.random();
