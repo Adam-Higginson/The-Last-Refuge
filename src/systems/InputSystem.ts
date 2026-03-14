@@ -11,6 +11,7 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { CameraComponent, MIN_ZOOM, MAX_ZOOM } from '../components/CameraComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
+import { FogOfWarComponent } from '../components/FogOfWarComponent';
 import { MoveConfirmComponent } from '../components/MoveConfirmComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { TransformComponent } from '../components/TransformComponent';
@@ -297,10 +298,23 @@ export class InputSystem extends System {
         let hoveredCursor = '';
         let clickedEntity = false;
 
+        // Fog of war interaction gating
+        const fogComp = gameState?.getComponent(FogOfWarComponent) ?? null;
+        const ship = this.world.getEntityByName('arkSalvage');
+        const shipTransform = ship?.getComponent(TransformComponent) ?? null;
+
         for (const entity of entities) {
             const selectable = entity.getComponent(SelectableComponent);
             const transform = entity.getComponent(TransformComponent);
             if (!selectable || !transform) continue;
+
+            // Ship is always interactable; other entities need fog check
+            if (entity.name !== 'arkSalvage' && fogComp && shipTransform) {
+                if (!fogComp.isInteractable(transform.x, transform.y, shipTransform.x, shipTransform.y)) {
+                    selectable.hovered = false;
+                    continue;
+                }
+            }
 
             // Broadcast cursor position in world coords so renderers can draw hover previews
             selectable.cursorX = worldMouse.x;
@@ -368,6 +382,13 @@ export class InputSystem extends System {
                 const selectable = entity.getComponent(SelectableComponent);
                 const transform = entity.getComponent(TransformComponent);
                 if (!selectable || !transform) continue;
+
+                // Fog gating for right-click too
+                if (entity.name !== 'arkSalvage' && fogComp && shipTransform) {
+                    if (!fogComp.isInteractable(transform.x, transform.y, shipTransform.x, shipTransform.y)) {
+                        continue;
+                    }
+                }
 
                 const rdx = worldClick.x - transform.x;
                 const rdy = worldClick.y - transform.y;

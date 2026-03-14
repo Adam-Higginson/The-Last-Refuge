@@ -8,7 +8,9 @@ import { SelectableComponent } from '../../components/SelectableComponent';
 import { createShip } from '../createShip';
 import { getPlanetConfig } from '../../data/planets';
 
-const ORBIT_RADIUS = getPlanetConfig('newTerra')?.orbitRadius ?? 1500;
+const newTerraConfig = getPlanetConfig('newTerra');
+const ORBIT_RADIUS = newTerraConfig?.orbitRadius ?? 1500;
+const START_ANGLE = newTerraConfig?.startAngle ?? 3.8;
 
 describe('createShip', () => {
     beforeEach(() => {
@@ -26,10 +28,9 @@ describe('createShip', () => {
         const entity = createShip(world);
         const transform = entity.getComponent(TransformComponent);
         expect(transform).not.toBeNull();
-        // Positioned using orbit-proportional offsets in world space
-        // x = ORBIT_RADIUS * 0.9 = 315, y = -ORBIT_RADIUS * 0.6 = -210
-        expect(transform?.x).toBe(ORBIT_RADIUS * 0.9);
-        expect(transform?.y).toBe(-ORBIT_RADIUS * 0.6);
+        // Positioned next to New Terra's starting position
+        expect(transform?.x).toBe(ORBIT_RADIUS * Math.cos(START_ANGLE) + 150);
+        expect(transform?.y).toBe(ORBIT_RADIUS * Math.sin(START_ANGLE) + 150);
     });
 
     it('has a MovementComponent with correct budget and speed', () => {

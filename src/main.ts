@@ -18,9 +18,11 @@ import { createBackground } from './entities/createBackground';
 import { createStar } from './entities/createStar';
 import { createSolarSystem } from './entities/createSolarSystem';
 import { createShip } from './entities/createShip';
+import { createFogOverlay } from './entities/createFogOverlay';
 import { createHUD } from './entities/createHUD';
 import { createCrew } from './entities/createCrew';
 import { CameraComponent } from './components/CameraComponent';
+import { TransformComponent } from './components/TransformComponent';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -57,9 +59,19 @@ function boot(): void {
     createBackground(world);
     createStar(world);
     createSolarSystem(world);
-    createShip(world);
+    const ship = createShip(world);
+    createFogOverlay(world);
     createCrew(world);
     createHUD(world);
+
+    // Centre camera on the ship's starting position
+    const camera = cameraEntity.getComponent(CameraComponent);
+    const shipTransform = ship.getComponent(TransformComponent);
+    if (camera && shipTransform) {
+        camera.panX = shipTransform.x;
+        camera.panY = shipTransform.y;
+        camera.resize(canvas.width, canvas.height);
+    }
 
     // Resize handler — updates canvas pixel dimensions.
     // CameraComponent and RegionDataComponent subscribe to CANVAS_RESIZE.

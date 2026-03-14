@@ -280,9 +280,14 @@ function drawShip(
 export function createShip(world: World): Entity {
     const entity = world.createEntity('arkSalvage');
 
-    // Start near New Terra's orbit — proportional to its orbit radius
-    const newTerraOrbit = getPlanetConfig('newTerra')?.orbitRadius ?? 1500;
-    entity.addComponent(new TransformComponent(newTerraOrbit * 0.9, -newTerraOrbit * 0.6));
+    // Start next to New Terra's initial position
+    const newTerraConfig = getPlanetConfig('newTerra');
+    const orbitR = newTerraConfig?.orbitRadius ?? 1500;
+    const angle = newTerraConfig?.startAngle ?? 3.8;
+    entity.addComponent(new TransformComponent(
+        orbitR * Math.cos(angle) + 150,
+        orbitR * Math.sin(angle) + 150,
+    ));
     entity.addComponent(new MovementComponent(MOVEMENT_BUDGET, GLIDE_SPEED));
     entity.addComponent(new SelectableComponent(HIT_RADIUS));
     entity.addComponent(new RenderComponent('world', (ctx, x, y, angle) => {
