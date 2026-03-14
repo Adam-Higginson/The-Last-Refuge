@@ -4,7 +4,8 @@ import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
 import { GameEvents } from '../../core/GameEvents';
 import { RegionDataComponent } from '../RegionDataComponent';
-import { REGION_COUNT } from '../../entities/createPlanet';
+
+const REGION_COUNT = 8;
 
 describe('RegionDataComponent', () => {
     let world: World;

@@ -5,7 +5,6 @@
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
-import { REGION_COUNT } from '../entities/createPlanet';
 import { generateVoronoi } from '../utils/voronoi';
 import { assignBiomes } from '../data/biomes';
 import { mulberry32 } from '../utils/prng';
@@ -28,14 +27,16 @@ export interface Region {
 export class RegionDataComponent extends Component {
     regions: Region[];
     colonised: boolean;
+    readonly regionCount: number;
 
     private eventQueue: EventQueue | null = null;
     private resizeHandler: EventHandler | null = null;
 
-    constructor() {
+    constructor(regionCount = 8) {
         super();
         this.regions = [];
         this.colonised = false;
+        this.regionCount = regionCount;
     }
 
     init(): void {
@@ -44,7 +45,7 @@ export class RegionDataComponent extends Component {
         this.resizeHandler = (event): void => {
             const { width, height } = event as CanvasResizeEvent;
             const rng = mulberry32(VORONOI_SEED);
-            const cells = generateVoronoi(width, height, REGION_COUNT, rng);
+            const cells = generateVoronoi(width, height, this.regionCount, rng);
             const newRegions = assignBiomes(cells, rng, width, height);
 
             // Preserve colonisation state from old regions

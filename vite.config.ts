@@ -4,6 +4,9 @@ export default defineConfig(({ command }) => ({
     base: command === 'build' ? '/The-Last-Refuge/' : '/',
     root: '.',
     publicDir: 'public',
+    server: {
+        host: '0.0.0.0',
+    },
     build: {
         outDir: 'dist',
         target: 'ES2022',

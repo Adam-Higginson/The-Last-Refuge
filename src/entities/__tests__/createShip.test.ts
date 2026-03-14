@@ -6,7 +6,9 @@ import { TransformComponent } from '../../components/TransformComponent';
 import { MovementComponent } from '../../components/MovementComponent';
 import { SelectableComponent } from '../../components/SelectableComponent';
 import { createShip } from '../createShip';
-import { ORBIT_RADIUS } from '../createPlanet';
+import { getPlanetConfig } from '../../data/planets';
+
+const ORBIT_RADIUS = getPlanetConfig('newTerra')?.orbitRadius ?? 1500;
 
 describe('createShip', () => {
     beforeEach(() => {

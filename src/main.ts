@@ -16,7 +16,7 @@ import { UISystem } from './systems/UISystem';
 import { createGameState } from './entities/createGameState';
 import { createBackground } from './entities/createBackground';
 import { createStar } from './entities/createStar';
-import { createPlanet } from './entities/createPlanet';
+import { createSolarSystem } from './entities/createSolarSystem';
 import { createShip } from './entities/createShip';
 import { createHUD } from './entities/createHUD';
 import { createCrew } from './entities/createCrew';
@@ -56,7 +56,7 @@ function boot(): void {
     cameraEntity.addComponent(new CameraComponent());
     createBackground(world);
     createStar(world);
-    createPlanet(world);
+    createSolarSystem(world);
     createShip(world);
     createCrew(world);
     createHUD(world);
