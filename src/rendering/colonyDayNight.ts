@@ -143,11 +143,16 @@ export function getDayNightState(): DayNightState {
         }
     }
 
-    // Celestial body position (sun during day, moon at night)
-    // Maps hour to angle: 6am = 0 (east), 12pm = PI/2 (zenith), 6pm = PI (west)
-    const sunHourNorm = ((hour - 6) / 12); // 0 at 6am, 1 at 6pm
-    const celestialAngle = sunHourNorm * Math.PI;
-    const celestialHeight = Math.sin(Math.max(0, Math.min(1, sunHourNorm)) * Math.PI);
+    // Celestial body position
+    // Sun arc: rises at 5am (east horizon), peaks at noon (zenith), sets at 19:00 (west horizon)
+    // Normalized: 0 at sunrise, 0.5 at noon, 1 at sunset
+    const sunRise = 5;
+    const sunSet = 19;
+    const sunDuration = sunSet - sunRise;
+    const sunNorm = (hour - sunRise) / sunDuration; // 0 at rise, 1 at set
+    const celestialAngle = sunNorm * Math.PI; // 0 = east, PI = west
+    // Height follows sine arc: 0 at horizons, 1 at zenith, negative when below
+    const celestialHeight = Math.sin(sunNorm * Math.PI);
 
     // Stars fade in at dusk, out at dawn
     let starAlpha = 0;

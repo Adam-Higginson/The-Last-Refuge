@@ -169,21 +169,45 @@ function drawSky(
     ctx.fillRect(0, horizonY - h * 0.1, w, h * 0.1 + 10);
 
     // Sun/moon
-    if (dayNight.celestialHeight > 0) {
-        const sunProgress = dayNight.celestialAngle / Math.PI;
-        const sunX = w * (0.1 + sunProgress * 0.8);
-        const sunY = horizonY * (1 - dayNight.celestialHeight * 0.8);
+    const sunProgress = Math.max(0, Math.min(1, dayNight.celestialAngle / Math.PI));
+    const sunX = w * (0.1 + sunProgress * 0.8);
+    // Sun Y: horizon at celestialHeight=0, higher when positive, below when negative
+    const sunY = horizonY - dayNight.celestialHeight * horizonY * 0.75;
+    const pulse = 0.85 + 0.15 * Math.sin(t / 3000);
+
+    // Only render if not too far below horizon
+    if (dayNight.celestialHeight > -0.15) {
         const sunR = dayNight.phase === 'night' ? w * 0.03 : w * 0.05;
-        const pulse = 0.85 + 0.15 * Math.sin(t / 3000);
+
+        // Fade out as it dips below horizon
+        const horizonFade = dayNight.celestialHeight < 0
+            ? 1 + dayNight.celestialHeight / 0.15
+            : 1;
 
         if (dayNight.phase === 'night') {
-            // Moon — pale white
-            ctx.fillStyle = 'rgba(200, 210, 230, 0.7)';
+            // Moon — arc across top of sky
+            const moonNorm = ((dayNight.hour - 20) / 9 + 1) % 1; // 0 at 20:00, 1 at 05:00
+            const moonX = w * (0.15 + moonNorm * 0.7);
+            const moonY = horizonY * (0.6 - Math.sin(moonNorm * Math.PI) * 0.45);
+            ctx.save();
+            ctx.globalAlpha = dayNight.starAlpha * 0.7;
+            ctx.fillStyle = 'rgba(200, 210, 230, 1)';
             ctx.beginPath();
-            ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+            ctx.arc(moonX, moonY, sunR, 0, Math.PI * 2);
             ctx.fill();
+            // Moon glow
+            const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, sunR * 4);
+            moonGlow.addColorStop(0, 'rgba(200, 210, 230, 0.1)');
+            moonGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = moonGlow;
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, sunR * 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
         } else {
-            // Sun — warm glow with bloom
+            // Sun — warm glow with bloom, fades as it dips below horizon
+            ctx.save();
+            ctx.globalAlpha = horizonFade;
             const bloomR = sunR * 3;
             const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, bloomR);
 
@@ -210,6 +234,7 @@ function drawSky(
             ctx.beginPath();
             ctx.arc(sunX, sunY, sunR * 0.4, 0, Math.PI * 2);
             ctx.fill();
+            ctx.restore();
         }
     }
 
