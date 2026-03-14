@@ -10,6 +10,7 @@ import { RegionDataComponent } from '../../components/RegionDataComponent';
 import { ColoniseUIComponent } from '../../components/ColoniseUIComponent';
 import { createPlanet } from '../createPlanet';
 import { PLANET_CONFIGS, getPlanetConfig } from '../../data/planets';
+import { getBiomePool } from '../../data/biomes';
 
 const newTerraConfig = getPlanetConfig('newTerra');
 
@@ -128,5 +129,53 @@ describe('createPlanet', () => {
         expect(world.getEntityByName('dust')).not.toBeNull();
         expect(world.getEntityByName('goliath')).not.toBeNull();
         expect(world.getEntityByName('shepherd')).not.toBeNull();
+    });
+
+    it('Ember gets volcanic biome pool', () => {
+        const emberConfig = getPlanetConfig('ember');
+        if (!emberConfig) throw new Error('missing config');
+        const world = new World();
+        const entity = createPlanet(world, emberConfig);
+        const regionData = entity.getComponent(RegionDataComponent);
+        expect(regionData).not.toBeNull();
+
+        const volcanicNames = new Set(getBiomePool('volcanic').map(b => b.name));
+        for (const region of regionData?.regions ?? []) {
+            expect(volcanicNames.has(region.biome)).toBe(true);
+            expect(region.canColonise).toBe(false);
+            expect(region.isLandingZone).toBe(false);
+        }
+    });
+
+    it('Dust gets barren biome pool', () => {
+        const dustConfig = getPlanetConfig('dust');
+        if (!dustConfig) throw new Error('missing config');
+        const world = new World();
+        const entity = createPlanet(world, dustConfig);
+        const regionData = entity.getComponent(RegionDataComponent);
+        expect(regionData).not.toBeNull();
+
+        const barrenNames = new Set(getBiomePool('barren').map(b => b.name));
+        for (const region of regionData?.regions ?? []) {
+            expect(barrenNames.has(region.biome)).toBe(true);
+            expect(region.canColonise).toBe(false);
+            expect(region.isLandingZone).toBe(false);
+        }
+    });
+
+    it('New Terra gets habitable biome pool with landing zone', () => {
+        if (!newTerraConfig) throw new Error('missing config');
+        const world = new World();
+        const entity = createPlanet(world, newTerraConfig);
+        const regionData = entity.getComponent(RegionDataComponent);
+        expect(regionData).not.toBeNull();
+
+        const habitableNames = new Set(getBiomePool('habitable').map(b => b.name));
+        for (const region of regionData?.regions ?? []) {
+            expect(habitableNames.has(region.biome)).toBe(true);
+        }
+
+        const landingZones = (regionData?.regions ?? []).filter(r => r.isLandingZone);
+        expect(landingZones).toHaveLength(1);
     });
 });

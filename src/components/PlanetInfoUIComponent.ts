@@ -11,11 +11,8 @@ import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { RegionDataComponent } from './RegionDataComponent';
 import { PlanetDataComponent } from './PlanetDataComponent';
-import { TransformComponent } from './TransformComponent';
-import { BIOME_DEFINITIONS } from '../data/biomes';
-import { COLONISE_RANGE } from '../data/constants';
+import { getBiomePool } from '../data/biomes';
 import type { EventQueue } from '../core/EventQueue';
-import type { World } from '../core/World';
 
 export class PlanetInfoUIComponent extends Component {
     panelOpen = false;
@@ -25,7 +22,6 @@ export class PlanetInfoUIComponent extends Component {
     private statusText: HTMLElement | null = null;
     private biomeSummary: HTMLElement | null = null;
     private surfaceBtn: HTMLElement | null = null;
-    private surfaceTooltip: HTMLElement | null = null;
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
     init(): void {
@@ -49,9 +45,13 @@ export class PlanetInfoUIComponent extends Component {
         if (!this.panel) return;
 
         const planetData = this.entity.getComponent(PlanetDataComponent);
-        const displayName = planetData?.config.displayName ?? 'UNKNOWN';
-        const loreText = planetData?.config.lore ?? 'An uncharted world.';
-        const isRocky = planetData?.config.type === 'rocky';
+        const config = planetData?.config;
+        const displayName = config?.displayName ?? 'UNKNOWN';
+        const loreText = config?.lore ?? 'An uncharted world.';
+        const isRocky = config?.type === 'rocky';
+        const typeLabel = isRocky ? 'Rocky World' : 'Gas Giant';
+        const surfaceConditions = config?.surfaceConditions ?? '';
+        const atmosphericComposition = config?.atmosphericComposition ?? '';
 
         this.panel.innerHTML = `
             <button class="panel-close-btn" id="planet-panel-close" type="button" title="Close">&times;</button>
@@ -62,6 +62,11 @@ export class PlanetInfoUIComponent extends Component {
             <div class="lore-text">
                 ${loreText}
             </div>
+            <div class="planet-stats" style="margin-top:12px; font-size:11px; opacity:0.6; line-height:1.8">
+                <div>TYPE: ${typeLabel.toUpperCase()}</div>
+                ${surfaceConditions ? `<div>${surfaceConditions}</div>` : ''}
+                ${atmosphericComposition ? `<div>ATMOSPHERE: ${atmosphericComposition}</div>` : ''}
+            </div>
             ${isRocky ? `
             <div class="planet-status" style="margin-top:16px">
                 <span class="planet-status-dot" id="planet-status-dot"></span>
@@ -71,7 +76,6 @@ export class PlanetInfoUIComponent extends Component {
             ` : ''}
             <div id="planet-surface-wrapper" style="margin-top:16px; position:relative">
                 <button class="hud-btn" id="planet-view-surface-btn" type="button">${isRocky ? 'VIEW SURFACE' : 'VIEW ATMOSPHERE'}</button>
-                <div class="surface-tooltip" id="planet-surface-tooltip" style="display:none">Ship must be closer to descend</div>
             </div>
         `;
 
@@ -88,29 +92,14 @@ export class PlanetInfoUIComponent extends Component {
             }
         });
 
-        // VIEW SURFACE button — emits PLANET_VIEW_ENTER (guarded by disabled state)
+        // VIEW SURFACE button — emits PLANET_VIEW_ENTER (always enabled)
         this.surfaceBtn = document.getElementById('planet-view-surface-btn');
-        this.surfaceTooltip = document.getElementById('planet-surface-tooltip');
         this.surfaceBtn?.addEventListener('click', () => {
-            if (this.surfaceBtn?.classList.contains('disabled')) return;
             const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
             eventQueue.emit({
                 type: GameEvents.PLANET_VIEW_ENTER,
                 entityId: this.entity.id,
             });
-        });
-
-        // Tooltip hover on wrapper (wrapper still receives events when button has pointer-events: none)
-        const surfaceWrapper = document.getElementById('planet-surface-wrapper');
-        surfaceWrapper?.addEventListener('mouseenter', () => {
-            if (this.surfaceBtn?.classList.contains('disabled') && this.surfaceTooltip) {
-                this.surfaceTooltip.style.display = 'block';
-            }
-        });
-        surfaceWrapper?.addEventListener('mouseleave', () => {
-            if (this.surfaceTooltip) {
-                this.surfaceTooltip.style.display = 'none';
-            }
         });
 
         // Build initial biome summary
@@ -131,7 +120,6 @@ export class PlanetInfoUIComponent extends Component {
         // Update dynamic content when panel is open
         if (this.panelOpen) {
             this.updateContent();
-            this.updateSurfaceButton();
         }
     }
 
@@ -159,44 +147,20 @@ export class PlanetInfoUIComponent extends Component {
             this.statusText.textContent = isColonised ? 'COLONY ESTABLISHED' : 'UNCOLONISED';
         }
 
-        // Biome summary
+        // Biome summary — use planet-specific biome pool
         if (this.biomeSummary) {
+            const planetData = this.entity.getComponent(PlanetDataComponent);
+            const pool = planetData?.config.biomePool ?? 'habitable';
+            const poolDefs = getBiomePool(pool);
+
             const counts: Record<string, number> = {};
             for (const region of regionData.regions) {
                 counts[region.biome] = (counts[region.biome] ?? 0) + 1;
             }
-            const lines = BIOME_DEFINITIONS
+            const lines = poolDefs
                 .filter(b => counts[b.name])
                 .map(b => `${counts[b.name]} ${b.name.toUpperCase()}`);
             this.biomeSummary.textContent = lines.join(' / ');
-        }
-    }
-
-    private updateSurfaceButton(): void {
-        if (!this.surfaceBtn) return;
-
-        const world = ServiceLocator.get<World>('world');
-        const ship = world.getEntityByName('arkSalvage');
-        if (!ship) {
-            this.surfaceBtn.classList.add('disabled');
-            return;
-        }
-
-        const shipTransform = ship.getComponent(TransformComponent);
-        const planetTransform = this.entity.getComponent(TransformComponent);
-        if (!shipTransform || !planetTransform) {
-            this.surfaceBtn.classList.add('disabled');
-            return;
-        }
-
-        const dx = shipTransform.x - planetTransform.x;
-        const dy = shipTransform.y - planetTransform.y;
-        const inRange = Math.sqrt(dx * dx + dy * dy) <= COLONISE_RANGE;
-
-        if (inRange) {
-            this.surfaceBtn.classList.remove('disabled');
-        } else {
-            this.surfaceBtn.classList.add('disabled');
         }
     }
 
