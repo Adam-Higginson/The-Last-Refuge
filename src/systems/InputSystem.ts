@@ -12,6 +12,7 @@ import { GameEvents } from '../core/GameEvents';
 import { CameraComponent, MIN_ZOOM, MAX_ZOOM } from '../components/CameraComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
 import { FogOfWarComponent } from '../components/FogOfWarComponent';
+import { MinimapComponent } from '../components/MinimapComponent';
 import { MoveConfirmComponent } from '../components/MoveConfirmComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { TransformComponent } from '../components/TransformComponent';
@@ -43,6 +44,7 @@ export class InputSystem extends System {
     private isPanning = false;
 
     // Touch pan state
+    private touchOnMinimap = false;
     private isTouchPanning = false;
     private touchStartX = 0;
     private touchStartY = 0;
@@ -103,6 +105,11 @@ export class InputSystem extends System {
 
         this.onMouseDown = (e: MouseEvent): void => {
             if (e.button === 0) {
+                // Suppress pan if click starts on the minimap
+                const minimapEntity = this.world.getEntityByName('minimap');
+                const minimapComp = minimapEntity?.getComponent(MinimapComponent);
+                if (minimapComp && minimapComp.hitTest(e.clientX, e.clientY)) return;
+
                 // Left button — potential pan start (or click if no drag)
                 this.panButton = 0;
                 this.panStartX = e.clientX;
@@ -182,6 +189,11 @@ export class InputSystem extends System {
                 this.lastTouchY = touch.clientY;
                 this.touchMoved = false;
                 this.isTouchPanning = false;
+
+                // Suppress touch panning if starting on the minimap
+                const mmEntity = this.world.getEntityByName('minimap');
+                const mmComp = mmEntity?.getComponent(MinimapComponent);
+                this.touchOnMinimap = mmComp?.hitTest(touch.clientX, touch.clientY) ?? false;
             }
         };
 
@@ -212,7 +224,7 @@ export class InputSystem extends System {
                 const dy = touch.clientY - this.touchStartY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist >= PAN_THRESHOLD) {
+                if (dist >= PAN_THRESHOLD && !this.touchOnMinimap) {
                     this.touchMoved = true;
                     this.isTouchPanning = true;
 
@@ -280,6 +292,22 @@ export class InputSystem extends System {
     }
 
     update(_dt: number): void {
+        // Minimap click-to-navigate (intercept before other processing)
+        if (this.pendingClick) {
+            const minimapEntity = this.world.getEntityByName('minimap');
+            const minimapComp = minimapEntity?.getComponent(MinimapComponent);
+            if (minimapComp && minimapComp.hitTest(this.mouseX, this.mouseY)) {
+                const worldPos = minimapComp.minimapToWorld(this.mouseX, this.mouseY);
+                const camera = this.getCamera();
+                if (camera) {
+                    camera.panX = worldPos.x;
+                    camera.panY = worldPos.y;
+                    camera.resize(camera.canvasWidth, camera.canvasHeight);
+                }
+                this.pendingClick = false;
+            }
+        }
+
         // Skip entity hover/click processing when not in system map mode.
         // Consume pending inputs so they don't accumulate.
         const gameState = this.world.getEntityByName('gameState');

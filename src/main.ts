@@ -19,6 +19,7 @@ import { createStar } from './entities/createStar';
 import { createSolarSystem } from './entities/createSolarSystem';
 import { createShip } from './entities/createShip';
 import { createFogOverlay } from './entities/createFogOverlay';
+import { createMinimap } from './entities/createMinimap';
 import { createHUD } from './entities/createHUD';
 import { createCrew } from './entities/createCrew';
 import { CameraComponent } from './components/CameraComponent';
@@ -61,6 +62,7 @@ function boot(): void {
     createSolarSystem(world);
     const ship = createShip(world);
     createFogOverlay(world);
+    createMinimap(world);
     createCrew(world);
     createHUD(world);
 
