@@ -28,6 +28,8 @@ export class ColoniseUIComponent extends Component {
     private modalConfirm: HTMLElement | null = null;
     private modalCancel: HTMLElement | null = null;
     private colonyRosterBtn: HTMLElement | null = null;
+    private colonyViewBtn: HTMLElement | null = null;
+    private colonyBackBtn: HTMLElement | null = null;
     private pendingRegionId: number | null = null;
     private onColoniseBtnClick: (() => void) | null = null;
     private onConfirmClick: (() => void) | null = null;
@@ -103,6 +105,24 @@ export class ColoniseUIComponent extends Component {
         };
         this.modalCancel?.addEventListener('click', this.onCancelClick);
 
+        // VIEW COLONY button — enters colony scene
+        this.colonyViewBtn = document.getElementById('colony-view-btn');
+        this.colonyViewBtn?.addEventListener('click', () => {
+            const inputComp = this.entity.getComponent(PlanetViewInputComponent);
+            if (!inputComp || !this.eventQueue) return;
+            this.eventQueue.emit({
+                type: GameEvents.COLONY_VIEW_ENTER,
+                entityId: this.entity.id,
+                regionId: inputComp.selectedRegionId,
+            });
+        });
+
+        // Colony back button — exits colony scene
+        this.colonyBackBtn = document.getElementById('colony-view-back');
+        this.colonyBackBtn?.addEventListener('click', () => {
+            this.eventQueue?.emit({ type: GameEvents.COLONY_VIEW_EXIT });
+        });
+
         // Colony roster button — opens transfer screen for the selected colony
         this.colonyRosterBtn = document.getElementById('colony-roster-btn');
         this.colonyRosterBtn?.addEventListener('click', () => {
@@ -128,9 +148,23 @@ export class ColoniseUIComponent extends Component {
 
     update(_dt: number): void {
         const gameMode = this.getGameMode();
+
+        // Colony mode — show back button only
+        if (gameMode?.mode === 'colony') {
+            if (this.colonyBackBtn) this.colonyBackBtn.style.display = 'block';
+            if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
+            if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'none';
+            if (this.colonyViewBtn) this.colonyViewBtn.style.display = 'none';
+            return;
+        }
+
+        // Hide colony back button when not in colony mode
+        if (this.colonyBackBtn) this.colonyBackBtn.style.display = 'none';
+
         if (!gameMode || gameMode.mode !== 'planet') {
             if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
             if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'none';
+            if (this.colonyViewBtn) this.colonyViewBtn.style.display = 'none';
             if (this.modal) this.modal.style.display = 'none';
             this.pendingRegionId = null;
             return;
@@ -145,18 +179,21 @@ export class ColoniseUIComponent extends Component {
         if (!inputComp || !regionData) {
             if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
             if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'none';
+            if (this.colonyViewBtn) this.colonyViewBtn.style.display = 'none';
             return;
         }
 
         const selectedRegion = regionData.regions.find(r => r.id === inputComp.selectedRegionId);
 
         if (selectedRegion && selectedRegion.colonised) {
-            // Colonised region — show roster button, hide colonise
+            // Colonised region — show roster + view colony, hide colonise
             if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
             if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'block';
+            if (this.colonyViewBtn) this.colonyViewBtn.style.display = 'block';
         } else if (selectedRegion && selectedRegion.canColonise && !selectedRegion.colonised) {
-            // Colonisable region — show colonise button, hide roster
+            // Colonisable region — show colonise button, hide roster + view
             if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'none';
+            if (this.colonyViewBtn) this.colonyViewBtn.style.display = 'none';
             if (this.coloniseBtn) {
                 this.coloniseBtn.style.display = 'block';
                 if (this.isShipInRange()) {
@@ -170,6 +207,7 @@ export class ColoniseUIComponent extends Component {
         } else {
             if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
             if (this.colonyRosterBtn) this.colonyRosterBtn.style.display = 'none';
+            if (this.colonyViewBtn) this.colonyViewBtn.style.display = 'none';
         }
     }
 

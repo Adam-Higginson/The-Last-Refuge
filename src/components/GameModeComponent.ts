@@ -4,7 +4,10 @@
 
 import { Component } from '../core/Component';
 
-export type GameMode = 'system' | 'planet' | 'transitioning-to-planet' | 'transitioning-to-system';
+export type GameMode =
+    | 'system' | 'planet' | 'colony'
+    | 'transitioning-to-planet' | 'transitioning-to-system'
+    | 'transitioning-to-colony' | 'transitioning-to-planet-from-colony';
 
 export class GameModeComponent extends Component {
     mode: GameMode = 'system';
@@ -17,4 +20,7 @@ export class GameModeComponent extends Component {
 
     /** Entity ID of the planet being viewed (set during transition / planet mode). */
     planetEntityId: number | null = null;
+
+    /** Region ID of the colony being viewed (set during colony mode). */
+    colonyRegionId: number | null = null;
 }

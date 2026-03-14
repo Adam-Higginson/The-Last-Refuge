@@ -1,8 +1,13 @@
-#colonise-btn {
+#colonise-btn,
+#colony-roster-btn,
+#colony-view-btn {
     position: fixed;
-    bottom: 40px;
     left: 50%;
     transform: translateX(-50%);
+}
+
+#colonise-btn {
+    bottom: 40px;
     display: none;
     background: rgba(212, 160, 32, 0.15);
     border: 1px solid #d4a020;
@@ -46,8 +51,53 @@
     transition: background 0.15s, color 0.15s;
 }
 
+#colony-roster-btn {
+    bottom: 100px;
+}
+
 #colony-roster-btn:hover {
     background: rgba(79, 168, 255, 0.3);
+    color: #ffffff;
+}
+
+#colony-view-btn {
+    bottom: 40px;
+    display: none;
+    background: rgba(102, 187, 106, 0.15);
+    border: 1px solid rgba(102, 187, 106, 0.6);
+    color: #66bb6a;
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 10px 32px;
+    cursor: pointer;
+    z-index: 20;
+    transition: background 0.15s, color 0.15s;
+}
+
+#colony-view-btn:hover {
+    background: rgba(102, 187, 106, 0.3);
+    color: #ffffff;
+}
+
+#colony-view-back {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    background: rgba(3, 4, 10, 0.7);
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    color: #4fa8ff;
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: 1px;
+    padding: 8px 16px;
+    cursor: pointer;
+    z-index: 30;
+}
+
+#colony-view-back:hover {
+    border-color: #4fa8ff;
     color: #ffffff;
 }
 
