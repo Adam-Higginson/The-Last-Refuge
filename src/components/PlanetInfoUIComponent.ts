@@ -10,6 +10,7 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { RegionDataComponent } from './RegionDataComponent';
+import { PlanetDataComponent } from './PlanetDataComponent';
 import { TransformComponent } from './TransformComponent';
 import { BIOME_DEFINITIONS } from '../data/biomes';
 import { COLONISE_RANGE } from '../data/constants';
@@ -31,8 +32,6 @@ export class PlanetInfoUIComponent extends Component {
         this.panel = document.getElementById('planet-info-panel');
         if (!this.panel) return;
 
-        this.buildPanelHTML();
-
         // Escape: deselect planet (closes panel)
         this.onKeyDown = (e: KeyboardEvent): void => {
             if (e.code === 'Escape' && this.panelOpen) {
@@ -49,23 +48,29 @@ export class PlanetInfoUIComponent extends Component {
     private buildPanelHTML(): void {
         if (!this.panel) return;
 
+        const planetData = this.entity.getComponent(PlanetDataComponent);
+        const displayName = planetData?.config.displayName ?? 'UNKNOWN';
+        const loreText = this.getLoreText(planetData?.config.name ?? '');
+        const isRocky = planetData?.config.type === 'rocky';
+
         this.panel.innerHTML = `
             <button class="panel-close-btn" id="planet-panel-close" type="button" title="Close">&times;</button>
             <div class="ship-name-row">
-                <span class="ship-name">NEW TERRA</span>
+                <span class="ship-name">${displayName.toUpperCase()}</span>
             </div>
             <hr class="divider">
             <div class="lore-text">
-                A habitable world in the temperate zone.
-                The last hope for the souls aboard.
+                ${loreText}
             </div>
+            ${isRocky ? `
             <div class="planet-status" style="margin-top:16px">
                 <span class="planet-status-dot" id="planet-status-dot"></span>
                 <span id="planet-status-text">UNCOLONISED</span>
             </div>
             <div class="planet-biome-summary" id="planet-biome-summary" style="margin-top:12px; font-size:12px; opacity:0.6; line-height:1.8"></div>
+            ` : ''}
             <div id="planet-surface-wrapper" style="margin-top:16px; position:relative">
-                <button class="hud-btn" id="planet-view-surface-btn" type="button">VIEW SURFACE</button>
+                <button class="hud-btn" id="planet-view-surface-btn" type="button">${isRocky ? 'VIEW SURFACE' : 'VIEW ATMOSPHERE'}</button>
                 <div class="surface-tooltip" id="planet-surface-tooltip" style="display:none">Ship must be closer to descend</div>
             </div>
         `;
@@ -132,6 +137,7 @@ export class PlanetInfoUIComponent extends Component {
 
     private openPanel(): void {
         this.panelOpen = true;
+        this.buildPanelHTML();
         this.panel?.classList.add('open');
     }
 
@@ -191,6 +197,23 @@ export class PlanetInfoUIComponent extends Component {
             this.surfaceBtn.classList.remove('disabled');
         } else {
             this.surfaceBtn.classList.add('disabled');
+        }
+    }
+
+    private getLoreText(name: string): string {
+        switch (name) {
+            case 'ember':
+                return 'A scorched volcanic world. Tidal forces keep its mantle churning with molten fury.';
+            case 'newTerra':
+                return 'A habitable world in the temperate zone. The last hope for the souls aboard.';
+            case 'dust':
+                return 'A barren, cratered world. Thin atmosphere of silicate dust. No signs of life.';
+            case 'goliath':
+                return 'A massive gas giant. Violent storm systems rage across its amber atmosphere.';
+            case 'shepherd':
+                return 'A ringed gas giant. Its gravitational pull shepherds the outer debris fields.';
+            default:
+                return 'An uncharted world.';
         }
     }
 
