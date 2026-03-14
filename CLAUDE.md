@@ -1,5 +1,9 @@
 # CLAUDE.md — Project Conventions for The Last Refuge
 
+## Workflow
+
+- When you've finished a task, run `echo -e '\a'` to ring the terminal bell.
+
 ## Project Overview
 
 Browser-based game built with HTML5 Canvas + TypeScript. Entity-Component-System architecture with fixed-timestep game loop. See `docs/PHASE1_SPEC.md` for the full build spec.
