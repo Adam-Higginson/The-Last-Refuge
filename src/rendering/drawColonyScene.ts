@@ -313,7 +313,7 @@ function drawStars(
     ctx.restore();
 }
 
-// --- Rolling hills and horizon features ---
+// --- 3-layer parallax background with time-of-day reaction ---
 
 function drawHorizonFeatures(
     ctx: CanvasRenderingContext2D,
@@ -322,70 +322,123 @@ function drawHorizonFeatures(
     visuals: BiomeVisuals,
     seed: number,
 ): void {
-    // Layer 1: Far rolling hills (subtle, hazy)
+    const dayNight = getDayNightState();
+    const isNight = dayNight.phase === 'night';
+    const isDuskDawn = dayNight.phase === 'dusk' || dayNight.phase === 'dawn';
+
+    // --- Layer 1: Far misty mountains (most hazy, least detail) ---
     ctx.save();
-    ctx.globalAlpha = 0.15;
-    ctx.fillStyle = visuals.groundDark;
+    // Fog increases at night and in distance
+    const farAlpha = isNight ? 0.06 : isDuskDawn ? 0.1 : 0.14;
+    ctx.globalAlpha = farAlpha;
+    ctx.fillStyle = isNight ? '#0a0a15' : isDuskDawn ? '#4a3a3a' : visuals.groundDark;
     ctx.beginPath();
     ctx.moveTo(0, horizonY);
-    for (let x = 0; x <= w; x += 4) {
-        const hillY = horizonY - 15
-            - Math.sin(x / 200 + seed * 0.7) * 20
-            - Math.sin(x / 80 + seed * 1.3) * 8
-            - Math.abs(Math.sin(x / 350 + seed * 0.3)) * 25;
+    for (let x = 0; x <= w; x += 3) {
+        const hillY = horizonY - 20
+            - Math.sin(x / 250 + seed * 0.7) * 25
+            - Math.sin(x / 90 + seed * 1.3) * 10
+            - Math.abs(Math.sin(x / 400 + seed * 0.3)) * 35;
         ctx.lineTo(x, hillY);
     }
     ctx.lineTo(w, horizonY);
     ctx.closePath();
     ctx.fill();
-    ctx.restore();
 
-    // Layer 2: Mid rolling hills (more visible)
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.fillStyle = visuals.groundBase;
-    ctx.beginPath();
-    ctx.moveTo(0, horizonY);
-    for (let x = 0; x <= w; x += 4) {
-        const hillY = horizonY - 5
-            - Math.sin(x / 150 + seed * 1.1) * 15
-            - Math.sin(x / 60 + seed * 2.1) * 6;
-        ctx.lineTo(x, hillY);
-    }
-    ctx.lineTo(w, horizonY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-
-    // Feature-specific details on top of hills
+    // Mountain peaks on far layer
     if (visuals.horizonFeature === 'mountains' || visuals.horizonFeature === 'volcanoes') {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-        for (let i = 0; i < 9; i++) {
-            const cx = (i + 0.3) * w / 9 + Math.sin(seed + i * 3.7) * w * 0.03;
-            const peakH = horizonY * (0.1 + Math.abs(Math.sin(seed * 1.3 + i * 2.1)) * 0.2);
-            const baseW = w / 9 * 1.4;
+        for (let i = 0; i < 5; i++) {
+            const cx = (i + 0.4) * w / 5 + Math.sin(seed + i * 4.1) * w * 0.04;
+            const peakH = horizonY * (0.15 + Math.abs(Math.sin(seed * 1.5 + i * 2.7)) * 0.2);
+            const baseW = w / 5 * 1.5;
             ctx.beginPath();
             ctx.moveTo(cx - baseW / 2, horizonY);
-            ctx.quadraticCurveTo(cx - baseW * 0.15, horizonY - peakH * 0.7, cx, horizonY - peakH);
-            ctx.quadraticCurveTo(cx + baseW * 0.15, horizonY - peakH * 0.7, cx + baseW / 2, horizonY);
-            ctx.closePath();
-            ctx.fill();
-        }
-    } else if (visuals.horizonFeature === 'trees') {
-        // Dense tree line on the hills
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-        for (let i = 0; i < 30; i++) {
-            const cx = (i + 0.2) * w / 30 + Math.sin(seed + i * 2.3) * w * 0.01;
-            const treeH = 8 + Math.abs(Math.sin(seed + i * 1.7)) * 12;
-            const treeW = w / 30 * 0.7;
-            ctx.beginPath();
-            ctx.arc(cx, horizonY - treeH * 0.5 - 5, treeW / 2, Math.PI, 0);
-            ctx.lineTo(cx + treeW / 2, horizonY);
-            ctx.lineTo(cx - treeW / 2, horizonY);
+            ctx.quadraticCurveTo(cx - baseW * 0.12, horizonY - peakH * 0.8, cx, horizonY - peakH);
+            ctx.quadraticCurveTo(cx + baseW * 0.12, horizonY - peakH * 0.8, cx + baseW / 2, horizonY);
             ctx.closePath();
             ctx.fill();
         }
     }
+    ctx.restore();
+
+    // --- Layer 2: Mid tree line / ridgeline ---
+    ctx.save();
+    const midAlpha = isNight ? 0.1 : isDuskDawn ? 0.18 : 0.22;
+    ctx.globalAlpha = midAlpha;
+    ctx.fillStyle = isNight ? '#08080f' : isDuskDawn ? '#3a2a2a' : visuals.groundBase;
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY);
+    for (let x = 0; x <= w; x += 3) {
+        const hillY = horizonY - 8
+            - Math.sin(x / 170 + seed * 1.1) * 18
+            - Math.sin(x / 55 + seed * 2.1) * 7;
+        ctx.lineTo(x, hillY);
+    }
+    ctx.lineTo(w, horizonY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Tree line on mid layer
+    if (visuals.horizonFeature === 'trees') {
+        for (let i = 0; i < 25; i++) {
+            const cx = (i + 0.2) * w / 25 + Math.sin(seed + i * 2.3) * w * 0.012;
+            const treeH = 10 + Math.abs(Math.sin(seed + i * 1.7)) * 14;
+            const treeW = w / 25 * 0.75;
+            ctx.beginPath();
+            ctx.arc(cx, horizonY - treeH * 0.4 - 3, treeW / 2, Math.PI, 0);
+            ctx.lineTo(cx + treeW / 2, horizonY + 2);
+            ctx.lineTo(cx - treeW / 2, horizonY + 2);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+    ctx.restore();
+
+    // --- Layer 3: Near individual trees with sway ---
+    ctx.save();
+    const nearAlpha = isNight ? 0.15 : isDuskDawn ? 0.3 : 0.35;
+    ctx.globalAlpha = nearAlpha;
+    ctx.fillStyle = isNight ? '#050508' : isDuskDawn ? '#2a1a1a' : visuals.groundDark;
+
+    const t = performance.now();
+    if (visuals.horizonFeature === 'trees') {
+        for (let i = 0; i < 8; i++) {
+            const cx = (i + 0.3) * w / 8 + Math.sin(seed * 2 + i * 5.1) * w * 0.03;
+            const treeH = 18 + Math.abs(Math.sin(seed + i * 3.1)) * 20;
+            const treeW = 12 + Math.abs(Math.sin(seed + i * 2.3)) * 10;
+            const sway = Math.sin(t / 2000 + i * 1.5) * 2;
+
+            // Trunk
+            ctx.fillRect(cx - 2, horizonY - treeH * 0.4, 4, treeH * 0.4 + 5);
+
+            // Canopy with sway
+            ctx.beginPath();
+            ctx.arc(cx + sway, horizonY - treeH * 0.5, treeW, Math.PI, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Second canopy layer (fuller)
+            ctx.beginPath();
+            ctx.arc(cx + sway * 0.7 + 3, horizonY - treeH * 0.45 - 3, treeW * 0.7, Math.PI, 0);
+            ctx.closePath();
+            ctx.fill();
+        }
+    } else if (visuals.horizonFeature === 'mountains' || visuals.horizonFeature === 'volcanoes') {
+        // Near rocky outcrops
+        for (let i = 0; i < 5; i++) {
+            const cx = (i + 0.5) * w / 5 + Math.sin(seed * 3 + i * 4.7) * w * 0.05;
+            const rockH = 8 + Math.abs(Math.sin(seed + i * 2.9)) * 15;
+            const rockW = 15 + Math.abs(Math.sin(seed + i * 1.8)) * 20;
+            ctx.beginPath();
+            ctx.moveTo(cx - rockW / 2, horizonY + 3);
+            ctx.lineTo(cx - rockW * 0.3, horizonY - rockH);
+            ctx.lineTo(cx + rockW * 0.2, horizonY - rockH * 0.8);
+            ctx.lineTo(cx + rockW / 2, horizonY + 3);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+    ctx.restore();
 }
 
 // --- Natural ground (no checkerboard) ---
