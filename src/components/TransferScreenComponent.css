@@ -175,6 +175,15 @@
     border-left: 2px solid #4fa8ff;
 }
 
+.crew-row.viewing {
+    background: rgba(79, 168, 255, 0.08);
+    border-left: 2px solid rgba(79, 168, 255, 0.6);
+}
+
+.crew-row.viewing .crew-name {
+    color: #4fa8ff;
+}
+
 .crew-checkbox {
     width: 16px;
     height: 16px;

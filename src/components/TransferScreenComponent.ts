@@ -174,10 +174,11 @@ export class TransferScreenComponent extends Component {
             if (!c) return '';
 
             const isSelected = this.selectedCrewIds.has(entity.id);
+            const isViewing = this.detailCrewId === entity.id;
             const moraleClass = c.morale >= 60 ? 'morale-high' : c.morale >= 30 ? 'morale-mid' : 'morale-low';
 
             return `
-                <div class="crew-row ${isSelected ? 'selected' : ''}" data-crew-id="${entity.id}">
+                <div class="crew-row ${isSelected ? 'selected' : ''} ${isViewing ? 'viewing' : ''}" data-crew-id="${entity.id}">
                     <div class="crew-checkbox ${isSelected ? 'checked' : ''}" data-checkbox="${entity.id}">${isSelected ? '✓' : ''}</div>
                     <div class="crew-name" data-detail="${entity.id}">${c.fullName}</div>
                     <div class="crew-role">${c.role}</div>
