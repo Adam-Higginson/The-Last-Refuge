@@ -184,7 +184,7 @@ export class CameraComponent extends Component {
 
     /** Soft-clamp pan so the star (world origin) remains reachable. */
     private clampPan(): void {
-        const maxPan = this.worldSize * 0.4;
+        const maxPan = this.worldSize * 0.8;
         this.panX = Math.max(-maxPan, Math.min(maxPan, this.panX));
         this.panY = Math.max(-maxPan, Math.min(maxPan, this.panY));
         this.recalculate();
