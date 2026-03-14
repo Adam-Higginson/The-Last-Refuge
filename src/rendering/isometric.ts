@@ -104,17 +104,41 @@ export function drawIsometricBox(
     ctx.fill();
 }
 
-/** Grid layout for building slots (3 columns x 2 rows for up to 6 slots). */
+/**
+ * Organic building slot positions — spread out with minimum spacing,
+ * weighted toward edges, with random offsets for natural feel.
+ * Uses a deterministic seed so positions are stable across frames.
+ */
 export function getSlotGridPositions(totalSlots: number): { gridX: number; gridY: number }[] {
-    const positions: { gridX: number; gridY: number }[] = [];
-    const cols = Math.min(totalSlots, 3);
-    const rows = Math.ceil(totalSlots / cols);
+    if (totalSlots === 0) return [];
 
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            if (positions.length >= totalSlots) break;
-            positions.push({ gridX: c, gridY: r });
-        }
-    }
-    return positions;
+    // Pre-computed organic positions for up to 6 slots
+    // Spread across a wider area with natural spacing
+    const LAYOUTS: Record<number, { gridX: number; gridY: number }[]> = {
+        1: [{ gridX: 0, gridY: 0 }],
+        2: [{ gridX: -1, gridY: 0 }, { gridX: 1, gridY: 0 }],
+        3: [{ gridX: -1, gridY: -0.3 }, { gridX: 1, gridY: 0 }, { gridX: 0, gridY: 1 }],
+        4: [
+            { gridX: -1.2, gridY: -0.3 }, { gridX: 0.8, gridY: -0.5 },
+            { gridX: -0.5, gridY: 0.8 }, { gridX: 1.3, gridY: 0.7 },
+        ],
+        5: [
+            { gridX: -1.3, gridY: -0.5 }, { gridX: 0.7, gridY: -0.7 },
+            { gridX: -0.3, gridY: 0.3 },
+            { gridX: -1, gridY: 1 }, { gridX: 1.2, gridY: 0.8 },
+        ],
+        6: [
+            { gridX: -1.5, gridY: -0.5 }, { gridX: 0.5, gridY: -0.8 },
+            { gridX: -0.5, gridY: 0.2 }, { gridX: 1.5, gridY: 0 },
+            { gridX: -1, gridY: 1.1 }, { gridX: 1, gridY: 1 },
+        ],
+    };
+
+    const layout = LAYOUTS[Math.min(totalSlots, 6)] ?? LAYOUTS[6];
+
+    // Add small deterministic offsets for organic feel
+    return layout.slice(0, totalSlots).map((pos, i) => ({
+        gridX: pos.gridX + Math.sin(i * 3.7) * 0.15,
+        gridY: pos.gridY + Math.sin(i * 2.3 + 1) * 0.1,
+    }));
 }

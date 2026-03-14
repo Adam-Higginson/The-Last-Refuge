@@ -8,6 +8,7 @@ import { getBuildingType } from '../data/buildings';
 import { getCrewAtColony } from '../utils/crewUtils';
 import { drawBuilding } from './colonyBuildingSprites';
 import { drawSettlementProps, drawMicroDetails } from './colonyProps';
+import { drawParticles } from './colonyParticles';
 import { advanceClock, getDayNightState, setGameHour, getGameHour } from './colonyDayNight';
 import { advanceWeather, drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
 import type { WeatherInfo } from './colonyWeather';
@@ -157,6 +158,7 @@ export function drawColonyScene(
     drawMicroDetails(ctx, w, h, region, t);
     drawSettlementProps(ctx, region, slotRects, t);
     drawColonists(ctx, entity, region, slotRects, t);
+    drawParticles(ctx, dtSeconds);
     drawAmbientParticles(ctx, w, h, visuals, t);
     drawAmbientOverlay(ctx, w, h, dayNight);
 
