@@ -5,9 +5,11 @@
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
+import { PlanetDataComponent } from './PlanetDataComponent';
 import { generateVoronoi } from '../utils/voronoi';
 import { assignBiomes } from '../data/biomes';
 import { mulberry32 } from '../utils/prng';
+import type { BiomeName, BiomePool } from '../data/biomes';
 import type { CanvasResizeEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
@@ -16,7 +18,7 @@ const VORONOI_SEED = 7;
 
 export interface Region {
     id: number;
-    biome: 'Temperate Plains' | 'Arctic Wastes' | 'Dense Jungle' | 'Volcanic Highlands' | 'Ocean';
+    biome: BiomeName;
     colour: string;
     canColonise: boolean;
     colonised: boolean;
@@ -39,6 +41,11 @@ export class RegionDataComponent extends Component {
         this.regionCount = regionCount;
     }
 
+    private getBiomePool(): BiomePool {
+        const planetData = this.entity.getComponent(PlanetDataComponent);
+        return planetData?.config.biomePool ?? 'habitable';
+    }
+
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
 
@@ -46,7 +53,8 @@ export class RegionDataComponent extends Component {
             const { width, height } = event as CanvasResizeEvent;
             const rng = mulberry32(VORONOI_SEED);
             const cells = generateVoronoi(width, height, this.regionCount, rng);
-            const newRegions = assignBiomes(cells, rng, width, height);
+            const pool = this.getBiomePool();
+            const newRegions = assignBiomes(cells, rng, width, height, pool);
 
             // Preserve colonisation state from old regions
             for (const newRegion of newRegions) {

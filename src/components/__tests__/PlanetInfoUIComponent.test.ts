@@ -6,7 +6,8 @@ import { GameEvents } from '../../core/GameEvents';
 import { PlanetInfoUIComponent } from '../PlanetInfoUIComponent';
 import { SelectableComponent } from '../SelectableComponent';
 import { RegionDataComponent } from '../RegionDataComponent';
-import { TransformComponent } from '../TransformComponent';
+import { PlanetDataComponent } from '../PlanetDataComponent';
+import { getPlanetConfig } from '../../data/planets';
 
 // ---------------------------------------------------------------------------
 // Minimal DOM mock
@@ -125,8 +126,6 @@ describe('PlanetInfoUIComponent', () => {
     let statusText: MockElement;
     let biomeSummary: MockElement;
     let surfaceBtn: MockElement;
-    let surfaceWrapper: MockElement;
-    let surfaceTooltip: MockElement;
 
     beforeEach(() => {
         ServiceLocator.clear();
@@ -141,8 +140,6 @@ describe('PlanetInfoUIComponent', () => {
         statusText = createMockElement('planet-status-text');
         biomeSummary = createMockElement('planet-biome-summary');
         surfaceBtn = createMockElement('planet-view-surface-btn');
-        surfaceWrapper = createMockElement('planet-surface-wrapper');
-        surfaceTooltip = createMockElement('planet-surface-tooltip');
 
         elementMap = {
             'planet-info-panel': panel,
@@ -151,8 +148,7 @@ describe('PlanetInfoUIComponent', () => {
             'planet-status-text': statusText,
             'planet-biome-summary': biomeSummary,
             'planet-view-surface-btn': surfaceBtn,
-            'planet-surface-wrapper': surfaceWrapper,
-            'planet-surface-tooltip': surfaceTooltip,
+            'planet-surface-wrapper': createMockElement('planet-surface-wrapper'),
         };
 
         installMocks();
@@ -168,8 +164,11 @@ describe('PlanetInfoUIComponent', () => {
         selectable: SelectableComponent;
         regionData: RegionDataComponent;
     } {
+        const config = getPlanetConfig('newTerra');
+        if (!config) throw new Error('missing newTerra config');
+
         const entity = world.createEntity('newTerra');
-        entity.addComponent(new TransformComponent(500, 400));
+        entity.addComponent(new PlanetDataComponent(config));
         const selectable = entity.addComponent(new SelectableComponent(20));
         const regionData = entity.addComponent(new RegionDataComponent());
         regionData.regions = [
@@ -180,11 +179,6 @@ describe('PlanetInfoUIComponent', () => {
         const info = entity.addComponent(new PlanetInfoUIComponent());
         info.init();
         return { info, selectable, regionData };
-    }
-
-    function createShipAt(x: number, y: number): void {
-        const ship = world.createEntity('arkSalvage');
-        ship.addComponent(new TransformComponent(x, y));
     }
 
     // --- Panel open/close via selection ---
@@ -259,7 +253,6 @@ describe('PlanetInfoUIComponent', () => {
     // --- VIEW SURFACE button ---
 
     it('emits PLANET_VIEW_ENTER when VIEW SURFACE is clicked', () => {
-        createShipAt(500, 400); // in range
         const { info, selectable } = createPlanetWithInfoPanel();
         selectable.selected = true;
         info.update(1 / 60);
@@ -308,10 +301,9 @@ describe('PlanetInfoUIComponent', () => {
         expect(text).toContain('ARCTIC WASTES');
     });
 
-    // --- VIEW SURFACE range-gating ---
+    // --- VIEW SURFACE button (always enabled) ---
 
-    it('enables VIEW SURFACE when ship is in range', () => {
-        createShipAt(500, 400); // same position as planet
+    it('VIEW SURFACE is always enabled', () => {
         const { info, selectable } = createPlanetWithInfoPanel();
         selectable.selected = true;
         info.update(1 / 60);
@@ -319,57 +311,16 @@ describe('PlanetInfoUIComponent', () => {
         expect(surfaceBtn.classList.contains('disabled')).toBe(false);
     });
 
-    it('disables VIEW SURFACE when ship is out of range', () => {
-        createShipAt(0, 0); // far from planet at (500, 400)
+    it('VIEW SURFACE emits PLANET_VIEW_ENTER on click', () => {
         const { info, selectable } = createPlanetWithInfoPanel();
         selectable.selected = true;
         info.update(1 / 60);
-
-        expect(surfaceBtn.classList.contains('disabled')).toBe(true);
-    });
-
-    it('disables VIEW SURFACE when no ship exists', () => {
-        // No ship entity created
-        const { info, selectable } = createPlanetWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        expect(surfaceBtn.classList.contains('disabled')).toBe(true);
-    });
-
-    it('blocks click when VIEW SURFACE is disabled', () => {
-        createShipAt(0, 0); // out of range
-        const { info, selectable } = createPlanetWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-        expect(surfaceBtn.classList.contains('disabled')).toBe(true);
 
         const emitSpy = vi.spyOn(eventQueue, 'emit');
         surfaceBtn.click();
-        expect(emitSpy).not.toHaveBeenCalled();
-    });
-
-    it('shows tooltip on hover when VIEW SURFACE is disabled', () => {
-        createShipAt(0, 0); // out of range
-        const { info, selectable } = createPlanetWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        surfaceWrapper._fireEvent('mouseenter');
-        expect(surfaceTooltip.style.display).toBe('block');
-
-        surfaceWrapper._fireEvent('mouseleave');
-        expect(surfaceTooltip.style.display).toBe('none');
-    });
-
-    it('does not show tooltip on hover when VIEW SURFACE is enabled', () => {
-        createShipAt(500, 400); // in range
-        const { info, selectable } = createPlanetWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        surfaceWrapper._fireEvent('mouseenter');
-        expect(surfaceTooltip.style.display).not.toBe('block');
+        expect(emitSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ type: GameEvents.PLANET_VIEW_ENTER }),
+        );
     });
 
     // --- Lifecycle ---

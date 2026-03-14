@@ -2,6 +2,8 @@
 // Each entry defines the physical, orbital, and visual properties of a planet.
 // Orbit speeds follow Kepler-ish scaling: speed ∝ 1 / sqrt(radius).
 
+import type { BiomePool } from './biomes';
+
 export type PlanetType = 'rocky' | 'gas-giant';
 
 export interface PlanetConfig {
@@ -29,6 +31,14 @@ export interface PlanetConfig {
     startAngle: number;
     /** Colour palette for system view rendering */
     palette: PlanetPalette;
+    /** Which biome pool to use for surface regions (rocky planets only) */
+    biomePool?: BiomePool;
+    /** Short description of surface conditions */
+    surfaceConditions?: string;
+    /** Atmospheric composition (gas giants only) */
+    atmosphericComposition?: string;
+    /** Band colours for gas giant atmospheric view */
+    bandColours?: readonly string[];
 }
 
 export interface PlanetPalette {
@@ -70,6 +80,8 @@ export const PLANET_CONFIGS: readonly PlanetConfig[] = [
             atmosphere: 'rgba(255, 100, 30, 0.12)',
             orbitRing: 'rgba(200, 100, 60, 0.25)',
         },
+        biomePool: 'volcanic',
+        surfaceConditions: 'Surface temp 800°K. Active volcanism. Unbreathable atmosphere.',
     },
     {
         name: 'newTerra',
@@ -89,6 +101,8 @@ export const PLANET_CONFIGS: readonly PlanetConfig[] = [
             atmosphere: 'rgba(120, 200, 255, 0.15)',
             orbitRing: 'rgba(90, 140, 220, 0.25)',
         },
+        biomePool: 'habitable',
+        surfaceConditions: 'Breathable atmosphere. Temperate climate. Liquid water.',
     },
     {
         name: 'dust',
@@ -108,6 +122,8 @@ export const PLANET_CONFIGS: readonly PlanetConfig[] = [
             atmosphere: 'rgba(180, 160, 120, 0.08)',
             orbitRing: 'rgba(150, 130, 100, 0.25)',
         },
+        biomePool: 'barren',
+        surfaceConditions: 'Near-vacuum atmosphere. Extreme temperature swings. No water.',
     },
     {
         name: 'goliath',
@@ -127,6 +143,9 @@ export const PLANET_CONFIGS: readonly PlanetConfig[] = [
             atmosphere: 'rgba(200, 170, 80, 0.12)',
             orbitRing: 'rgba(180, 150, 80, 0.25)',
         },
+        surfaceConditions: 'No solid surface. Crushing atmospheric pressure.',
+        atmosphericComposition: 'Hydrogen 89%, Helium 10%, Methane 1%',
+        bandColours: ['#d4b060', '#b08830', '#e0c880', '#a07820', '#c8a050'],
     },
     {
         name: 'shepherd',
@@ -146,6 +165,9 @@ export const PLANET_CONFIGS: readonly PlanetConfig[] = [
             atmosphere: 'rgba(100, 180, 160, 0.10)',
             orbitRing: 'rgba(100, 160, 140, 0.25)',
         },
+        surfaceConditions: 'No solid surface. Dense ring system.',
+        atmosphericComposition: 'Hydrogen 92%, Helium 7%, Ammonia 1%',
+        bandColours: ['#5a9a8a', '#3a7a6a', '#6aaa9a', '#2a6a5a'],
     },
 ] as const;
 

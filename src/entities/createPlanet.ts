@@ -571,17 +571,21 @@ function drawGasGiantView(
     ctx.fillStyle = bodyGrad;
     ctx.fillRect(cx - viewR, cy - viewR, viewR * 2, viewR * 2);
 
-    // Animated bands
+    // Animated bands using planet-specific colours
     const t = performance.now();
     const bandCount = 12;
+    const bandColours = config.bandColours ?? [config.palette.body, config.palette.bodyAlt];
     for (let i = 0; i < bandCount; i++) {
         const bandY = cy - viewR + (viewR * 2 * (i + 0.5)) / bandCount;
         const bandH = (viewR * 2) / bandCount * 0.5;
         const drift = Math.sin(t / 5000 + i * 0.5) * 3;
         const alpha = 0.1 + 0.08 * Math.sin(i * 1.3);
-        ctx.fillStyle = `rgba(${i % 2 === 0 ? '255, 230, 180' : '180, 150, 100'}, ${alpha.toFixed(3)})`;
+        const colour = bandColours[i % bandColours.length];
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = colour;
         ctx.fillRect(cx - viewR + drift, bandY - bandH / 2, viewR * 2, bandH);
     }
+    ctx.globalAlpha = 1.0;
 
     ctx.restore();
 
@@ -592,6 +596,13 @@ function drawGasGiantView(
     ctx.fillText(config.displayName.toUpperCase(), cx, cy + viewR + 30);
     ctx.font = '12px "Share Tech Mono", "Courier New", monospace';
     ctx.fillText('GAS GIANT — NO LANDABLE SURFACE', cx, cy + viewR + 50);
+
+    // Atmospheric composition
+    if (config.atmosphericComposition) {
+        ctx.fillStyle = 'rgba(160, 160, 160, 0.5)';
+        ctx.font = '11px "Share Tech Mono", "Courier New", monospace';
+        ctx.fillText(`ATMOSPHERE: ${config.atmosphericComposition}`, cx, cy + viewR + 70);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -768,7 +779,8 @@ export function createPlanet(world: World, config: PlanetConfig): Entity {
         const mapWidth = canvas.width;
         const mapHeight = canvas.height;
         const cells = generateVoronoi(mapWidth, mapHeight, config.regionCount, rng);
-        const regions = assignBiomes(cells, rng, mapWidth, mapHeight);
+        const pool = config.biomePool ?? 'habitable';
+        const regions = assignBiomes(cells, rng, mapWidth, mapHeight, pool);
 
         const regionData = entity.addComponent(new RegionDataComponent(config.regionCount));
         regionData.regions = regions;
