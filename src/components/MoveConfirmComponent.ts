@@ -49,8 +49,8 @@ export class MoveConfirmComponent extends Component {
 
         // Clear pending move when a different entity is clicked
         this.deselectedHandler = (event): void => {
-            const { entityName } = event as EntityClickEvent;
-            if (entityName !== this.entity.name) {
+            const { entityId } = event as EntityClickEvent;
+            if (entityId !== this.entity.id) {
                 this.clear();
             }
         };

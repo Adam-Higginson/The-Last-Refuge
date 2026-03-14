@@ -50,7 +50,7 @@ export class PlanetInfoUIComponent extends Component {
 
         const planetData = this.entity.getComponent(PlanetDataComponent);
         const displayName = planetData?.config.displayName ?? 'UNKNOWN';
-        const loreText = this.getLoreText(planetData?.config.name ?? '');
+        const loreText = planetData?.config.lore ?? 'An uncharted world.';
         const isRocky = planetData?.config.type === 'rocky';
 
         this.panel.innerHTML = `
@@ -197,23 +197,6 @@ export class PlanetInfoUIComponent extends Component {
             this.surfaceBtn.classList.remove('disabled');
         } else {
             this.surfaceBtn.classList.add('disabled');
-        }
-    }
-
-    private getLoreText(name: string): string {
-        switch (name) {
-            case 'ember':
-                return 'A scorched volcanic world. Tidal forces keep its mantle churning with molten fury.';
-            case 'newTerra':
-                return 'A habitable world in the temperate zone. The last hope for the souls aboard.';
-            case 'dust':
-                return 'A barren, cratered world. Thin atmosphere of silicate dust. No signs of life.';
-            case 'goliath':
-                return 'A massive gas giant. Violent storm systems rage across its amber atmosphere.';
-            case 'shepherd':
-                return 'A ringed gas giant. Its gravitational pull shepherds the outer debris fields.';
-            default:
-                return 'An uncharted world.';
         }
     }
 

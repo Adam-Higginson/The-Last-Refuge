@@ -23,6 +23,8 @@ export interface PlanetConfig {
     colonisable: boolean;
     /** Number of Voronoi surface regions (rocky planets only) */
     regionCount: number;
+    /** Flavour text shown in the info panel */
+    lore: string;
     /** Colour palette for system view rendering */
     palette: PlanetPalette;
 }
@@ -58,6 +60,7 @@ export const PLANET_CONFIGS: readonly PlanetConfig[] = [
         orbitSpeed: keplerSpeed(800),
         colonisable: false,
         regionCount: 6,
+        lore: 'A scorched volcanic world. Tidal forces keep its mantle churning with molten fury.',
         palette: {
             body: '#8a2a0a',
             bodyAlt: '#5a1a0a',
@@ -75,6 +78,7 @@ export const PLANET_CONFIGS: readonly PlanetConfig[] = [
         orbitSpeed: keplerSpeed(1500),
         colonisable: true,
         regionCount: 8,
+        lore: 'A habitable world in the temperate zone. The last hope for the souls aboard.',
         palette: {
             body: '#2a7a6a',
             bodyAlt: '#1a5a7a',
@@ -92,6 +96,7 @@ export const PLANET_CONFIGS: readonly PlanetConfig[] = [
         orbitSpeed: keplerSpeed(2400),
         colonisable: false,
         regionCount: 7,
+        lore: 'A barren, cratered world. Thin atmosphere of silicate dust. No signs of life.',
         palette: {
             body: '#9a8a6a',
             bodyAlt: '#6a5a4a',
@@ -109,6 +114,7 @@ export const PLANET_CONFIGS: readonly PlanetConfig[] = [
         orbitSpeed: keplerSpeed(4500),
         colonisable: false,
         regionCount: 0,
+        lore: 'A massive gas giant. Violent storm systems rage across its amber atmosphere.',
         palette: {
             body: '#c8a040',
             bodyAlt: '#8a6a20',
@@ -126,6 +132,7 @@ export const PLANET_CONFIGS: readonly PlanetConfig[] = [
         orbitSpeed: keplerSpeed(7200),
         colonisable: false,
         regionCount: 0,
+        lore: 'A ringed gas giant. Its gravitational pull shepherds the outer debris fields.',
         palette: {
             body: '#4a8a7a',
             bodyAlt: '#2a5a6a',
