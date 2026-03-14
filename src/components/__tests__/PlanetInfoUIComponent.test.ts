@@ -6,7 +6,8 @@ import { GameEvents } from '../../core/GameEvents';
 import { PlanetInfoUIComponent } from '../PlanetInfoUIComponent';
 import { SelectableComponent } from '../SelectableComponent';
 import { RegionDataComponent } from '../RegionDataComponent';
-import { TransformComponent } from '../TransformComponent';
+import { PlanetDataComponent } from '../PlanetDataComponent';
+import { getPlanetConfig } from '../../data/planets';
 
 // ---------------------------------------------------------------------------
 // Minimal DOM mock
@@ -163,8 +164,11 @@ describe('PlanetInfoUIComponent', () => {
         selectable: SelectableComponent;
         regionData: RegionDataComponent;
     } {
+        const config = getPlanetConfig('newTerra');
+        if (!config) throw new Error('missing newTerra config');
+
         const entity = world.createEntity('newTerra');
-        entity.addComponent(new TransformComponent(500, 400));
+        entity.addComponent(new PlanetDataComponent(config));
         const selectable = entity.addComponent(new SelectableComponent(20));
         const regionData = entity.addComponent(new RegionDataComponent());
         regionData.regions = [
@@ -175,11 +179,6 @@ describe('PlanetInfoUIComponent', () => {
         const info = entity.addComponent(new PlanetInfoUIComponent());
         info.init();
         return { info, selectable, regionData };
-    }
-
-    function createShipAt(x: number, y: number): void {
-        const ship = world.createEntity('arkSalvage');
-        ship.addComponent(new TransformComponent(x, y));
     }
 
     // --- Panel open/close via selection ---
@@ -304,16 +303,7 @@ describe('PlanetInfoUIComponent', () => {
 
     // --- VIEW SURFACE button (always enabled) ---
 
-    it('VIEW SURFACE is always enabled regardless of ship distance', () => {
-        createShipAt(0, 0); // far from planet at (500, 400)
-        const { info, selectable } = createPlanetWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        expect(surfaceBtn.classList.contains('disabled')).toBe(false);
-    });
-
-    it('VIEW SURFACE is enabled even when no ship exists', () => {
+    it('VIEW SURFACE is always enabled', () => {
         const { info, selectable } = createPlanetWithInfoPanel();
         selectable.selected = true;
         info.update(1 / 60);

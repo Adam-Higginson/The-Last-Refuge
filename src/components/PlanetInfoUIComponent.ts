@@ -62,7 +62,7 @@ export class PlanetInfoUIComponent extends Component {
             <div class="lore-text">
                 ${loreText}
             </div>
-            <div class="planet-stats" style="margin-top:12px; font-size:11px; opacity:0.6; line-height:1.8">
+            <div class="planet-stats">
                 <div>TYPE: ${typeLabel.toUpperCase()}</div>
                 ${surfaceConditions ? `<div>${surfaceConditions}</div>` : ''}
                 ${atmosphericComposition ? `<div>ATMOSPHERE: ${atmosphericComposition}</div>` : ''}

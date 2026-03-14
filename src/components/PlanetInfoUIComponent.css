@@ -57,3 +57,10 @@
     border-radius: 50%;
     background: #ccaa44;
 }
+
+.planet-stats {
+    margin-top: 12px;
+    font-size: 11px;
+    opacity: 0.6;
+    line-height: 1.8;
+}

@@ -37,9 +37,16 @@ export const BIOME_DEFINITIONS: readonly BiomeDefinition[] = [
     { name: 'Salt Basins', colour: '#d0c8b0', canColonise: false, pool: 'barren' },
 ] as const;
 
+/** Pre-computed pool lookups — avoids filtering on every call. */
+const POOL_CACHE: ReadonlyMap<BiomePool, readonly BiomeDefinition[]> = new Map<BiomePool, readonly BiomeDefinition[]>([
+    ['habitable', BIOME_DEFINITIONS.filter(b => b.pool === 'habitable')],
+    ['volcanic', BIOME_DEFINITIONS.filter(b => b.pool === 'volcanic')],
+    ['barren', BIOME_DEFINITIONS.filter(b => b.pool === 'barren')],
+]);
+
 /** Get biome definitions for a specific pool. */
 export function getBiomePool(pool: BiomePool): readonly BiomeDefinition[] {
-    return BIOME_DEFINITIONS.filter(b => b.pool === pool);
+    return POOL_CACHE.get(pool) ?? [];
 }
 
 /**

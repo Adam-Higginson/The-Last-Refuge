@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { assignBiomes, BIOME_DEFINITIONS, getBiomePool } from '../biomes';
+import type { BiomePool } from '../biomes';
 import { generateVoronoi } from '../../utils/voronoi';
 import { mulberry32 } from '../../utils/prng';
 
@@ -53,7 +54,7 @@ describe('assignBiomes', () => {
     function makeRegions(
         numCells: number,
         seed = 42,
-        pool: 'habitable' | 'volcanic' | 'barren' = 'habitable',
+        pool: BiomePool = 'habitable',
     ): ReturnType<typeof assignBiomes> {
         const rng = mulberry32(seed);
         const cells = generateVoronoi(width, height, numCells, rng);
