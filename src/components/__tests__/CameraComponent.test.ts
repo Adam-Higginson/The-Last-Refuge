@@ -3,12 +3,23 @@ import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
 import { GameEvents } from '../../core/GameEvents';
-import { CameraComponent, WORLD_SIZE } from '../CameraComponent';
+import {
+    CameraComponent,
+    WORLD_SIZE,
+    DEFAULT_ZOOM,
+    MIN_ZOOM,
+    MAX_ZOOM,
+} from '../CameraComponent';
 
 describe('CameraComponent', () => {
     let world: World;
     let eventQueue: EventQueue;
     let canvas: { width: number; height: number };
+
+    // With WORLD_SIZE=10000, canvas 800x600, DEFAULT_ZOOM=2.5:
+    // baseScale = min(800,600) / 10000 = 0.06
+    // scale = 0.06 * 2.5 = 0.15
+    const expectedScale = (600 / WORLD_SIZE) * DEFAULT_ZOOM;
 
     beforeEach(() => {
         ServiceLocator.clear();
@@ -32,13 +43,12 @@ describe('CameraComponent', () => {
         expect(cam.canvasHeight).toBe(600);
     });
 
-    it('calculates scale from smaller canvas dimension', () => {
+    it('calculates scale incorporating default zoom', () => {
         const cam = createCamera();
-        // min(800, 600) / 1000 = 0.6
-        expect(cam.scale).toBe(600 / WORLD_SIZE);
+        expect(cam.scale).toBeCloseTo(expectedScale);
     });
 
-    it('calculates offset as canvas centre', () => {
+    it('calculates offset as canvas centre when pan is zero', () => {
         const cam = createCamera();
         expect(cam.offsetX).toBe(400);
         expect(cam.offsetY).toBe(300);
@@ -56,7 +66,7 @@ describe('CameraComponent', () => {
 
         expect(cam.canvasWidth).toBe(1920);
         expect(cam.canvasHeight).toBe(1080);
-        expect(cam.scale).toBe(1080 / WORLD_SIZE);
+        expect(cam.scale).toBeCloseTo((1080 / WORLD_SIZE) * DEFAULT_ZOOM);
         expect(cam.offsetX).toBe(960);
         expect(cam.offsetY).toBe(540);
     });
@@ -65,7 +75,7 @@ describe('CameraComponent', () => {
         canvas.width = 500;
         canvas.height = 500;
         const cam = createCamera();
-        expect(cam.scale).toBe(500 / WORLD_SIZE);
+        expect(cam.scale).toBeCloseTo((500 / WORLD_SIZE) * DEFAULT_ZOOM);
         expect(cam.offsetX).toBe(250);
         expect(cam.offsetY).toBe(250);
     });
@@ -74,23 +84,22 @@ describe('CameraComponent', () => {
         it('maps world origin to canvas centre', () => {
             const cam = createCamera();
             const screen = cam.worldToScreen(0, 0);
-            expect(screen.x).toBe(400); // canvas centre x
-            expect(screen.y).toBe(300); // canvas centre y
+            expect(screen.x).toBe(400);
+            expect(screen.y).toBe(300);
         });
 
         it('maps positive world coords to right/below centre', () => {
             const cam = createCamera();
             const screen = cam.worldToScreen(100, 200);
-            // scale = 0.6, offset = (400, 300)
-            expect(screen.x).toBeCloseTo(100 * 0.6 + 400);
-            expect(screen.y).toBeCloseTo(200 * 0.6 + 300);
+            expect(screen.x).toBeCloseTo(100 * expectedScale + 400);
+            expect(screen.y).toBeCloseTo(200 * expectedScale + 300);
         });
 
         it('maps negative world coords to left/above centre', () => {
             const cam = createCamera();
             const screen = cam.worldToScreen(-500, -500);
-            expect(screen.x).toBeCloseTo(-500 * 0.6 + 400);
-            expect(screen.y).toBeCloseTo(-500 * 0.6 + 300);
+            expect(screen.x).toBeCloseTo(-500 * expectedScale + 400);
+            expect(screen.y).toBeCloseTo(-500 * expectedScale + 300);
         });
     });
 
@@ -127,8 +136,7 @@ describe('CameraComponent', () => {
     describe('worldToScreenDist', () => {
         it('converts a world distance to screen pixels', () => {
             const cam = createCamera();
-            // scale = 0.6
-            expect(cam.worldToScreenDist(100)).toBeCloseTo(60);
+            expect(cam.worldToScreenDist(100)).toBeCloseTo(100 * expectedScale);
         });
     });
 
@@ -149,7 +157,7 @@ describe('CameraComponent', () => {
 
             expect(calls).toEqual([
                 'translate(400,300)',
-                'scale(0.6,0.6)',
+                `scale(${expectedScale},${expectedScale})`,
             ]);
         });
     });
@@ -170,7 +178,153 @@ describe('CameraComponent', () => {
         expect(cam.canvasHeight).toBe(600);
     });
 
-    it('exports WORLD_SIZE constant as 1000', () => {
-        expect(WORLD_SIZE).toBe(1000);
+    it('exports WORLD_SIZE constant as 10000', () => {
+        expect(WORLD_SIZE).toBe(10_000);
+    });
+
+    describe('zoom', () => {
+        it('initialises with default zoom level', () => {
+            const cam = createCamera();
+            expect(cam.zoomLevel).toBe(DEFAULT_ZOOM);
+            expect(cam.targetZoomLevel).toBe(DEFAULT_ZOOM);
+        });
+
+        it('updates targetZoomLevel on zoom()', () => {
+            const cam = createCamera();
+            cam.zoom(1.15, 400, 300); // zoom in at canvas centre
+            expect(cam.targetZoomLevel).toBeCloseTo(DEFAULT_ZOOM * 1.15);
+        });
+
+        it('clamps to MIN_ZOOM', () => {
+            const cam = createCamera();
+            cam.targetZoomLevel = MIN_ZOOM;
+            cam.zoom(0.1, 400, 300); // try to zoom out past min
+            expect(cam.targetZoomLevel).toBe(MIN_ZOOM);
+        });
+
+        it('clamps to MAX_ZOOM', () => {
+            const cam = createCamera();
+            cam.targetZoomLevel = MAX_ZOOM;
+            cam.zoom(2.0, 400, 300); // try to zoom in past max
+            expect(cam.targetZoomLevel).toBe(MAX_ZOOM);
+        });
+
+        it('interpolates zoomLevel toward targetZoomLevel on update', () => {
+            const cam = createCamera();
+            cam.zoom(2.0, 400, 300);
+            const target = cam.targetZoomLevel;
+            expect(cam.zoomLevel).toBe(DEFAULT_ZOOM); // not yet changed
+
+            cam.update(0.016); // one tick
+            expect(cam.zoomLevel).toBeGreaterThan(DEFAULT_ZOOM);
+            expect(cam.zoomLevel).toBeLessThan(target);
+        });
+
+        it('snaps to target when close enough', () => {
+            const cam = createCamera();
+            cam.zoom(1.001, 400, 300); // tiny zoom change
+            const target = cam.targetZoomLevel;
+
+            // Run enough updates to converge
+            for (let i = 0; i < 100; i++) {
+                cam.update(0.016);
+            }
+
+            expect(cam.zoomLevel).toBe(target);
+        });
+
+        it('keeps world point under cursor fixed during zoom-to-cursor', () => {
+            const cam = createCamera();
+            const screenX = 600;
+            const screenY = 400;
+
+            // Get the world point under cursor before zoom
+            const worldBefore = cam.screenToWorld(screenX, screenY);
+
+            cam.zoom(1.5, screenX, screenY);
+
+            // Run interpolation to completion
+            for (let i = 0; i < 200; i++) {
+                cam.update(0.016);
+            }
+
+            // The same world point should still map to the same screen point
+            const screenAfter = cam.worldToScreen(worldBefore.x, worldBefore.y);
+            expect(screenAfter.x).toBeCloseTo(screenX, 0);
+            expect(screenAfter.y).toBeCloseTo(screenY, 0);
+        });
+    });
+
+    describe('pan', () => {
+        it('shifts the camera centre in world space', () => {
+            const cam = createCamera();
+            cam.pan(100, -50);
+            expect(cam.panX).toBe(100);
+            expect(cam.panY).toBe(-50);
+        });
+
+        it('updates offset to reflect pan', () => {
+            const cam = createCamera();
+            cam.pan(100, 0);
+            // offsetX = canvasWidth/2 - panX * scale = 400 - 100 * 0.15 = 385
+            expect(cam.offsetX).toBeCloseTo(400 - 100 * expectedScale);
+        });
+
+        it('clamps to prevent going too far from origin', () => {
+            const cam = createCamera();
+            cam.pan(100_000, 100_000); // way beyond limits
+            const maxPan = WORLD_SIZE * 0.4;
+            expect(cam.panX).toBe(maxPan);
+            expect(cam.panY).toBe(maxPan);
+        });
+
+        it('round-trips worldToScreen/screenToWorld with pan', () => {
+            const cam = createCamera();
+            cam.pan(500, -300);
+            const wx = 100;
+            const wy = 200;
+            const screen = cam.worldToScreen(wx, wy);
+            const back = cam.screenToWorld(screen.x, screen.y);
+            expect(back.x).toBeCloseTo(wx);
+            expect(back.y).toBeCloseTo(wy);
+        });
+
+        it('clears zoom animation when panning', () => {
+            const cam = createCamera();
+            cam.zoom(2.0, 400, 300); // start zoom animation
+            cam.pan(10, 10); // pan should clear zoom anchor
+
+            // Update should still interpolate zoom but not fight with pan
+            cam.update(0.016);
+            expect(cam.panX).toBeCloseTo(10);
+            expect(cam.panY).toBeCloseTo(10);
+        });
+    });
+
+    describe('resize with zoom/pan', () => {
+        it('preserves zoom level on resize', () => {
+            const cam = createCamera();
+            cam.zoom(2.0, 400, 300);
+            // Snap zoom
+            for (let i = 0; i < 200; i++) cam.update(0.016);
+
+            const zoomBefore = cam.zoomLevel;
+            cam.resize(1920, 1080);
+            expect(cam.zoomLevel).toBe(zoomBefore);
+        });
+
+        it('preserves pan on resize', () => {
+            const cam = createCamera();
+            cam.pan(500, -300);
+            cam.resize(1920, 1080);
+            expect(cam.panX).toBe(500);
+            expect(cam.panY).toBe(-300);
+        });
+    });
+
+    it('exports zoom constants', () => {
+        expect(MIN_ZOOM).toBe(0.5);
+        expect(MAX_ZOOM).toBe(10.0);
+        expect(DEFAULT_ZOOM).toBe(2.5);
     });
 });

@@ -16,19 +16,19 @@ import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
 /** Movement budget in world units per turn */
-const MOVEMENT_BUDGET = 300;
+const MOVEMENT_BUDGET = 800;
 
 /** Glide speed in world units per second */
-const GLIDE_SPEED = 200;
+const GLIDE_SPEED = 500;
 
 /** Hit radius for hover/click detection */
-const HIT_RADIUS = 18;
+const HIT_RADIUS = 72;
 
 /** Hull half-length (tip to centre) */
-const HULL_LENGTH = 14;
+const HULL_LENGTH = 56;
 
 /** Hull half-width at the widest point */
-const HULL_WIDTH = 8;
+const HULL_WIDTH = 32;
 
 /**
  * Interpolate ring colour from green (full budget) to red (empty budget).
@@ -60,25 +60,25 @@ function drawShip(
     if (movement && movement.moving && movement.targetX !== null && movement.targetY !== null) {
         ctx.save();
         ctx.beginPath();
-        ctx.setLineDash([6, 4]);
+        ctx.setLineDash([24, 16]);
         ctx.moveTo(x, y);
         ctx.lineTo(movement.targetX, movement.targetY);
         ctx.strokeStyle = 'rgba(255, 220, 120, 0.4)';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 4;
         ctx.stroke();
         ctx.setLineDash([]);
 
         // Target marker — small cross at destination
         const tx = movement.targetX;
         const ty = movement.targetY;
-        const cs = 5; // cross half-size
+        const cs = 20; // cross half-size
         ctx.beginPath();
         ctx.moveTo(tx - cs, ty - cs);
         ctx.lineTo(tx + cs, ty + cs);
         ctx.moveTo(tx + cs, ty - cs);
         ctx.lineTo(tx - cs, ty + cs);
         ctx.strokeStyle = 'rgba(255, 220, 120, 0.6)';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 6;
         ctx.stroke();
         ctx.restore();
     }
@@ -90,7 +90,7 @@ function drawShip(
         const pdx = mcx - x;
         const pdy = mcy - y;
         const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
-        const minDist = (selectable.hitRadius ?? 0) + 2;
+        const minDist = (selectable.hitRadius ?? 0) + 8;
 
         if (pDist >= minDist) {
             // Clamp endpoint to budget radius if cursor is beyond range
@@ -104,23 +104,23 @@ function drawShip(
 
             ctx.save();
             ctx.beginPath();
-            ctx.setLineDash([6, 4]);
+            ctx.setLineDash([24, 16]);
             ctx.moveTo(x, y);
             ctx.lineTo(endX, endY);
             ctx.strokeStyle = 'rgba(255, 220, 120, 0.25)';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 4;
             ctx.stroke();
             ctx.setLineDash([]);
 
             // Cross at clamped endpoint
-            const cs = 5;
+            const cs = 20;
             ctx.beginPath();
             ctx.moveTo(endX - cs, endY - cs);
             ctx.lineTo(endX + cs, endY + cs);
             ctx.moveTo(endX + cs, endY - cs);
             ctx.lineTo(endX - cs, endY + cs);
             ctx.strokeStyle = 'rgba(255, 220, 120, 0.4)';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 6;
             ctx.stroke();
             ctx.restore();
         }
@@ -128,8 +128,8 @@ function drawShip(
 
     // --- Movement range disc (anchored to turn origin, visible when selected) ---
     // Colour transitions green → amber → red as budget depletes.
-    // Minimum radius of 3px avoids visual noise from tiny circles.
-    const MIN_RANGE_RADIUS = 3;
+    // Minimum radius of 12wu avoids visual noise from tiny circles.
+    const MIN_RANGE_RADIUS = 12;
     if (selected && movement && movement.displayBudget > MIN_RANGE_RADIUS) {
         const r = movement.displayBudget;
         const ratio = movement.budgetMax > 0
@@ -151,19 +151,19 @@ function drawShip(
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.strokeStyle = budgetColour(ratio, 0.45);
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 6;
         ctx.stroke();
 
         // Soft glow bloom on the edge (only when radius is large enough
         // for the inner radius to stay non-negative — canvas throws if < 0)
-        if (r > 8) {
-            const edgeGlow = ctx.createRadialGradient(x, y, r - 8, x, y, r + 8);
+        if (r > 32) {
+            const edgeGlow = ctx.createRadialGradient(x, y, r - 32, x, y, r + 32);
             edgeGlow.addColorStop(0, budgetColour(ratio, 0));
             edgeGlow.addColorStop(0.5, budgetColour(ratio, 0.10));
             edgeGlow.addColorStop(1, budgetColour(ratio, 0));
             ctx.fillStyle = edgeGlow;
             ctx.beginPath();
-            ctx.arc(x, y, r + 8, 0, Math.PI * 2);
+            ctx.arc(x, y, r + 32, 0, Math.PI * 2);
             ctx.fill();
         }
     }
@@ -171,40 +171,40 @@ function drawShip(
     // --- Hover highlight ring (warm amber) ---
     if (hovered) {
         ctx.beginPath();
-        ctx.arc(x, y, HIT_RADIUS + 6, 0, Math.PI * 2);
+        ctx.arc(x, y, HIT_RADIUS + 24, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(255, 220, 120, 0.5)';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 8;
         ctx.stroke();
 
         const hoverGlow = ctx.createRadialGradient(
             x, y, HIT_RADIUS,
-            x, y, HIT_RADIUS + 14,
+            x, y, HIT_RADIUS + 56,
         );
         hoverGlow.addColorStop(0, 'rgba(255, 220, 120, 0.15)');
         hoverGlow.addColorStop(1, 'rgba(255, 220, 120, 0)');
         ctx.fillStyle = hoverGlow;
         ctx.beginPath();
-        ctx.arc(x, y, HIT_RADIUS + 14, 0, Math.PI * 2);
+        ctx.arc(x, y, HIT_RADIUS + 56, 0, Math.PI * 2);
         ctx.fill();
     }
 
     // --- Selection ring (warm amber, solid — shown when selected but not hovered) ---
     if (selected && !hovered) {
         ctx.beginPath();
-        ctx.arc(x, y, HIT_RADIUS + 4, 0, Math.PI * 2);
+        ctx.arc(x, y, HIT_RADIUS + 16, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(255, 220, 120, 0.4)';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 6;
         ctx.stroke();
 
         const selGlow = ctx.createRadialGradient(
             x, y, HIT_RADIUS,
-            x, y, HIT_RADIUS + 12,
+            x, y, HIT_RADIUS + 48,
         );
         selGlow.addColorStop(0, 'rgba(255, 220, 120, 0.1)');
         selGlow.addColorStop(1, 'rgba(255, 220, 120, 0)');
         ctx.fillStyle = selGlow;
         ctx.beginPath();
-        ctx.arc(x, y, HIT_RADIUS + 12, 0, Math.PI * 2);
+        ctx.arc(x, y, HIT_RADIUS + 48, 0, Math.PI * 2);
         ctx.fill();
     }
 
@@ -215,15 +215,15 @@ function drawShip(
     // --- Engine glow (at the rear of the ship) ---
     const enginePulse = 0.7 + 0.3 * Math.sin(t / 300);
     const engineGlow = ctx.createRadialGradient(
-        -HULL_LENGTH - 2, 0, 0,
-        -HULL_LENGTH - 2, 0, 12,
+        -HULL_LENGTH - 8, 0, 0,
+        -HULL_LENGTH - 8, 0, 48,
     );
     engineGlow.addColorStop(0, `rgba(255, 160, 40, ${(0.6 * enginePulse).toFixed(3)})`);
     engineGlow.addColorStop(0.5, `rgba(255, 100, 20, ${(0.2 * enginePulse).toFixed(3)})`);
     engineGlow.addColorStop(1, 'rgba(255, 80, 0, 0)');
     ctx.fillStyle = engineGlow;
     ctx.beginPath();
-    ctx.arc(-HULL_LENGTH - 2, 0, 12, 0, Math.PI * 2);
+    ctx.arc(-HULL_LENGTH - 8, 0, 48, 0, Math.PI * 2);
     ctx.fill();
 
     // --- Hull (angular alien silhouette) ---
@@ -252,19 +252,19 @@ function drawShip(
 
     // Subtle hull outline
     ctx.strokeStyle = 'rgba(200, 210, 230, 0.3)';
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 2;
     ctx.stroke();
 
     // --- Cockpit detail (small bright spot near the nose) ---
     const cockpitGlow = ctx.createRadialGradient(
         HULL_LENGTH * 0.5, 0, 0,
-        HULL_LENGTH * 0.5, 0, 3,
+        HULL_LENGTH * 0.5, 0, 12,
     );
     cockpitGlow.addColorStop(0, 'rgba(150, 200, 255, 0.6)');
     cockpitGlow.addColorStop(1, 'rgba(150, 200, 255, 0)');
     ctx.fillStyle = cockpitGlow;
     ctx.beginPath();
-    ctx.arc(HULL_LENGTH * 0.5, 0, 3, 0, Math.PI * 2);
+    ctx.arc(HULL_LENGTH * 0.5, 0, 12, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();

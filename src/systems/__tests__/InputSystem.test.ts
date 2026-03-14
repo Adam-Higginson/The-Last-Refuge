@@ -78,32 +78,27 @@ describe('InputSystem', () => {
         }
     });
 
+    /** Fire a listener by event type on the canvas. */
+    function fireCanvas(type: string, event: Partial<MouseEvent | WheelEvent | TouchEvent>): void {
+        const record = canvasListeners.find((l) => l.type === type);
+        if (record) {
+            record.handler(event as Event);
+        }
+    }
+
     /** Simulate a mousemove event at the given canvas coordinates */
     function simulateMouseMove(x: number, y: number): void {
-        const moveHandler = canvasListeners.find((l) => l.type === 'mousemove');
-        if (moveHandler) {
-            moveHandler.handler({ clientX: x, clientY: y } as MouseEvent);
-        }
+        fireCanvas('mousemove', { clientX: x, clientY: y } as Partial<MouseEvent>);
     }
 
     /** Simulate a click event */
     function simulateClick(): void {
-        const clickHandler = canvasListeners.find((l) => l.type === 'click');
-        if (clickHandler) {
-            clickHandler.handler({} as MouseEvent);
-        }
+        fireCanvas('click', {} as Partial<MouseEvent>);
     }
 
-    /** Simulate a right-click (contextmenu) event at the given coordinates */
+    /** Simulate a right-click (contextmenu event). */
     function simulateRightClick(x: number, y: number): void {
-        const contextHandler = canvasListeners.find((l) => l.type === 'contextmenu');
-        if (contextHandler) {
-            contextHandler.handler({
-                clientX: x,
-                clientY: y,
-                preventDefault: vi.fn(),
-            } as unknown as MouseEvent);
-        }
+        fireCanvas('contextmenu', { clientX: x, clientY: y, preventDefault: vi.fn() } as unknown as Partial<MouseEvent>);
     }
 
     /** Simulate a keydown event */
@@ -130,6 +125,19 @@ describe('InputSystem', () => {
             'contextmenu',
             expect.any(Function),
         );
+        expect(mockCanvas.addEventListener).toHaveBeenCalledWith(
+            'mousedown',
+            expect.any(Function),
+        );
+        expect(mockCanvas.addEventListener).toHaveBeenCalledWith(
+            'mouseup',
+            expect.any(Function),
+        );
+        expect(mockCanvas.addEventListener).toHaveBeenCalledWith(
+            'wheel',
+            expect.any(Function),
+            { passive: false },
+        );
         expect(window.addEventListener).toHaveBeenCalledWith(
             'keydown',
             expect.any(Function),
@@ -144,7 +152,7 @@ describe('InputSystem', () => {
         entity.addComponent(new TransformComponent(100, 100));
         const selectable = entity.addComponent(new SelectableComponent(20));
 
-        // Move mouse within hit radius
+        // Move mouse within hit radius (no camera — identity transform)
         simulateMouseMove(110, 110); // distance ~14.1 < 20
         system.update(16);
 
@@ -293,11 +301,23 @@ describe('InputSystem', () => {
             expect.any(Function),
         );
         expect(mockCanvas.removeEventListener).toHaveBeenCalledWith(
+            'mousedown',
+            expect.any(Function),
+        );
+        expect(mockCanvas.removeEventListener).toHaveBeenCalledWith(
+            'mouseup',
+            expect.any(Function),
+        );
+        expect(mockCanvas.removeEventListener).toHaveBeenCalledWith(
             'click',
             expect.any(Function),
         );
         expect(mockCanvas.removeEventListener).toHaveBeenCalledWith(
             'contextmenu',
+            expect.any(Function),
+        );
+        expect(mockCanvas.removeEventListener).toHaveBeenCalledWith(
+            'wheel',
             expect.any(Function),
         );
         expect(window.removeEventListener).toHaveBeenCalledWith(
@@ -353,7 +373,7 @@ describe('InputSystem', () => {
 
     // --- Right-click tests ---
 
-    it('emits RIGHT_CLICK with coordinates on right-click', () => {
+    it('emits RIGHT_CLICK with coordinates on right-click without drag', () => {
         const system = new InputSystem();
         system.init(world);
 
@@ -394,8 +414,6 @@ describe('InputSystem', () => {
     // --- Camera coordinate conversion tests ---
 
     it('converts screen coords to world coords for hover detection when camera exists', () => {
-        // 800x600 canvas, WORLD_SIZE=1000: scale=0.6, offsetX=400, offsetY=300
-        // Screen (400, 300) → world (0, 0) — canvas centre maps to world origin
         const cameraEntity = world.createEntity('camera');
         const camera = cameraEntity.addComponent(new CameraComponent());
         camera.resize(800, 600);
@@ -443,8 +461,9 @@ describe('InputSystem', () => {
         const system = new InputSystem();
         system.init(world);
 
+        // scale = 0.15, offsetX = 400, offsetY = 300
         // Right-click at screen (700, 300)
-        // → world ((700-400)/0.6, (300-300)/0.6) = (500, 0)
+        // → world ((700-400)/0.15, (300-300)/0.15) = (2000, 0)
         simulateRightClick(700, 300);
         system.update(16);
 
@@ -455,7 +474,7 @@ describe('InputSystem', () => {
         eventQueue.drain();
 
         expect(emittedEvents).toHaveLength(1);
-        expect(emittedEvents[0].x).toBeCloseTo(500);
+        expect(emittedEvents[0].x).toBeCloseTo(2000);
         expect(emittedEvents[0].y).toBeCloseTo(0);
     });
 
@@ -472,10 +491,122 @@ describe('InputSystem', () => {
         entity.addComponent(new TransformComponent(0, 0));
         const selectable = entity.addComponent(new SelectableComponent(20));
 
-        // Mouse at screen (0, 0) → world (-666.67, -500) — far from entity
+        // Mouse at screen (0, 0) → far from entity in world space
         simulateMouseMove(0, 0);
         system.update(16);
 
         expect(selectable.hovered).toBe(false);
+    });
+
+    // --- Zoom tests ---
+
+    it('calls camera.zoom on wheel event', () => {
+        const cameraEntity = world.createEntity('camera');
+        const camera = cameraEntity.addComponent(new CameraComponent());
+        camera.resize(800, 600);
+        const zoomSpy = vi.spyOn(camera, 'zoom');
+
+        const system = new InputSystem();
+        system.init(world);
+
+        // Simulate wheel scroll up (zoom in)
+        fireCanvas('wheel', { deltaY: -100, clientX: 400, clientY: 300, preventDefault: vi.fn() } as unknown as Partial<WheelEvent>);
+
+        expect(zoomSpy).toHaveBeenCalledWith(1.15, 400, 300);
+    });
+
+    it('calls camera.zoom with inverse factor on scroll down', () => {
+        const cameraEntity = world.createEntity('camera');
+        const camera = cameraEntity.addComponent(new CameraComponent());
+        camera.resize(800, 600);
+        const zoomSpy = vi.spyOn(camera, 'zoom');
+
+        const system = new InputSystem();
+        system.init(world);
+
+        // Simulate wheel scroll down (zoom out)
+        fireCanvas('wheel', { deltaY: 100, clientX: 400, clientY: 300, preventDefault: vi.fn() } as unknown as Partial<WheelEvent>);
+
+        expect(zoomSpy).toHaveBeenCalledWith(1 / 1.15, 400, 300);
+    });
+
+    // --- Pan tests ---
+
+    it('suppresses click when left-click drag exceeds threshold', () => {
+        const system = new InputSystem();
+        system.init(world);
+
+        const entity = world.createEntity('target');
+        entity.addComponent(new TransformComponent(100, 100));
+        const selectable = entity.addComponent(new SelectableComponent(20));
+
+        // Left-click down on entity
+        fireCanvas('mousedown', { button: 0, clientX: 100, clientY: 100 } as Partial<MouseEvent>);
+        // Drag far enough to trigger pan
+        fireCanvas('mousemove', { clientX: 120, clientY: 100 } as Partial<MouseEvent>);
+        // Release and click fires
+        fireCanvas('mouseup', { button: 0, clientX: 120, clientY: 100 } as Partial<MouseEvent>);
+        fireCanvas('click', {} as Partial<MouseEvent>);
+
+        system.update(16);
+
+        // Click should have been suppressed — entity not selected
+        expect(selectable.selected).toBe(false);
+    });
+
+    it('pans the camera on left-click drag', () => {
+        const cameraEntity = world.createEntity('camera');
+        const camera = cameraEntity.addComponent(new CameraComponent());
+        camera.resize(800, 600);
+        const panSpy = vi.spyOn(camera, 'pan');
+
+        const system = new InputSystem();
+        system.init(world);
+
+        // Left-click down at (100, 100)
+        fireCanvas('mousedown', { button: 0, clientX: 100, clientY: 100 } as Partial<MouseEvent>);
+        // Move far enough to trigger pan (>5px)
+        fireCanvas('mousemove', { clientX: 120, clientY: 100 } as Partial<MouseEvent>);
+
+        expect(panSpy).toHaveBeenCalled();
+    });
+
+    it('does not pan on right-click or middle-click drag', () => {
+        const cameraEntity = world.createEntity('camera');
+        const camera = cameraEntity.addComponent(new CameraComponent());
+        camera.resize(800, 600);
+        const panSpy = vi.spyOn(camera, 'pan');
+
+        const system = new InputSystem();
+        system.init(world);
+
+        // Right-click drag
+        fireCanvas('mousedown', { button: 2, clientX: 200, clientY: 200, preventDefault: vi.fn() } as unknown as Partial<MouseEvent>);
+        fireCanvas('mousemove', { clientX: 230, clientY: 200 } as Partial<MouseEvent>);
+        fireCanvas('mouseup', { button: 2, clientX: 230, clientY: 200 } as Partial<MouseEvent>);
+
+        // Middle-click drag
+        fireCanvas('mousedown', { button: 1, clientX: 200, clientY: 200, preventDefault: vi.fn() } as unknown as Partial<MouseEvent>);
+        fireCanvas('mousemove', { clientX: 230, clientY: 200 } as Partial<MouseEvent>);
+        fireCanvas('mouseup', { button: 1, clientX: 230, clientY: 200 } as Partial<MouseEvent>);
+
+        expect(panSpy).not.toHaveBeenCalled();
+    });
+
+    it('shows grabbing cursor during pan', () => {
+        const cameraEntity = world.createEntity('camera');
+        const camera = cameraEntity.addComponent(new CameraComponent());
+        camera.resize(800, 600);
+
+        const system = new InputSystem();
+        system.init(world);
+
+        // Start a left-click drag
+        fireCanvas('mousedown', { button: 0, clientX: 100, clientY: 100 } as Partial<MouseEvent>);
+        fireCanvas('mousemove', { clientX: 120, clientY: 100 } as Partial<MouseEvent>);
+
+        system.update(16);
+
+        expect(mockCanvas.style.cursor).toBe('grabbing');
     });
 });

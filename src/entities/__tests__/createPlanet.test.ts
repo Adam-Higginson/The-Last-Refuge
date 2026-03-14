@@ -56,7 +56,7 @@ describe('createPlanet', () => {
         expect(orbit?.centreX).toBe(0);
         expect(orbit?.centreY).toBe(0);
         expect(orbit?.radius).toBe(ORBIT_RADIUS);
-        expect(orbit?.speed).toBe(0.15);
+        expect(orbit?.speed).toBe(0.07);
         expect(orbit?.angle).toBe(0);
     });
 
@@ -65,7 +65,7 @@ describe('createPlanet', () => {
         const entity = createPlanet(world);
         const selectable = entity.getComponent(SelectableComponent);
         expect(selectable).not.toBeNull();
-        expect(selectable?.hitRadius).toBe(20);
+        expect(selectable?.hitRadius).toBe(80);
         expect(selectable?.hovered).toBe(false);
     });
 
@@ -88,7 +88,7 @@ describe('createPlanet', () => {
 });
 
 describe('ORBIT_RADIUS', () => {
-    it('is 350 world units (35% of WORLD_SIZE)', () => {
-        expect(ORBIT_RADIUS).toBe(350);
+    it('is 1500 world units', () => {
+        expect(ORBIT_RADIUS).toBe(1500);
     });
 });

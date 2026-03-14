@@ -1,5 +1,6 @@
-// InputSystem.ts — Reads mouse state, detects clicks/hovers on selectable entities.
-// Handles entity selection (left-click) and right-click dispatching.
+// InputSystem.ts — Reads mouse/touch state, detects clicks/hovers on selectable entities.
+// Handles entity selection (left-click), right-click dispatching, camera zoom (scroll wheel /
+// pinch), and camera pan (left-click drag, single-finger touch drag).
 // Emits events for clicks on entities. Updates cursor style on hover.
 // Space key is a keyboard shortcut for turn advancement (alongside the HUD END TURN button).
 // All hit-testing and emitted coordinates are in world space — InputSystem converts
@@ -8,12 +9,18 @@
 import { System } from '../core/System';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
-import { CameraComponent } from '../components/CameraComponent';
+import { CameraComponent, MIN_ZOOM, MAX_ZOOM } from '../components/CameraComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import type { World } from '../core/World';
 import type { EventQueue } from '../core/EventQueue';
+
+/** Minimum drag distance (screen pixels) before a drag is recognised as a pan. */
+const PAN_THRESHOLD = 5;
+
+/** Scroll-wheel zoom factor per step. */
+const WHEEL_ZOOM_FACTOR = 1.15;
 
 export class InputSystem extends System {
     private canvas!: HTMLCanvasElement;
@@ -23,10 +30,35 @@ export class InputSystem extends System {
     private pendingClick = false;
     private pendingRightClick: { x: number; y: number } | null = null;
 
+    // Pan state (mouse)
+    private panButton: number | null = null;
+    private panStartX = 0;
+    private panStartY = 0;
+    private lastPanX = 0;
+    private lastPanY = 0;
+    private panMoved = false;
+    private isPanning = false;
+
+    // Touch pan state
+    private isTouchPanning = false;
+    private touchStartX = 0;
+    private touchStartY = 0;
+    private lastTouchX = 0;
+    private lastTouchY = 0;
+    private touchMoved = false;
+
+    // Pinch zoom state
+    private isPinching = false;
+    private pinchStartDist = 0;
+    private pinchStartZoom = 0;
+
     // Bound handlers for cleanup
     private onMouseMove!: (e: MouseEvent) => void;
+    private onMouseDown!: (e: MouseEvent) => void;
+    private onMouseUp!: (e: MouseEvent) => void;
     private onClick!: (e: MouseEvent) => void;
     private onContextMenu!: (e: MouseEvent) => void;
+    private onWheel!: (e: WheelEvent) => void;
     private onKeyDown!: (e: KeyboardEvent) => void;
     private onTouchStart!: (e: TouchEvent) => void;
     private onTouchMove!: (e: TouchEvent) => void;
@@ -37,18 +69,77 @@ export class InputSystem extends System {
         this.canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
 
+        // --- Mouse handlers ---
+
         this.onMouseMove = (e: MouseEvent): void => {
             this.mouseX = e.clientX;
             this.mouseY = e.clientY;
+
+            // Handle pan dragging
+            if (this.panButton !== null) {
+                const dx = e.clientX - this.panStartX;
+                const dy = e.clientY - this.panStartY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist >= PAN_THRESHOLD) {
+                    this.panMoved = true;
+                    this.isPanning = true;
+
+                    const camera = this.getCamera();
+                    if (camera) {
+                        const worldDx = -(e.clientX - this.lastPanX) / camera.scale;
+                        const worldDy = -(e.clientY - this.lastPanY) / camera.scale;
+                        camera.pan(worldDx, worldDy);
+                    }
+
+                    this.lastPanX = e.clientX;
+                    this.lastPanY = e.clientY;
+                }
+            }
+        };
+
+        this.onMouseDown = (e: MouseEvent): void => {
+            if (e.button === 0) {
+                // Left button — potential pan start (or click if no drag)
+                this.panButton = 0;
+                this.panStartX = e.clientX;
+                this.panStartY = e.clientY;
+                this.lastPanX = e.clientX;
+                this.lastPanY = e.clientY;
+                this.panMoved = false;
+                this.isPanning = false;
+            }
+        };
+
+        this.onMouseUp = (e: MouseEvent): void => {
+            if (e.button === 0 && this.panButton === 0) {
+                this.panButton = null;
+                this.isPanning = false;
+                // panMoved is NOT reset here — it's consumed by the onClick
+                // handler (which fires after mouseup) to suppress click after drag.
+            }
         };
 
         this.onClick = (_e: MouseEvent): void => {
-            this.pendingClick = true;
+            // Suppress click if the user was panning (dragged past threshold)
+            if (!this.panMoved) {
+                this.pendingClick = true;
+            }
+            this.panMoved = false;
         };
 
         this.onContextMenu = (e: MouseEvent): void => {
             e.preventDefault();
             this.pendingRightClick = { x: e.clientX, y: e.clientY };
+        };
+
+        this.onWheel = (e: WheelEvent): void => {
+            e.preventDefault();
+            const camera = this.getCamera();
+            if (!camera) return;
+
+            const zoomFactor = e.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
+            camera.zoom(zoomFactor, e.clientX, e.clientY);
         };
 
         // Keyboard shortcut: Space requests turn advancement
@@ -59,43 +150,124 @@ export class InputSystem extends System {
             }
         };
 
-        // Touch handlers — map touch to the same coordinate/flag pipeline
+        // --- Touch handlers ---
+
         this.onTouchStart = (e: TouchEvent): void => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            if (touch) {
+            if (e.touches.length === 2) {
+                // Pinch start
+                e.preventDefault();
+                this.isPinching = true;
+                this.isTouchPanning = false;
+                this.touchMoved = true; // suppress tap on pinch
+                const t0 = e.touches[0];
+                const t1 = e.touches[1];
+                this.pinchStartDist = Math.sqrt(
+                    (t1.clientX - t0.clientX) ** 2 + (t1.clientY - t0.clientY) ** 2,
+                );
+                const camera = this.getCamera();
+                this.pinchStartZoom = camera?.targetZoomLevel ?? 1;
+            } else if (e.touches.length === 1) {
+                // Single touch start — potential pan or tap
+                e.preventDefault();
+                const touch = e.touches[0];
                 this.mouseX = touch.clientX;
                 this.mouseY = touch.clientY;
+                this.touchStartX = touch.clientX;
+                this.touchStartY = touch.clientY;
+                this.lastTouchX = touch.clientX;
+                this.lastTouchY = touch.clientY;
+                this.touchMoved = false;
+                this.isTouchPanning = false;
             }
         };
 
         this.onTouchMove = (e: TouchEvent): void => {
-            const touch = e.touches[0];
-            if (touch) {
+            if (this.isPinching && e.touches.length >= 2) {
+                e.preventDefault();
+                const t0 = e.touches[0];
+                const t1 = e.touches[1];
+                const dist = Math.sqrt(
+                    (t1.clientX - t0.clientX) ** 2 + (t1.clientY - t0.clientY) ** 2,
+                );
+                const camera = this.getCamera();
+                if (camera && this.pinchStartDist > 0) {
+                    const ratio = dist / this.pinchStartDist;
+                    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.pinchStartZoom * ratio));
+                    // Set both zoom and target directly for real-time pinch feel
+                    camera.zoomLevel = newZoom;
+                    camera.targetZoomLevel = newZoom;
+                    // Trigger recalculation via resize to same size
+                    camera.resize(camera.canvasWidth, camera.canvasHeight);
+                }
+            } else if (e.touches.length === 1 && !this.isPinching) {
+                const touch = e.touches[0];
                 this.mouseX = touch.clientX;
                 this.mouseY = touch.clientY;
+
+                const dx = touch.clientX - this.touchStartX;
+                const dy = touch.clientY - this.touchStartY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist >= PAN_THRESHOLD) {
+                    this.touchMoved = true;
+                    this.isTouchPanning = true;
+
+                    const camera = this.getCamera();
+                    if (camera) {
+                        const worldDx = -(touch.clientX - this.lastTouchX) / camera.scale;
+                        const worldDy = -(touch.clientY - this.lastTouchY) / camera.scale;
+                        camera.pan(worldDx, worldDy);
+                    }
+
+                    this.lastTouchX = touch.clientX;
+                    this.lastTouchY = touch.clientY;
+                }
             }
         };
 
         this.onTouchEnd = (e: TouchEvent): void => {
-            e.preventDefault();
-            this.pendingClick = true;
+            if (this.isPinching) {
+                if (e.touches.length < 2) {
+                    this.isPinching = false;
+                }
+                e.preventDefault();
+                return;
+            }
+
+            if (!this.touchMoved) {
+                // Tap — treat as click
+                e.preventDefault();
+                this.pendingClick = true;
+            }
+
+            this.isTouchPanning = false;
+            this.touchMoved = false;
         };
 
+        // --- Register event listeners ---
+
         this.canvas.addEventListener('mousemove', this.onMouseMove);
+        this.canvas.addEventListener('mousedown', this.onMouseDown);
+        this.canvas.addEventListener('mouseup', this.onMouseUp);
         this.canvas.addEventListener('click', this.onClick);
         this.canvas.addEventListener('contextmenu', this.onContextMenu);
+        this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
         this.canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
-        this.canvas.addEventListener('touchmove', this.onTouchMove, { passive: true });
+        this.canvas.addEventListener('touchmove', this.onTouchMove, { passive: false });
         this.canvas.addEventListener('touchend', this.onTouchEnd, { passive: false });
         window.addEventListener('keydown', this.onKeyDown);
+    }
+
+    /** Get the CameraComponent from the camera entity, or null if not found. */
+    private getCamera(): CameraComponent | null {
+        const cameraEntity = this.world.getEntityByName('camera');
+        return cameraEntity?.getComponent(CameraComponent) ?? null;
     }
 
     /** Convert screen coordinates to world coordinates via CameraComponent.
      *  Falls back to identity (raw screen coords) if no camera entity exists. */
     private screenToWorld(sx: number, sy: number): { x: number; y: number } {
-        const cameraEntity = this.world.getEntityByName('camera');
-        const camera = cameraEntity?.getComponent(CameraComponent);
+        const camera = this.getCamera();
         if (camera) {
             return camera.screenToWorld(sx, sy);
         }
@@ -208,7 +380,13 @@ export class InputSystem extends System {
         }
 
         // Update cursor
-        this.canvas.style.cursor = anythingHovered ? hoveredCursor : 'default';
+        if (this.isPanning || this.isTouchPanning) {
+            this.canvas.style.cursor = 'grabbing';
+        } else if (anythingHovered) {
+            this.canvas.style.cursor = hoveredCursor;
+        } else {
+            this.canvas.style.cursor = 'default';
+        }
 
         // Clear pending click after processing
         this.pendingClick = false;
@@ -216,8 +394,11 @@ export class InputSystem extends System {
 
     destroy(): void {
         this.canvas.removeEventListener('mousemove', this.onMouseMove);
+        this.canvas.removeEventListener('mousedown', this.onMouseDown);
+        this.canvas.removeEventListener('mouseup', this.onMouseUp);
         this.canvas.removeEventListener('click', this.onClick);
         this.canvas.removeEventListener('contextmenu', this.onContextMenu);
+        this.canvas.removeEventListener('wheel', this.onWheel);
         this.canvas.removeEventListener('touchstart', this.onTouchStart);
         this.canvas.removeEventListener('touchmove', this.onTouchMove);
         this.canvas.removeEventListener('touchend', this.onTouchEnd);
