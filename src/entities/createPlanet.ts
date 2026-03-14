@@ -24,19 +24,19 @@ import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
 /** Planet body radius in world units */
-const PLANET_RADIUS = 12;
+const PLANET_RADIUS = 120;
 
 /** Hit radius for hover/click detection (slightly larger than visual) */
-const HIT_RADIUS = 20;
+const HIT_RADIUS = 160;
 
-/** Orbit speed in radians per turn (~8.6° per turn, full orbit in ~42 turns) */
-const ORBIT_SPEED = 0.15;
+/** Orbit speed in radians per turn (Kepler-ish scaling from old 0.15 at radius 350) */
+const ORBIT_SPEED = 0.07;
 
 /** Number of Voronoi cells for the surface map */
 export const REGION_COUNT = 8;
 
-/** Orbit radius in world units (35% of WORLD_SIZE = 1000) */
-export const ORBIT_RADIUS = 350;
+/** Orbit radius in world units */
+export const ORBIT_RADIUS = 1500;
 
 // ---------------------------------------------------------------------------
 // System map drawing (globe)
@@ -57,17 +57,17 @@ function drawPlanetGlobe(
     // Hover highlight ring
     if (hovered) {
         ctx.beginPath();
-        ctx.arc(x, y, r + 8, 0, Math.PI * 2);
+        ctx.arc(x, y, r + 32, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(79, 168, 255, 0.5)';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 8;
         ctx.stroke();
 
-        const glowGrad = ctx.createRadialGradient(x, y, r + 4, x, y, r + 16);
+        const glowGrad = ctx.createRadialGradient(x, y, r + 16, x, y, r + 64);
         glowGrad.addColorStop(0, 'rgba(79, 168, 255, 0.15)');
         glowGrad.addColorStop(1, 'rgba(79, 168, 255, 0)');
         ctx.fillStyle = glowGrad;
         ctx.beginPath();
-        ctx.arc(x, y, r + 16, 0, Math.PI * 2);
+        ctx.arc(x, y, r + 64, 0, Math.PI * 2);
         ctx.fill();
     }
 
@@ -77,8 +77,8 @@ function drawPlanetGlobe(
         ctx.beginPath();
         ctx.arc(orbit.centreX, orbit.centreY, orbit.radius, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(90, 140, 220, 0.25)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([6, 8]);
+        ctx.lineWidth = 4;
+        ctx.setLineDash([24, 32]);
         ctx.stroke();
         ctx.setLineDash([]);
     }
@@ -88,12 +88,12 @@ function drawPlanetGlobe(
 
     const glowX = x + Math.cos(angleToStar) * (r * 0.3);
     const glowY = y + Math.sin(angleToStar) * (r * 0.3);
-    const atmosGrad = ctx.createRadialGradient(glowX, glowY, r * 0.5, x, y, r + 6);
+    const atmosGrad = ctx.createRadialGradient(glowX, glowY, r * 0.5, x, y, r + 24);
     atmosGrad.addColorStop(0, 'rgba(120, 200, 255, 0.15)');
     atmosGrad.addColorStop(1, 'rgba(120, 200, 255, 0)');
     ctx.fillStyle = atmosGrad;
     ctx.beginPath();
-    ctx.arc(x, y, r + 6, 0, Math.PI * 2);
+    ctx.arc(x, y, r + 24, 0, Math.PI * 2);
     ctx.fill();
 
     // Planet body (clipped circle)

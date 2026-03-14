@@ -35,9 +35,9 @@ describe('createShip', () => {
         const entity = createShip(world);
         const movement = entity.getComponent(MovementComponent);
         expect(movement).not.toBeNull();
-        expect(movement?.budgetMax).toBe(300);
-        expect(movement?.speed).toBe(200);
-        expect(movement?.budgetRemaining).toBe(300);
+        expect(movement?.budgetMax).toBe(800);
+        expect(movement?.speed).toBe(500);
+        expect(movement?.budgetRemaining).toBe(800);
         expect(movement?.moving).toBe(false);
     });
 
@@ -46,7 +46,7 @@ describe('createShip', () => {
         const entity = createShip(world);
         const selectable = entity.getComponent(SelectableComponent);
         expect(selectable).not.toBeNull();
-        expect(selectable?.hitRadius).toBe(18);
+        expect(selectable?.hitRadius).toBe(72);
         expect(selectable?.hovered).toBe(false);
         expect(selectable?.selected).toBe(false);
     });

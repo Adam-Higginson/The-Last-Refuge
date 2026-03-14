@@ -5,7 +5,7 @@ import { ServiceLocator } from '../../core/ServiceLocator';
 import { RenderSystem } from '../RenderSystem';
 import { RenderComponent } from '../../components/RenderComponent';
 import { TransformComponent } from '../../components/TransformComponent';
-import { CameraComponent } from '../../components/CameraComponent';
+import { CameraComponent, WORLD_SIZE, DEFAULT_ZOOM } from '../../components/CameraComponent';
 
 function createMockCtx(): CanvasRenderingContext2D {
     return {
@@ -154,7 +154,8 @@ describe('RenderSystem', () => {
 
             // Camera applies translate then scale
             expect(mockCtx.translate).toHaveBeenCalledWith(400, 300);
-            expect(mockCtx.scale).toHaveBeenCalledWith(0.6, 0.6);
+            const expectedScale = (600 / WORLD_SIZE) * DEFAULT_ZOOM;
+            expect(mockCtx.scale).toHaveBeenCalledWith(expectedScale, expectedScale);
         });
 
         it('applies camera transform to foreground-layer entities', () => {
@@ -216,7 +217,8 @@ describe('RenderSystem', () => {
             system.render(0);
 
             expect(mockCtx.translate).toHaveBeenCalledWith(400, 300);
-            expect(mockCtx.scale).toHaveBeenCalledWith(0.6, 0.6);
+            const expectedScale = (600 / WORLD_SIZE) * DEFAULT_ZOOM;
+            expect(mockCtx.scale).toHaveBeenCalledWith(expectedScale, expectedScale);
         });
 
         it('works without camera entity (no transform applied)', () => {

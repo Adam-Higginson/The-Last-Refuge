@@ -14,7 +14,7 @@ import type { Entity } from '../core/Entity';
 const RAY_COUNT = 8;
 
 /** Hit radius for hover/click detection (covers the bright inner glow) */
-const HIT_RADIUS = 25;
+const HIT_RADIUS = 300;
 
 /** Draw the animated star at the given position. Entity captured via closure. */
 function drawStar(
@@ -39,15 +39,15 @@ function drawStar(
         const rayAlpha = 0.04 + 0.03 * Math.sin(t / 1500 + i);
         ctx.beginPath();
         ctx.moveTo(
-            x + Math.cos(angle) * 15,
-            y + Math.sin(angle) * 15,
+            x + Math.cos(angle) * 180,
+            y + Math.sin(angle) * 180,
         );
         ctx.lineTo(
-            x + Math.cos(angle) * 130,
-            y + Math.sin(angle) * 130,
+            x + Math.cos(angle) * 1560,
+            y + Math.sin(angle) * 1560,
         );
         ctx.strokeStyle = `rgba(255, 240, 200, ${rayAlpha})`;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 6;
         ctx.stroke();
     }
 
@@ -55,68 +55,68 @@ function drawStar(
     ctx.globalCompositeOperation = 'lighter';
 
     // Layer 1: outermost corona wash
-    const g1 = ctx.createRadialGradient(x, y, 0, x, y, 180);
+    const g1 = ctx.createRadialGradient(x, y, 0, x, y, 2160);
     g1.addColorStop(0, `rgba(255, 149, 0, ${(0.025 * pulse).toFixed(4)})`);
     g1.addColorStop(1, 'rgba(255, 149, 0, 0)');
     ctx.fillStyle = g1;
     ctx.beginPath();
-    ctx.arc(x, y, 180, 0, Math.PI * 2);
+    ctx.arc(x, y, 2160, 0, Math.PI * 2);
     ctx.fill();
 
     // Layer 2: outer glow
-    const g2 = ctx.createRadialGradient(x, y, 0, x, y, 100);
+    const g2 = ctx.createRadialGradient(x, y, 0, x, y, 1200);
     g2.addColorStop(0, `rgba(255, 220, 150, ${(0.10 * pulse).toFixed(4)})`);
     g2.addColorStop(1, 'rgba(255, 200, 100, 0)');
     ctx.fillStyle = g2;
     ctx.beginPath();
-    ctx.arc(x, y, 100, 0, Math.PI * 2);
+    ctx.arc(x, y, 1200, 0, Math.PI * 2);
     ctx.fill();
 
     // Layer 3: mid glow
-    const g3 = ctx.createRadialGradient(x, y, 0, x, y, 50);
+    const g3 = ctx.createRadialGradient(x, y, 0, x, y, 600);
     g3.addColorStop(0, `rgba(255, 244, 194, ${(0.30 * pulse).toFixed(4)})`);
     g3.addColorStop(1, 'rgba(255, 220, 150, 0)');
     ctx.fillStyle = g3;
     ctx.beginPath();
-    ctx.arc(x, y, 50, 0, Math.PI * 2);
+    ctx.arc(x, y, 600, 0, Math.PI * 2);
     ctx.fill();
 
     // Layer 4: inner glow
-    const g4 = ctx.createRadialGradient(x, y, 0, x, y, 25);
+    const g4 = ctx.createRadialGradient(x, y, 0, x, y, 300);
     g4.addColorStop(0, 'rgba(255, 254, 245, 0.9)');
     g4.addColorStop(1, 'rgba(255, 244, 194, 0.1)');
     ctx.fillStyle = g4;
     ctx.beginPath();
-    ctx.arc(x, y, 25, 0, Math.PI * 2);
+    ctx.arc(x, y, 300, 0, Math.PI * 2);
     ctx.fill();
 
     // Reset composite operation before drawing the solid core
     ctx.globalCompositeOperation = 'source-over';
 
     // Layer 5: solid core
-    const g5 = ctx.createRadialGradient(x, y, 0, x, y, 10);
+    const g5 = ctx.createRadialGradient(x, y, 0, x, y, 120);
     g5.addColorStop(0, '#fffef5');
     g5.addColorStop(1, '#fff4c2');
     ctx.fillStyle = g5;
     ctx.beginPath();
-    ctx.arc(x, y, 10, 0, Math.PI * 2);
+    ctx.arc(x, y, 120, 0, Math.PI * 2);
     ctx.fill();
 
     // --- Hover highlight ring (warm amber to match the star) ---
     if (hovered) {
         ctx.beginPath();
-        ctx.arc(x, y, 30, 0, Math.PI * 2);
+        ctx.arc(x, y, 360, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(255, 220, 120, 0.5)';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 10;
         ctx.stroke();
 
         // Soft outer glow
-        const hoverGlow = ctx.createRadialGradient(x, y, 25, x, y, 45);
+        const hoverGlow = ctx.createRadialGradient(x, y, 300, x, y, 540);
         hoverGlow.addColorStop(0, 'rgba(255, 220, 120, 0.15)');
         hoverGlow.addColorStop(1, 'rgba(255, 220, 120, 0)');
         ctx.fillStyle = hoverGlow;
         ctx.beginPath();
-        ctx.arc(x, y, 45, 0, Math.PI * 2);
+        ctx.arc(x, y, 540, 0, Math.PI * 2);
         ctx.fill();
     }
 }
