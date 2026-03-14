@@ -40,6 +40,14 @@ export const GameEvents = {
     RESOURCE_DEFICIT: 'resources:deficit',
     /** Crew member(s) transferred between locations. */
     CREW_TRANSFERRED: 'crew:transferred',
+    /** A colony leader was appointed. */
+    LEADER_APPOINTED: 'leader:appointed',
+    /** A colony leader was removed. */
+    LEADER_REMOVED: 'leader:removed',
+    /** The ship captain was appointed. */
+    CAPTAIN_APPOINTED: 'captain:appointed',
+    /** The ship captain was removed. */
+    CAPTAIN_REMOVED: 'captain:removed',
 } as const;
 
 // ---------------------------------------------------------------------------

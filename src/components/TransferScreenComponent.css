@@ -292,6 +292,25 @@
 .transfer-roster ::-webkit-scrollbar-track { background: transparent; }
 .transfer-roster ::-webkit-scrollbar-thumb { background: rgba(79, 168, 255, 0.2); }
 
+/* --- Badges --- */
+.badge {
+    font-size: 9px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+    letter-spacing: 0.5px;
+}
+
+.badge--leader {
+    border: 1px solid rgba(212, 160, 32, 0.5);
+    color: #d4a020;
+}
+
+.badge--captain {
+    border: 1px solid rgba(79, 168, 255, 0.5);
+    color: #4fa8ff;
+}
+
 /* --- Detail panel --- */
 .crew-detail-panel {
     width: 280px;
@@ -361,6 +380,29 @@
     padding: 2px 8px;
     border: 1px solid rgba(192, 200, 216, 0.2);
     opacity: 0.7;
+}
+
+.detail-bonus-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detail-bonus {
+    font-size: 11px;
+    opacity: 0.5;
+    line-height: 1.4;
+}
+
+.detail-bonus.active {
+    opacity: 0.8;
+    color: #66bb6a;
+}
+
+.detail-bonus.potential {
+    opacity: 0.5;
+    color: #c0c8d8;
+    font-style: italic;
 }
 
 .detail-relationships {

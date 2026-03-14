@@ -17,6 +17,20 @@ import {
     getLocationLabel,
     checkShipMinimums,
 } from '../utils/crewUtils';
+import {
+    getColonyLeader,
+    getShipCaptain,
+    appointLeader,
+    appointCaptain,
+    removeLeader,
+    removeCaptain,
+} from '../utils/leaderUtils';
+import {
+    getLeaderBonusDescriptions,
+    SHIP_ROLE_DESCRIPTIONS,
+    COLONY_ROLE_DESCRIPTIONS,
+} from '../data/leaderBonuses';
+import { FOOD_PER_PERSON } from '../data/resources';
 import type { CrewLocation, CrewRole } from './CrewMemberComponent';
 import type { EventQueue } from '../core/EventQueue';
 import type { World } from '../core/World';
@@ -126,11 +140,15 @@ export class TransferScreenComponent extends Component {
 
         const isViewingShip = this.viewingLocation.type === 'ship';
 
+        const captain = getShipCaptain(world);
+        const captainCrew = captain?.getComponent(CrewMemberComponent);
+        const captainInfo = captainCrew ? `Captain: ${captainCrew.fullName}` : 'No captain';
+
         let html = `
             <div class="location-card ${isViewingShip ? 'active' : ''} ${hasSelection && !isViewingShip ? 'transfer-target' : ''}"
                  data-loc="ship">
                 <div class="location-name">ESV-7 (SHIP)</div>
-                <div class="location-meta">${counts.ship} crew assigned</div>
+                <div class="location-meta">${counts.ship} crew — ${captainInfo}</div>
                 <div class="location-roles">
                     <span class="role-badge ${!minimums.engineersOk ? 'warning' : ''}">ENG ${shipRoles.Engineer}</span>
                     <span class="role-badge ${!minimums.soldiersOk ? 'warning' : ''}">SOL ${shipRoles.Soldier}</span>
@@ -148,12 +166,15 @@ export class TransferScreenComponent extends Component {
 
             const colonyCrew = getCrewAtColony(world, colony.planetEntityId, colony.regionId);
             const colonyRoles = this.countRoles(colonyCrew);
+            const leader = getColonyLeader(world, colony.planetEntityId, colony.regionId);
+            const leaderCrew = leader?.getComponent(CrewMemberComponent);
+            const leaderInfo = leaderCrew ? `Leader: ${leaderCrew.fullName}` : 'No leader';
 
             html += `
                 <div class="location-card ${isViewing ? 'active' : ''} ${hasSelection && !isViewing ? 'transfer-target' : ''}"
                      data-loc="colony" data-planet="${colony.planetEntityId}" data-region="${colony.regionId}">
                     <div class="location-name">${colony.label}</div>
-                    <div class="location-meta">${colony.count} crew assigned</div>
+                    <div class="location-meta">${colony.count} crew — ${leaderInfo}</div>
                     <div class="location-roles">
                         ${Object.entries(colonyRoles)
                             .filter(([_, v]) => v > 0)
@@ -181,7 +202,11 @@ export class TransferScreenComponent extends Component {
             return `
                 <div class="crew-row ${isSelected ? 'selected' : ''} ${isViewing ? 'viewing' : ''}" data-crew-id="${entity.id}">
                     <div class="crew-checkbox ${isSelected ? 'checked' : ''}" data-checkbox="${entity.id}">${isSelected ? '✓' : ''}</div>
-                    <div class="crew-name" data-detail="${entity.id}">${c.fullName}</div>
+                    <div class="crew-name" data-detail="${entity.id}">
+                        ${c.fullName}
+                        ${c.isLeader ? '<span class="badge badge--leader">LEADER</span>' : ''}
+                        ${c.isCaptain ? '<span class="badge badge--captain">CAPTAIN</span>' : ''}
+                    </div>
                     <div class="crew-role">${c.role}</div>
                     <div class="crew-morale-dot ${moraleClass}"></div>
                     <div class="crew-age">${c.age}</div>
@@ -234,6 +259,25 @@ export class TransferScreenComponent extends Component {
             this.rebuild();
         });
 
+        // Appoint as leader/captain button
+        this.container.querySelector('#detail-appoint-btn')?.addEventListener('click', () => {
+            if (this.detailCrewId === null) return;
+            const crewEntity = world.getEntity(this.detailCrewId);
+            const crew = crewEntity?.getComponent(CrewMemberComponent);
+            if (!crew) return;
+
+            const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
+
+            if (crew.location.type === 'ship') {
+                appointCaptain(world, this.detailCrewId);
+                eventQueue.emit({ type: GameEvents.CAPTAIN_APPOINTED });
+            } else {
+                appointLeader(world, this.detailCrewId);
+                eventQueue.emit({ type: GameEvents.LEADER_APPOINTED });
+            }
+            this.rebuild();
+        });
+
         // Relationship clicks — navigate to that person's detail
         for (const rel of this.container.querySelectorAll('.detail-relationship')) {
             rel.addEventListener('click', () => {
@@ -281,11 +325,52 @@ export class TransferScreenComponent extends Component {
 
         const entity = world.getEntity(this.detailCrewId);
         const c = entity?.getComponent(CrewMemberComponent);
-        if (!c) return '';
+        if (!c || !entity) return '';
 
         const moraleClass = c.morale >= 60 ? 'morale-high' : c.morale >= 30 ? 'morale-mid' : 'morale-low';
         const moraleWidth = Math.max(0, Math.min(100, c.morale));
         const locationLabel = getLocationLabel(world, c.location);
+
+        // Contributions — what this person provides at their location
+        const roleDesc = c.location.type === 'ship'
+            ? SHIP_ROLE_DESCRIPTIONS[c.role]
+            : COLONY_ROLE_DESCRIPTIONS[c.role];
+
+        const contributions = [
+            `${c.role} at ${c.location.type === 'ship' ? 'ship' : 'colony'}: ${roleDesc}`,
+            `-${FOOD_PER_PERSON} food/turn (consumption)`,
+        ];
+
+        // Leader/captain bonuses
+        const bonusDescriptions = getLeaderBonusDescriptions(c.role, c.traits);
+        let leaderSection: string;
+
+        if (c.isLeader) {
+            leaderSection = `
+                <div class="detail-section-title">LEADER BONUSES (ACTIVE)</div>
+                <div class="detail-bonus-list">
+                    ${bonusDescriptions.map(d => `<div class="detail-bonus active">✓ ${d}</div>`).join('')}
+                </div>
+            `;
+        } else if (c.isCaptain) {
+            leaderSection = `
+                <div class="detail-section-title">CAPTAIN BONUSES (ACTIVE)</div>
+                <div class="detail-bonus-list">
+                    ${bonusDescriptions.map(d => `<div class="detail-bonus active">✓ ${d}</div>`).join('')}
+                </div>
+            `;
+        } else {
+            const appointLabel = c.location.type === 'ship' ? 'CAPTAIN' : 'LEADER';
+            leaderSection = `
+                <div class="detail-section-title">IF APPOINTED AS ${appointLabel}</div>
+                <div class="detail-bonus-list">
+                    ${bonusDescriptions.map(d => `<div class="detail-bonus potential">→ ${d}</div>`).join('')}
+                </div>
+                <button class="hud-btn" id="detail-appoint-btn" type="button" style="margin-top:8px">
+                    APPOINT AS ${appointLabel}
+                </button>
+            `;
+        }
 
         const relationshipRows = c.relationships.map(r =>
             `<div class="detail-relationship" data-rel-target="${r.targetId}">
@@ -298,7 +383,11 @@ export class TransferScreenComponent extends Component {
         return `
             <div class="crew-detail-panel">
                 <button class="hud-btn" id="detail-close" type="button">← BACK</button>
-                <div class="detail-name">${c.fullName}</div>
+                <div class="detail-name">
+                    ${c.fullName}
+                    ${c.isLeader ? '<span class="badge badge--leader">LEADER</span>' : ''}
+                    ${c.isCaptain ? '<span class="badge badge--captain">CAPTAIN</span>' : ''}
+                </div>
                 <div class="detail-meta">${c.role} — AGE ${c.age}</div>
                 <div class="detail-location">ASSIGNED: ${locationLabel}</div>
                 <hr class="divider">
@@ -311,6 +400,11 @@ export class TransferScreenComponent extends Component {
                 <div class="detail-traits">
                     ${c.traits.map(t => `<span class="detail-trait">${t}</span>`).join('')}
                 </div>
+                <div class="detail-section-title">CONTRIBUTIONS</div>
+                <div class="detail-bonus-list">
+                    ${contributions.map(d => `<div class="detail-bonus">${d}</div>`).join('')}
+                </div>
+                ${leaderSection}
                 ${c.relationships.length > 0 ? `
                     <div class="detail-section-title">RELATIONSHIPS</div>
                     <div class="detail-relationships">${relationshipRows}</div>
@@ -337,10 +431,27 @@ export class TransferScreenComponent extends Component {
             }
 
             if (warnings.length > 0) {
-                // eslint-disable-next-line no-alert
                 const proceed = confirm(`WARNING:\n${warnings.join('\n')}\n\nProceed with transfer?`);
                 if (!proceed) return;
             }
+        }
+
+        // Check for leader/captain being transferred — warn and demote
+        const leaderWarnings: string[] = [];
+        for (const id of this.selectedCrewIds) {
+            const e = world.getEntity(id);
+            const cr = e?.getComponent(CrewMemberComponent);
+            if (cr?.isLeader) {
+                leaderWarnings.push(`${cr.fullName} is a Colony Leader and will be demoted.`);
+            }
+            if (cr?.isCaptain) {
+                leaderWarnings.push(`${cr.fullName} is the Ship Captain and will be demoted.`);
+            }
+        }
+        if (leaderWarnings.length > 0) {
+            // eslint-disable-next-line no-alert
+            const proceed = confirm(`WARNING:\n${leaderWarnings.join('\n')}\n\nProceed with transfer?`);
+            if (!proceed) return;
         }
 
         const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
@@ -350,6 +461,15 @@ export class TransferScreenComponent extends Component {
             const entity = world.getEntity(id);
             const crew = entity?.getComponent(CrewMemberComponent);
             if (crew) {
+                // Demote leader/captain on transfer
+                if (crew.isLeader) {
+                    removeLeader(id, world);
+                    eventQueue.emit({ type: GameEvents.LEADER_REMOVED });
+                }
+                if (crew.isCaptain) {
+                    removeCaptain(id, world);
+                    eventQueue.emit({ type: GameEvents.CAPTAIN_REMOVED });
+                }
                 // Each crew gets their own location object (avoid shared reference)
                 crew.location = { ...destination };
                 count++;

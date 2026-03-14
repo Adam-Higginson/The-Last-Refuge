@@ -6,7 +6,7 @@ import './ResourceBarUIComponent.css';
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { ResourceComponent } from './ResourceComponent';
-import { RESOURCE_TYPES, RESOURCE_CONFIGS } from '../data/resources';
+import { RESOURCE_TYPES, RESOURCE_CONFIGS, FOOD_PER_PERSON } from '../data/resources';
 import type { ResourceType } from '../data/resources';
 import type { World } from '../core/World';
 
@@ -43,7 +43,7 @@ export class ResourceBarUIComponent extends Component {
                     <span class="resource-value" id="resource-val-${type}">0</span>
                     <span class="resource-cap" id="resource-cap-${type}">/ 0</span>
                     <span class="resource-rate resource-rate--zero" id="resource-rate-${type}">+0</span>
-                    <div class="resource-tooltip">${config.description}</div>
+                    <div class="resource-tooltip" id="resource-tooltip-${type}">${config.description}</div>
                 </div>
             `;
         }).join('');
@@ -82,6 +82,32 @@ export class ResourceBarUIComponent extends Component {
                 if (net > 0) rateEl.classList.add('resource-rate--positive');
                 else if (net < 0) rateEl.classList.add('resource-rate--negative');
                 else rateEl.classList.add('resource-rate--zero');
+            }
+
+            // Update breakdown tooltip
+            const tooltipEl = document.getElementById(`resource-tooltip-${type}`);
+            if (tooltipEl) {
+                const modifiers = res.getModifiers(type);
+                const lines: string[] = [];
+                for (const m of modifiers) {
+                    const mSign = m.amount >= 0 ? '+' : '';
+                    lines.push(`${m.source}: ${mSign}${m.amount}`);
+                    if (m.multiplier) {
+                        lines.push(`  (${m.multiplier > 0 ? '+' : ''}${Math.round(m.multiplier * 100)}% multiplier)`);
+                    }
+                }
+                if (type === 'food') {
+                    const popCount = res.getPopulationCount();
+                    lines.push(`Population (${popCount}): -${popCount * FOOD_PER_PERSON}`);
+                }
+                const multiplier = res.getMultiplier(type);
+                if (multiplier !== 0) {
+                    lines.push(`Total multiplier: ${multiplier > 0 ? '+' : ''}${Math.round(multiplier * 100)}%`);
+                }
+                lines.push(`───────────`);
+                const netSign = net >= 0 ? '+' : '';
+                lines.push(`NET: ${netSign}${Math.round(net)}/turn`);
+                tooltipEl.textContent = lines.join('\n');
             }
         }
     }
