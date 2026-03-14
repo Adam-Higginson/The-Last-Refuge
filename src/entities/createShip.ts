@@ -12,6 +12,8 @@ import { SelectableComponent } from '../components/SelectableComponent';
 import { ShipInfoUIComponent } from '../components/ShipInfoUIComponent';
 import { CrewManifestUIComponent } from '../components/CrewManifestUIComponent';
 import { CrewDetailUIComponent } from '../components/CrewDetailUIComponent';
+import { CameraComponent } from '../components/CameraComponent';
+import { ServiceLocator } from '../core/ServiceLocator';
 import { getPlanetConfig } from '../data/planets';
 import { FOG_DETAIL_RADIUS, FOG_BLIP_RADIUS } from '../data/constants';
 import type { World } from '../core/World';
@@ -178,21 +180,27 @@ function drawShip(
 
     // --- Scan radius visualisation (only when selected, not moving) ---
     if (selected && !movement?.moving) {
+        // Scale line widths and dash lengths for consistent screen-space appearance
+        const world = ServiceLocator.get<World>('world');
+        const cameraEntity = world.getEntityByName('camera');
+        const camera = cameraEntity?.getComponent(CameraComponent);
+        const s = camera ? 1 / camera.scale : 1;
+
         // Detail radius — inner scan zone
         ctx.beginPath();
         ctx.arc(x, y, FOG_DETAIL_RADIUS, 0, Math.PI * 2);
-        ctx.setLineDash([12, 8]);
+        ctx.setLineDash([12 * s, 8 * s]);
         ctx.strokeStyle = 'rgba(79, 168, 255, 0.15)';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 * s;
         ctx.stroke();
         ctx.setLineDash([]);
 
         // Blip radius — outer scan zone
         ctx.beginPath();
         ctx.arc(x, y, FOG_BLIP_RADIUS, 0, Math.PI * 2);
-        ctx.setLineDash([16, 12]);
+        ctx.setLineDash([16 * s, 12 * s]);
         ctx.strokeStyle = 'rgba(79, 168, 255, 0.08)';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1.5 * s;
         ctx.stroke();
         ctx.setLineDash([]);
     }

@@ -102,7 +102,13 @@ export class FogOfWarComponent extends Component {
 
     /** Record an entity's position as its last known location (for stale rendering). */
     recordPosition(entityId: number, x: number, y: number): void {
-        this.lastKnownPositions.set(entityId, { x, y });
+        const existing = this.lastKnownPositions.get(entityId);
+        if (existing) {
+            existing.x = x;
+            existing.y = y;
+        } else {
+            this.lastKnownPositions.set(entityId, { x, y });
+        }
     }
 
     /** Get the last known position of an entity (stale position for revealed planets). */
@@ -215,7 +221,7 @@ export function getEntityFogZone(wx: number, wy: number): EntityZone {
 
     const ship = world.getEntityByName('arkSalvage');
     const shipTransform = ship?.getComponent(TransformComponent);
-    if (!shipTransform) return 'hidden';
+    if (!shipTransform) return 'active';
 
     return fog.getEntityZone(wx, wy, shipTransform.x, shipTransform.y);
 }

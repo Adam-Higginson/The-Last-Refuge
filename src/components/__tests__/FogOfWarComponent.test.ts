@@ -249,6 +249,14 @@ describe('FogOfWarComponent', () => {
         expect(getEntityFogZone(FOG_BLIP_RADIUS + 500, 0)).toBe('hidden');
     });
 
+    it('getEntityFogZone returns active when ship has no transform', () => {
+        // Ship exists but without TransformComponent
+        world.createEntity('arkSalvage');
+        fog.update(1 / 60);
+
+        expect(getEntityFogZone(100, 0)).toBe('active');
+    });
+
     it('getEntityFogZone returns active when no fog component exists', () => {
         // Create a world without fog
         ServiceLocator.clear();

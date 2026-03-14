@@ -8,6 +8,7 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { DateUIComponent } from './DateUIComponent';
+import { GameModeComponent } from './GameModeComponent';
 import { CameraComponent } from './CameraComponent';
 import { TransformComponent } from './TransformComponent';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
@@ -90,6 +91,15 @@ export class HUDUIComponent extends Component {
 
         // Update END TURN button state
         this.updateButtonState();
+
+        // Hide CENTRE ON SHIP during planet view
+        if (this.centreShipBtn) {
+            const world = ServiceLocator.get<World>('world');
+            const gameState = world.getEntityByName('gameState');
+            const gameMode = gameState?.getComponent(GameModeComponent);
+            this.centreShipBtn.style.display =
+                gameMode && gameMode.mode !== 'system' ? 'none' : '';
+        }
     }
 
     private updateButtonState(): void {

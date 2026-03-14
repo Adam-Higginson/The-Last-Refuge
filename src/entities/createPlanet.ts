@@ -838,20 +838,11 @@ function drawPlanetDispatch(
         const fog = gameState?.getComponent(FogOfWarComponent);
 
         if (zone === 'hidden') {
-            // Check for last known position — render stale if previously seen
+            // Render stale blip at last known position if previously seen
             if (fog) {
                 const lastKnown = fog.getLastKnownPosition(entity.id);
                 if (lastKnown) {
-                    // Draw dimmed at stale position
-                    ctx.save();
-                    ctx.globalAlpha = 0.3;
-                    if (config.type === 'rocky') {
-                        drawRockyGlobe(entity, ctx, lastKnown.x, lastKnown.y, config);
-                    } else {
-                        drawGasGiantGlobe(entity, ctx, lastKnown.x, lastKnown.y, config);
-                    }
-                    ctx.restore();
-                    drawPlanetLabel(ctx, lastKnown.x, lastKnown.y, config.radius, config.displayName, 'blip');
+                    drawBlip(ctx, lastKnown.x, lastKnown.y, config.palette.body, config.displayName);
                     drawStaleLabel(ctx, lastKnown.x, lastKnown.y, config.radius);
                 }
             }
