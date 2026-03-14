@@ -1,253 +1,284 @@
-// colonyBuildingSprites.ts — Individual building draw functions for colony scene.
-// Each function draws a specific building type at the given position and size.
+// colonyBuildingSprites.ts — Isometric building draw functions for colony scene.
 
+import { TILE_WIDTH, TILE_HEIGHT, drawIsometricBox } from './isometric';
 import type { BuildingId } from '../data/buildings';
 
 type BuildingState = 'constructing' | 'active' | 'idle' | 'disabled';
 
-/** Draw a building by type ID. */
+const HW = TILE_WIDTH / 2;
+const HH = TILE_HEIGHT / 2;
+
+/** Draw a building by type ID at the given isometric screen position. */
 export function drawBuilding(
     ctx: CanvasRenderingContext2D,
     buildingId: BuildingId,
     x: number,
     y: number,
-    w: number,
-    h: number,
     state: BuildingState,
     t: number,
 ): void {
     if (state === 'constructing') {
-        drawConstructionScaffolding(ctx, x, y, w, h);
+        drawConstructionScaffolding(ctx, x, y, t);
         return;
     }
 
-    const drawFn = BUILDING_DRAW_FUNCTIONS[buildingId];
-    if (drawFn) {
-        ctx.save();
-        if (state === 'idle' || state === 'disabled') ctx.globalAlpha = 0.4;
-        drawFn(ctx, x, y, w, h, t);
-        ctx.restore();
-    }
-}
-
-function drawConstructionScaffolding(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
     ctx.save();
-    ctx.globalAlpha = 0.4;
-    ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = '#c0c8d8';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x, y, w, h);
-
-    // Cross scaffolding
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + w, y + h);
-    ctx.moveTo(x + w, y);
-    ctx.lineTo(x, y + h);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    if (state === 'idle' || state === 'disabled') ctx.globalAlpha = 0.4;
+    const drawFn = BUILDING_DRAW_FUNCTIONS[buildingId];
+    if (drawFn) drawFn(ctx, x, y, t);
     ctx.restore();
 }
 
-// --- Individual building draw functions ---
+function drawConstructionScaffolding(ctx: CanvasRenderingContext2D, x: number, y: number, t: number): void {
+    const pulse = 0.3 + 0.1 * Math.sin(t / 500);
 
-function drawShelter(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, _t: number): void {
-    // Dome/hab-module
-    ctx.fillStyle = '#8a8a9a';
-    ctx.fillRect(x + w * 0.1, y + h * 0.4, w * 0.8, h * 0.6);
+    ctx.save();
+    ctx.globalAlpha = pulse;
 
-    // Dome top
+    // Wireframe box
+    const h = 30;
+    ctx.strokeStyle = '#c0c8d8';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+
+    // Top face outline
+    ctx.beginPath();
+    ctx.moveTo(x, y - HH - h);
+    ctx.lineTo(x + HW * 0.7, y - h);
+    ctx.lineTo(x, y + HH * 0.7 - h);
+    ctx.lineTo(x - HW * 0.7, y - h);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Vertical edges
+    ctx.beginPath();
+    ctx.moveTo(x - HW * 0.7, y - h);
+    ctx.lineTo(x - HW * 0.7, y);
+    ctx.moveTo(x + HW * 0.7, y - h);
+    ctx.lineTo(x + HW * 0.7, y);
+    ctx.moveTo(x, y + HH * 0.7 - h);
+    ctx.lineTo(x, y + HH * 0.7);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    // Scaffolding cross
+    ctx.strokeStyle = '#a08040';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x - HW * 0.5, y);
+    ctx.lineTo(x + HW * 0.5, y - h);
+    ctx.moveTo(x + HW * 0.5, y);
+    ctx.lineTo(x - HW * 0.5, y - h);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+// --- Shelter: dome hab-module ---
+function drawShelter(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number): void {
+    // Base
+    drawIsometricBox(ctx, x, y, 20, '#8a8a9a', '#6a6a7a', '#7a7a8a');
+
+    // Dome
     ctx.fillStyle = '#9a9aaa';
     ctx.beginPath();
-    ctx.ellipse(x + w / 2, y + h * 0.4, w * 0.4, h * 0.35, 0, Math.PI, 0);
+    ctx.ellipse(x, y - 28, HW * 0.5, 18, 0, Math.PI, 0);
+    ctx.fill();
+
+    // Windows
+    ctx.fillStyle = 'rgba(150, 200, 255, 0.5)';
+    ctx.beginPath();
+    ctx.arc(x - 12, y - 26, 4, 0, Math.PI * 2);
+    ctx.arc(x + 12, y - 26, 4, 0, Math.PI * 2);
     ctx.fill();
 
     // Door
     ctx.fillStyle = '#4a4a5a';
-    ctx.fillRect(x + w * 0.4, y + h * 0.65, w * 0.2, h * 0.35);
-
-    // Window glow
-    ctx.fillStyle = 'rgba(150, 200, 255, 0.4)';
-    ctx.fillRect(x + w * 0.2, y + h * 0.5, w * 0.15, h * 0.12);
-    ctx.fillRect(x + w * 0.65, y + h * 0.5, w * 0.15, h * 0.12);
+    ctx.fillRect(x - 5, y - 12, 10, 12);
 }
 
-function drawFarm(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, t: number): void {
-    // Field base
-    ctx.fillStyle = '#5a7a3a';
-    ctx.fillRect(x, y + h * 0.2, w, h * 0.8);
+// --- Farm: crop fields ---
+function drawFarm(ctx: CanvasRenderingContext2D, x: number, y: number, t: number): void {
+    // Tilled soil base (flat isometric tile)
+    drawIsometricBox(ctx, x, y, 4, '#5a7a3a', '#4a6a2a', '#4a6a2a');
 
-    // Crop rows with subtle sway
+    // Crop rows with sway
     const sway = Math.sin(t / 1500) * 2;
-    ctx.fillStyle = '#6a9a4a';
-    for (let i = 0; i < 5; i++) {
-        const rowY = y + h * 0.3 + i * h * 0.14;
-        ctx.fillRect(x + 4 + sway, rowY, w - 8, h * 0.06);
+    ctx.fillStyle = '#7aaa4a';
+    for (let i = -2; i <= 2; i++) {
+        const cx = x + i * 10 + sway;
+        const cy = y - 8 + Math.abs(i) * 2;
+        ctx.fillRect(cx - 2, cy - 12, 4, 10);
     }
 
     // Fence posts
     ctx.fillStyle = '#6a5a4a';
-    ctx.fillRect(x, y + h * 0.15, 3, h * 0.85);
-    ctx.fillRect(x + w - 3, y + h * 0.15, 3, h * 0.85);
+    ctx.fillRect(x - HW * 0.5, y - 2, 3, 8);
+    ctx.fillRect(x + HW * 0.5 - 3, y - 2, 3, 8);
 }
 
-function drawSolarArray(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, t: number): void {
+// --- Solar Array: tilted panels ---
+function drawSolarArray(ctx: CanvasRenderingContext2D, x: number, y: number, t: number): void {
     // Support poles
     ctx.fillStyle = '#6a6a7a';
-    ctx.fillRect(x + w * 0.25, y + h * 0.5, 3, h * 0.5);
-    ctx.fillRect(x + w * 0.75 - 3, y + h * 0.5, 3, h * 0.5);
+    ctx.fillRect(x - 15, y - 8, 2, 16);
+    ctx.fillRect(x + 13, y - 8, 2, 16);
 
-    // Panels (tilted)
-    ctx.fillStyle = '#2a3a6a';
-    ctx.save();
-    ctx.translate(x + w / 2, y + h * 0.35);
+    // Panels (tilted isometric)
+    ctx.fillStyle = '#2a4a8a';
     ctx.beginPath();
-    ctx.moveTo(-w * 0.4, 0);
-    ctx.lineTo(-w * 0.35, -h * 0.3);
-    ctx.lineTo(w * 0.35, -h * 0.3);
-    ctx.lineTo(w * 0.4, 0);
+    ctx.moveTo(x - HW * 0.6, y - 30);
+    ctx.lineTo(x + HW * 0.6, y - 20);
+    ctx.lineTo(x + HW * 0.6, y - 12);
+    ctx.lineTo(x - HW * 0.6, y - 22);
     ctx.closePath();
     ctx.fill();
 
-    // Panel glint
-    const glint = Math.sin(t / 2000);
-    if (glint > 0.8) {
-        ctx.fillStyle = `rgba(255, 255, 255, ${(glint - 0.8) * 5})`;
-        ctx.fillRect(-w * 0.1, -h * 0.2, w * 0.2, h * 0.1);
-    }
-    ctx.restore();
-}
-
-function drawStorageDepot(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, _t: number): void {
-    // Main body
-    ctx.fillStyle = '#5a5a6a';
-    ctx.fillRect(x + w * 0.05, y + h * 0.3, w * 0.9, h * 0.7);
-
-    // Roof
-    ctx.fillStyle = '#4a4a5a';
-    ctx.beginPath();
-    ctx.moveTo(x, y + h * 0.3);
-    ctx.lineTo(x + w / 2, y + h * 0.1);
-    ctx.lineTo(x + w, y + h * 0.3);
-    ctx.closePath();
-    ctx.fill();
-
-    // Horizontal seams
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-    ctx.lineWidth = 1;
-    for (let i = 1; i < 3; i++) {
-        const seam = y + h * 0.3 + i * h * 0.2;
+    // Panel grid lines
+    ctx.strokeStyle = 'rgba(100, 150, 255, 0.3)';
+    ctx.lineWidth = 0.5;
+    for (let i = 1; i < 4; i++) {
+        const px = x - HW * 0.6 + i * HW * 0.3;
         ctx.beginPath();
-        ctx.moveTo(x + w * 0.05, seam);
-        ctx.lineTo(x + w * 0.95, seam);
+        ctx.moveTo(px, y - 30 + i * 2.5);
+        ctx.lineTo(px, y - 22 + i * 2.5);
         ctx.stroke();
     }
 
-    // Door
-    ctx.fillStyle = '#3a3a4a';
-    ctx.fillRect(x + w * 0.35, y + h * 0.6, w * 0.3, h * 0.4);
+    // Glint
+    const glint = Math.sin(t / 2000);
+    if (glint > 0.7) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${(glint - 0.7) * 3})`;
+        ctx.beginPath();
+        ctx.arc(x + 5, y - 22, 4, 0, Math.PI * 2);
+        ctx.fill();
+    }
 }
 
-function drawWorkshop(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, t: number): void {
-    // Main body
-    ctx.fillStyle = '#6a5a4a';
-    ctx.fillRect(x + w * 0.05, y + h * 0.35, w * 0.8, h * 0.65);
+// --- Storage Depot: blocky warehouse ---
+function drawStorageDepot(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number): void {
+    drawIsometricBox(ctx, x, y, 28, '#5a5a6a', '#4a4a5a', '#4a4a58');
 
-    // Roof
-    ctx.fillStyle = '#5a4a3a';
-    ctx.fillRect(x, y + h * 0.25, w * 0.85, h * 0.12);
+    // Horizontal seam lines on left face
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.lineWidth = 0.5;
+    for (let i = 1; i < 3; i++) {
+        const sy = y - 28 + i * 10;
+        ctx.beginPath();
+        ctx.moveTo(x - HW, sy + HH * (i / 3));
+        ctx.lineTo(x, sy + HH + HH * (i / 3));
+        ctx.stroke();
+    }
+
+    // Loading door on right face
+    ctx.fillStyle = '#3a3a4a';
+    ctx.beginPath();
+    ctx.moveTo(x + 5, y + HH * 0.3);
+    ctx.lineTo(x + HW * 0.6, y - 5);
+    ctx.lineTo(x + HW * 0.6, y + 8);
+    ctx.lineTo(x + 5, y + HH * 0.3 + 13);
+    ctx.closePath();
+    ctx.fill();
+}
+
+// --- Workshop: industrial with chimney and smoke ---
+function drawWorkshop(ctx: CanvasRenderingContext2D, x: number, y: number, t: number): void {
+    drawIsometricBox(ctx, x, y, 24, '#6a5a4a', '#5a4a3a', '#5a4838');
 
     // Chimney
     ctx.fillStyle = '#4a3a2a';
-    ctx.fillRect(x + w * 0.7, y + h * 0.05, w * 0.12, h * 0.3);
+    ctx.fillRect(x + HW * 0.2, y - 44, 8, 20);
 
     // Smoke particles
-    ctx.fillStyle = 'rgba(150, 150, 150, 0.3)';
-    for (let i = 0; i < 3; i++) {
-        const smokeY = y - h * 0.1 - i * h * 0.12 + Math.sin(t / 800 + i) * 4;
-        const smokeX = x + w * 0.76 + Math.sin(t / 1200 + i * 2) * 6;
-        const r = 3 + i * 2;
+    for (let i = 0; i < 4; i++) {
+        const smokeY = y - 50 - i * 10 + Math.sin(t / 600 + i) * 3;
+        const smokeX = x + HW * 0.2 + 4 + Math.sin(t / 900 + i * 2) * 5;
+        const r = 2 + i * 1.5;
+        const alpha = 0.25 - i * 0.05;
+        ctx.fillStyle = `rgba(150, 150, 150, ${alpha})`;
         ctx.beginPath();
         ctx.arc(smokeX, smokeY, r, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // Window glow
-    ctx.fillStyle = 'rgba(255, 160, 40, 0.5)';
-    ctx.fillRect(x + w * 0.15, y + h * 0.5, w * 0.2, h * 0.15);
+    // Orange window glow
+    ctx.fillStyle = 'rgba(255, 160, 40, 0.6)';
+    ctx.beginPath();
+    ctx.moveTo(x - HW * 0.3, y - 8);
+    ctx.lineTo(x - HW * 0.1, y - 14);
+    ctx.lineTo(x - HW * 0.1, y - 6);
+    ctx.lineTo(x - HW * 0.3, y);
+    ctx.closePath();
+    ctx.fill();
 }
 
-function drawMedBay(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, _t: number): void {
-    // Main body
-    ctx.fillStyle = '#d0d0d8';
-    ctx.fillRect(x + w * 0.1, y + h * 0.3, w * 0.8, h * 0.7);
+// --- Med Bay: white with red cross ---
+function drawMedBay(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number): void {
+    drawIsometricBox(ctx, x, y, 22, '#d8d8e0', '#b8b8c0', '#c0c0c8');
 
-    // Flat roof
-    ctx.fillStyle = '#e0e0e8';
-    ctx.fillRect(x + w * 0.05, y + h * 0.25, w * 0.9, h * 0.08);
-
-    // Red cross
+    // Red cross on top face
     ctx.fillStyle = '#cc3333';
-    const cx = x + w / 2;
-    const cy = y + h * 0.55;
-    ctx.fillRect(cx - w * 0.05, cy - h * 0.12, w * 0.1, h * 0.24);
-    ctx.fillRect(cx - w * 0.15, cy - h * 0.04, w * 0.3, h * 0.08);
+    ctx.fillRect(x - 3, y - HH - 22 - 2, 6, 14);
+    ctx.fillRect(x - 8, y - HH - 22 + 3, 16, 4);
 }
 
-function drawBarracks(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, _t: number): void {
-    // Main body (fortified)
-    ctx.fillStyle = '#5a6a5a';
-    ctx.fillRect(x + w * 0.05, y + h * 0.3, w * 0.9, h * 0.7);
+// --- Barracks: fortified ---
+function drawBarracks(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number): void {
+    drawIsometricBox(ctx, x, y, 20, '#5a6a5a', '#4a5a4a', '#4a5848');
 
-    // Crenellation
+    // Crenellations on top
+    const crenH = 6;
     ctx.fillStyle = '#4a5a4a';
-    for (let i = 0; i < 4; i++) {
-        const cx = x + w * 0.1 + i * w * 0.25;
-        ctx.fillRect(cx, y + h * 0.2, w * 0.12, h * 0.12);
+    for (let i = -1; i <= 1; i++) {
+        ctx.fillRect(x + i * 16 - 4, y - HH - 20 - crenH, 8, crenH);
     }
 
-    // Dark slit windows
+    // Slit windows on left face
     ctx.fillStyle = '#2a3a2a';
-    ctx.fillRect(x + w * 0.25, y + h * 0.5, w * 0.06, h * 0.2);
-    ctx.fillRect(x + w * 0.5, y + h * 0.5, w * 0.06, h * 0.2);
-    ctx.fillRect(x + w * 0.7, y + h * 0.5, w * 0.06, h * 0.2);
+    ctx.fillRect(x - HW * 0.4, y - 10, 3, 8);
+    ctx.fillRect(x - HW * 0.2, y - 12, 3, 8);
 }
 
-function drawHydroponicsBay(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, _t: number): void {
-    // Greenhouse dome
-    ctx.fillStyle = 'rgba(100, 200, 130, 0.3)';
+// --- Hydroponics Bay: greenhouse dome ---
+function drawHydroponicsBay(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number): void {
+    // Base
+    drawIsometricBox(ctx, x, y, 8, '#6a7a6a', '#5a6a5a', '#5a6858');
+
+    // Glass dome
+    ctx.fillStyle = 'rgba(100, 220, 130, 0.2)';
     ctx.beginPath();
-    ctx.ellipse(x + w / 2, y + h * 0.5, w * 0.45, h * 0.45, 0, Math.PI, 0);
+    ctx.ellipse(x, y - 16, HW * 0.55, 24, 0, Math.PI, 0);
     ctx.fill();
 
-    // Base
-    ctx.fillStyle = '#6a7a6a';
-    ctx.fillRect(x + w * 0.05, y + h * 0.5, w * 0.9, h * 0.5);
-
     // Dome outline
-    ctx.strokeStyle = 'rgba(150, 220, 170, 0.6)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(150, 220, 170, 0.5)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.ellipse(x + w / 2, y + h * 0.5, w * 0.45, h * 0.45, 0, Math.PI, 0);
+    ctx.ellipse(x, y - 16, HW * 0.55, 24, 0, Math.PI, 0);
     ctx.stroke();
 
-    // Grid lines
-    ctx.strokeStyle = 'rgba(150, 220, 170, 0.2)';
+    // Internal grid
+    ctx.strokeStyle = 'rgba(150, 220, 170, 0.15)';
     ctx.lineWidth = 0.5;
-    for (let i = 1; i < 4; i++) {
-        const gx = x + w * 0.1 + i * w * 0.2;
+    for (let i = -1; i <= 1; i++) {
         ctx.beginPath();
-        ctx.moveTo(gx, y + h * 0.15);
-        ctx.lineTo(gx, y + h * 0.5);
+        ctx.moveTo(x + i * 12, y - 38);
+        ctx.lineTo(x + i * 12, y - 16);
         ctx.stroke();
     }
 
-    // Green glow inside
-    ctx.fillStyle = 'rgba(100, 220, 130, 0.15)';
-    ctx.fillRect(x + w * 0.15, y + h * 0.55, w * 0.7, h * 0.35);
+    // Green glow
+    const glow = ctx.createRadialGradient(x, y - 20, 0, x, y - 20, HW * 0.4);
+    glow.addColorStop(0, 'rgba(100, 220, 130, 0.15)');
+    glow.addColorStop(1, 'rgba(100, 220, 130, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y - 20, HW * 0.4, 0, Math.PI * 2);
+    ctx.fill();
 }
 
-const BUILDING_DRAW_FUNCTIONS: Record<BuildingId, (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, t: number) => void> = {
+const BUILDING_DRAW_FUNCTIONS: Record<BuildingId, (ctx: CanvasRenderingContext2D, x: number, y: number, t: number) => void> = {
     shelter: drawShelter,
     farm: drawFarm,
     solar_array: drawSolarArray,

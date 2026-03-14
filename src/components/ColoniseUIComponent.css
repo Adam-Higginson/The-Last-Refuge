@@ -1,8 +1,13 @@
-#colonise-btn {
+#colonise-btn,
+#colony-roster-btn,
+#colony-view-btn {
     position: fixed;
-    bottom: 40px;
     left: 50%;
     transform: translateX(-50%);
+}
+
+#colonise-btn {
+    bottom: 40px;
     display: none;
     background: rgba(212, 160, 32, 0.15);
     border: 1px solid #d4a020;
@@ -46,16 +51,17 @@
     transition: background 0.15s, color 0.15s;
 }
 
+#colony-roster-btn {
+    bottom: 100px;
+}
+
 #colony-roster-btn:hover {
     background: rgba(79, 168, 255, 0.3);
     color: #ffffff;
 }
 
 #colony-view-btn {
-    position: fixed;
     bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
     display: none;
     background: rgba(102, 187, 106, 0.15);
     border: 1px solid rgba(102, 187, 106, 0.6);
