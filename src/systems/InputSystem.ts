@@ -11,6 +11,7 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { CameraComponent, MIN_ZOOM, MAX_ZOOM } from '../components/CameraComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
+import { MoveConfirmComponent } from '../components/MoveConfirmComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import type { World } from '../core/World';
@@ -28,6 +29,7 @@ export class InputSystem extends System {
     private mouseX = 0;
     private mouseY = 0;
     private pendingClick = false;
+    private pendingClickIsTouch = false;
     private pendingRightClick: { x: number; y: number } | null = null;
 
     // Pan state (mouse)
@@ -124,6 +126,7 @@ export class InputSystem extends System {
             // Suppress click if the user was panning (dragged past threshold)
             if (!this.panMoved) {
                 this.pendingClick = true;
+                this.pendingClickIsTouch = false;
             }
             this.panMoved = false;
         };
@@ -238,6 +241,7 @@ export class InputSystem extends System {
                 // Tap — treat as click
                 e.preventDefault();
                 this.pendingClick = true;
+                this.pendingClickIsTouch = true;
             }
 
             this.isTouchPanning = false;
@@ -332,13 +336,24 @@ export class InputSystem extends System {
             }
         }
 
-        // Deselect all if clicking on empty space
+        // Empty space click handling
         if (this.pendingClick && !clickedEntity) {
-            for (const entity of entities) {
-                const selectable = entity.getComponent(SelectableComponent);
-                if (selectable) {
-                    selectable.selected = false;
+            const ship = this.world.getEntityByName('arkSalvage');
+            const shipSel = ship?.getComponent(SelectableComponent);
+            const moveConfirm = ship?.getComponent(MoveConfirmComponent);
+
+            if (shipSel?.selected && moveConfirm && this.pendingClickIsTouch) {
+                // Touch: two-tap confirm via MoveConfirmComponent
+                moveConfirm.handleTap(worldMouse.x, worldMouse.y);
+            } else {
+                // Desktop left-click on empty space: deselect all
+                for (const entity of entities) {
+                    const selectable = entity.getComponent(SelectableComponent);
+                    if (selectable) {
+                        selectable.selected = false;
+                    }
                 }
+                moveConfirm?.clear();
             }
         }
 
