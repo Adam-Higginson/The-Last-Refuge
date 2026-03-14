@@ -5,7 +5,11 @@
 import './PlanetInfoUIComponent.css';
 
 import { Component } from '../core/Component';
+import { ServiceLocator } from '../core/ServiceLocator';
 import { SelectableComponent } from './SelectableComponent';
+import { TransformComponent } from './TransformComponent';
+import { CameraComponent } from './CameraComponent';
+import type { World } from '../core/World';
 
 /** Star display name. */
 const STAR_NAME = 'Solace';
@@ -54,6 +58,9 @@ export class StarInfoUIComponent extends Component {
                 <div>TYPE: ${STAR_TYPE.toUpperCase()}</div>
                 <div>Surface temp 5,800K. Luminosity 1.0 solar.</div>
             </div>
+            <div style="margin-top:16px">
+                <button class="hud-btn" id="star-centre-btn" type="button">CENTRE ON SOLACE</button>
+            </div>
         `;
 
         const closeBtn = document.getElementById('planet-panel-close');
@@ -61,6 +68,18 @@ export class StarInfoUIComponent extends Component {
             const selectable = this.entity.getComponent(SelectableComponent);
             if (selectable) {
                 selectable.selected = false;
+            }
+        });
+
+        // CENTRE button — pan camera to star
+        const centreBtn = document.getElementById('star-centre-btn');
+        centreBtn?.addEventListener('click', () => {
+            const world = ServiceLocator.get<World>('world');
+            const starTransform = this.entity.getComponent(TransformComponent);
+            const cameraEntity = world.getEntityByName('camera');
+            const camera = cameraEntity?.getComponent(CameraComponent);
+            if (starTransform && camera) {
+                camera.panTo(starTransform.x, starTransform.y);
             }
         });
     }

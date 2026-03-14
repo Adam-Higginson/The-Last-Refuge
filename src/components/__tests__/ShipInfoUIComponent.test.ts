@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
-import { GameEvents } from '../../core/GameEvents';
 import { ShipInfoUIComponent } from '../ShipInfoUIComponent';
 import { TransformComponent } from '../TransformComponent';
 import { SelectableComponent } from '../SelectableComponent';
@@ -554,90 +553,7 @@ describe('ShipInfoUIComponent', () => {
         expect(selectable.selected).toBe(true);
     });
 
-    // --- COLONISE button ---
-
-    it('enables COLONISE button when ship is in range of planet', () => {
-        const planet = world.createEntity('newTerra');
-        planet.addComponent(new TransformComponent(400, 300)); // same as ship
-        const { info, selectable } = createShipWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        expect(coloniseBtn.classList.contains('disabled')).toBe(false);
-    });
-
-    it('disables COLONISE button when ship is out of range', () => {
-        const planet = world.createEntity('newTerra');
-        planet.addComponent(new TransformComponent(0, 0)); // far from ship at (400, 300)
-        const { info, selectable } = createShipWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        expect(coloniseBtn.classList.contains('disabled')).toBe(true);
-    });
-
-    it('disables COLONISE button when no planet exists', () => {
-        const { info, selectable } = createShipWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        expect(coloniseBtn.classList.contains('disabled')).toBe(true);
-    });
-
-    it('blocks click when COLONISE is disabled', () => {
-        const planet = world.createEntity('newTerra');
-        planet.addComponent(new TransformComponent(0, 0)); // out of range
-        const { info, selectable } = createShipWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        const emitSpy = vi.spyOn(eventQueue, 'emit');
-        coloniseBtn.click();
-        expect(emitSpy).not.toHaveBeenCalled();
-    });
-
-    it('shows tooltip on hover when COLONISE is disabled', () => {
-        const planet = world.createEntity('newTerra');
-        planet.addComponent(new TransformComponent(0, 0)); // out of range
-        const { info, selectable } = createShipWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        coloniseWrapper._fireEvent('mouseenter');
-        expect(coloniseTooltip.style.display).toBe('block');
-
-        coloniseWrapper._fireEvent('mouseleave');
-        expect(coloniseTooltip.style.display).toBe('none');
-    });
-
-    it('does not show tooltip on hover when COLONISE is enabled', () => {
-        const planet = world.createEntity('newTerra');
-        planet.addComponent(new TransformComponent(400, 300)); // in range
-        const { info, selectable } = createShipWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        coloniseWrapper._fireEvent('mouseenter');
-        expect(coloniseTooltip.style.display).not.toBe('block');
-    });
-
-    it('emits PLANET_VIEW_ENTER when COLONISE is clicked', () => {
-        const planet = world.createEntity('newTerra');
-        planet.addComponent(new TransformComponent(400, 300));
-        const { info, selectable } = createShipWithInfoPanel();
-        selectable.selected = true;
-        info.update(1 / 60);
-
-        const emitSpy = vi.spyOn(eventQueue, 'emit');
-        coloniseBtn.click();
-
-        expect(emitSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-                type: GameEvents.PLANET_VIEW_ENTER,
-                entityId: planet.id,
-            }),
-        );
-    });
+    // COLONISE tests removed — colonisation moved to planet view (ColoniseUIComponent)
 
     // --- Lifecycle ---
 

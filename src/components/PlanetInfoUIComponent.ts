@@ -11,8 +11,11 @@ import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { RegionDataComponent } from './RegionDataComponent';
 import { PlanetDataComponent } from './PlanetDataComponent';
+import { TransformComponent } from './TransformComponent';
+import { CameraComponent } from './CameraComponent';
 import { getBiomePool } from '../data/biomes';
 import type { EventQueue } from '../core/EventQueue';
+import type { World } from '../core/World';
 
 export class PlanetInfoUIComponent extends Component {
     panelOpen = false;
@@ -74,8 +77,9 @@ export class PlanetInfoUIComponent extends Component {
             </div>
             <div class="planet-biome-summary" id="planet-biome-summary" style="margin-top:12px; font-size:12px; opacity:0.6; line-height:1.8"></div>
             ` : ''}
-            <div id="planet-surface-wrapper" style="margin-top:16px; position:relative">
+            <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px">
                 <button class="hud-btn" id="planet-view-surface-btn" type="button">${isRocky ? 'VIEW SURFACE' : 'VIEW ATMOSPHERE'}</button>
+                <button class="hud-btn" id="planet-centre-btn" type="button">CENTRE ON ${displayName.toUpperCase()}</button>
             </div>
         `;
 
@@ -100,6 +104,18 @@ export class PlanetInfoUIComponent extends Component {
                 type: GameEvents.PLANET_VIEW_ENTER,
                 entityId: this.entity.id,
             });
+        });
+
+        // CENTRE button — pan camera to this planet
+        const centreBtn = document.getElementById('planet-centre-btn');
+        centreBtn?.addEventListener('click', () => {
+            const world = ServiceLocator.get<World>('world');
+            const planetTransform = this.entity.getComponent(TransformComponent);
+            const cameraEntity = world.getEntityByName('camera');
+            const camera = cameraEntity?.getComponent(CameraComponent);
+            if (planetTransform && camera) {
+                camera.panTo(planetTransform.x, planetTransform.y);
+            }
         });
 
         // Build initial biome summary
