@@ -39,9 +39,11 @@ export class ResourceBarUIComponent extends Component {
             return `
                 <div class="resource-item">
                     <span class="resource-icon resource-icon--${cls}">${config.icon}</span>
+                    <span class="resource-label">${config.label}</span>
                     <span class="resource-value" id="resource-val-${type}">0</span>
                     <span class="resource-cap" id="resource-cap-${type}">/ 0</span>
                     <span class="resource-rate resource-rate--zero" id="resource-rate-${type}">+0</span>
+                    <div class="resource-tooltip">${config.description}</div>
                 </div>
             `;
         }).join('');

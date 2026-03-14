@@ -9,12 +9,13 @@ export interface ResourceConfig {
     startingCap: number;
     icon: string;
     label: string;
+    description: string;
 }
 
 export const RESOURCE_CONFIGS: Record<ResourceType, ResourceConfig> = {
-    food: { startingAmount: 100, startingCap: 200, icon: '\u25C6', label: 'FOOD' },
-    materials: { startingAmount: 50, startingCap: 150, icon: '\u26CF', label: 'MAT' },
-    energy: { startingAmount: 80, startingCap: 200, icon: '\u26A1', label: 'NRG' },
+    food: { startingAmount: 100, startingCap: 200, icon: '\uD83C\uDF4E', label: 'FOOD', description: 'Feeds your population. Each person consumes 1 per turn. Produced by Farms and Hydroponics.' },
+    materials: { startingAmount: 50, startingCap: 150, icon: '\u26CF', label: 'MAT', description: 'Raw construction resources. Used to build structures. Mined from planets or salvaged.' },
+    energy: { startingAmount: 80, startingCap: 200, icon: '\u26A1', label: 'NRG', description: 'Powers structures and the ship. Unpowered buildings stop functioning. Ship reactor provides baseline supply.' },
 };
 
 /** Food consumed per person per turn. */
