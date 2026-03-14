@@ -94,6 +94,8 @@ function assignNonHabitableBiomes(
             colonised: false,
             isLandingZone: false,
             vertices: cell.vertices,
+            buildings: [],
+            buildingSlots: 0,
         });
     }
 
@@ -155,6 +157,8 @@ function assignHabitableBiomes(
                 colonised: false,
                 isLandingZone: false,
                 vertices: cell.vertices,
+                buildings: [],
+                buildingSlots: 0,
             });
         } else {
             // Pick a random colonisable biome
@@ -170,6 +174,8 @@ function assignHabitableBiomes(
                 colonised: false,
                 isLandingZone: i === landingZoneIdx,
                 vertices: cell.vertices,
+                buildings: [],
+                buildingSlots: 0,
             });
         }
     }

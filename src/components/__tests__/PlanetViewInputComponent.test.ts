@@ -106,8 +106,8 @@ describe('PlanetViewInputComponent', () => {
         const planet = world.createEntity('newTerra');
         const regionData = planet.addComponent(new RegionDataComponent());
         regionData.regions = [
-            { id: 0, biome: 'Temperate Plains', colour: '#5a9a4a', vertices: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }], canColonise: true, isLandingZone: true, colonised: false },
-            { id: 1, biome: 'Ocean', colour: '#1a3a6a', vertices: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }, { x: 100, y: 100 }], canColonise: false, isLandingZone: false, colonised: false },
+            { id: 0, biome: 'Temperate Plains', colour: '#5a9a4a', vertices: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }], canColonise: true, isLandingZone: true, colonised: false, buildings: [], buildingSlots: 0 },
+            { id: 1, biome: 'Ocean', colour: '#1a3a6a', vertices: [{ x: 100, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }, { x: 100, y: 100 }], canColonise: false, isLandingZone: false, colonised: false, buildings: [], buildingSlots: 0 },
         ];
 
         inputComp = planet.addComponent(new PlanetViewInputComponent());

@@ -13,6 +13,8 @@ import { RegionDataComponent } from './RegionDataComponent';
 import { PlanetViewInputComponent } from './PlanetViewInputComponent';
 import { TransformComponent } from './TransformComponent';
 import { TransferScreenComponent } from './TransferScreenComponent';
+import { ColonyBuildingComponent } from './ColonyBuildingComponent';
+import { BUILDING_SLOTS_BY_BIOME, DEFAULT_BUILDING_SLOTS } from '../data/buildings';
 import type { EventQueue } from '../core/EventQueue';
 import { FOG_DETAIL_RADIUS } from '../data/constants';
 import type { World } from '../core/World';
@@ -72,6 +74,16 @@ export class ColoniseUIComponent extends Component {
             if (region) {
                 region.colonised = true;
                 regionData.colonised = true;
+
+                // Assign building slots based on biome
+                region.buildingSlots = (BUILDING_SLOTS_BY_BIOME as Record<string, number>)[region.biome] ?? DEFAULT_BUILDING_SLOTS;
+
+                // Auto-create starter Shelter via building system
+                const buildingComp = this.entity.getComponent(ColonyBuildingComponent);
+                if (buildingComp) {
+                    buildingComp.addCompletedBuilding(region.id, 'shelter');
+                }
+
                 this.eventQueue?.emit({
                     type: GameEvents.COLONISE_CONFIRM,
                     regionId: region.id,

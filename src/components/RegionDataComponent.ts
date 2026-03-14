@@ -10,6 +10,7 @@ import { generateVoronoi } from '../utils/voronoi';
 import { assignBiomes } from '../data/biomes';
 import { mulberry32 } from '../utils/prng';
 import type { BiomeName, BiomePool } from '../data/biomes';
+import type { BuildingInstance } from '../data/buildings';
 import type { CanvasResizeEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
@@ -24,6 +25,8 @@ export interface Region {
     colonised: boolean;
     isLandingZone: boolean;
     vertices: { x: number; y: number }[];
+    buildings: BuildingInstance[];
+    buildingSlots: number;
 }
 
 export class RegionDataComponent extends Component {
@@ -56,11 +59,13 @@ export class RegionDataComponent extends Component {
             const pool = this.getBiomePool();
             const newRegions = assignBiomes(cells, rng, width, height, pool);
 
-            // Preserve colonisation state from old regions
+            // Preserve colonisation state and buildings from old regions
             for (const newRegion of newRegions) {
                 const oldRegion = this.regions.find(r => r.id === newRegion.id);
-                if (oldRegion && oldRegion.colonised) {
-                    newRegion.colonised = true;
+                if (oldRegion) {
+                    if (oldRegion.colonised) newRegion.colonised = true;
+                    if (oldRegion.buildings.length > 0) newRegion.buildings = oldRegion.buildings;
+                    if (oldRegion.buildingSlots > 0) newRegion.buildingSlots = oldRegion.buildingSlots;
                 }
             }
 

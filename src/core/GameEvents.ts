@@ -48,6 +48,12 @@ export const GameEvents = {
     CAPTAIN_APPOINTED: 'captain:appointed',
     /** The ship captain was removed. */
     CAPTAIN_REMOVED: 'captain:removed',
+    /** A building started construction. */
+    BUILDING_STARTED: 'building:started',
+    /** A building completed construction. */
+    BUILDING_COMPLETED: 'building:completed',
+    /** A building was demolished. */
+    BUILDING_DEMOLISHED: 'building:demolished',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -164,4 +170,16 @@ export interface CaptainAppointedEvent extends GameEvent {
 
 export interface CaptainRemovedEvent extends GameEvent {
     type: typeof GameEvents.CAPTAIN_REMOVED;
+}
+
+export interface BuildingStartedEvent extends GameEvent {
+    type: typeof GameEvents.BUILDING_STARTED;
+}
+
+export interface BuildingCompletedEvent extends GameEvent {
+    type: typeof GameEvents.BUILDING_COMPLETED;
+}
+
+export interface BuildingDemolishedEvent extends GameEvent {
+    type: typeof GameEvents.BUILDING_DEMOLISHED;
 }
