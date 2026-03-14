@@ -7,6 +7,7 @@ import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import { getBuildingType } from '../data/buildings';
 import { getCrewAtColony } from '../utils/crewUtils';
 import { drawBuilding } from './colonyBuildingSprites';
+import { drawSettlementProps, drawMicroDetails } from './colonyProps';
 import { advanceClock, getDayNightState, setGameHour, getGameHour } from './colonyDayNight';
 import { advanceWeather, drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
 import type { WeatherInfo } from './colonyWeather';
@@ -153,6 +154,8 @@ export function drawColonyScene(
     drawPaths(ctx, w, h, region);
     const slotRects = drawBuildingSlots(ctx, w, h, region, t);
     drawBuildingShadows(ctx, region, slotRects, dayNight);
+    drawMicroDetails(ctx, w, h, region, t);
+    drawSettlementProps(ctx, region, slotRects, t);
     drawColonists(ctx, entity, region, slotRects, t);
     drawAmbientParticles(ctx, w, h, visuals, t);
     drawAmbientOverlay(ctx, w, h, dayNight);
