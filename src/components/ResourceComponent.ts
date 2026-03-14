@@ -28,6 +28,8 @@ export interface ResourceModifier {
     resource: ResourceType;
     /** Amount per turn (positive = production, negative = consumption). */
     amount: number;
+    /** Percentage multiplier applied after flat amounts (e.g. 0.2 = +20%). Optional. */
+    multiplier?: number;
     /** Human-readable source label for tooltips. */
     source: string;
 }
@@ -91,7 +93,7 @@ export class ResourceComponent extends Component {
         return this.modifiers.filter(m => m.resource === resource);
     }
 
-    /** Get the net rate from modifiers only (excludes dynamic population consumption). */
+    /** Get the net rate from flat modifiers only (excludes multipliers and population). */
     getModifierRate(resource: ResourceType): number {
         let sum = 0;
         for (const m of this.modifiers) {
@@ -100,9 +102,36 @@ export class ResourceComponent extends Component {
         return sum;
     }
 
-    /** Get the total net rate including dynamic population consumption. */
+    /** Get the total multiplier for a resource (sum of all modifier multipliers). */
+    getMultiplier(resource: ResourceType): number {
+        let total = 0;
+        for (const m of this.modifiers) {
+            if (m.resource === resource && m.multiplier) {
+                total += m.multiplier;
+            }
+        }
+        return total;
+    }
+
+    /** Get the total net rate including multipliers and dynamic population consumption. */
     getNetRate(resource: ResourceType): number {
-        let rate = this.getModifierRate(resource);
+        // Split modifiers into production (positive) and consumption (negative)
+        let production = 0;
+        let consumption = 0;
+        for (const m of this.modifiers) {
+            if (m.resource === resource) {
+                if (m.amount > 0) production += m.amount;
+                else consumption += m.amount;
+            }
+        }
+
+        // Apply percentage multipliers to production only
+        const multiplier = this.getMultiplier(resource);
+        if (multiplier !== 0) {
+            production += production * multiplier;
+        }
+
+        let rate = production + consumption;
         if (resource === 'food') {
             rate -= this.getPopulationCount() * FOOD_PER_PERSON;
         }
@@ -153,12 +182,9 @@ export class ResourceComponent extends Component {
         this.eventQueue?.emit({ type: GameEvents.RESOURCES_UPDATED });
     }
 
-    private getPopulationCount(): number {
-        try {
-            const world = ServiceLocator.get<World>('world');
-            return world.getEntitiesWithComponent(CrewMemberComponent).length;
-        } catch {
-            return 0;
-        }
+    getPopulationCount(): number {
+        if (!ServiceLocator.has('world')) return 0;
+        const world = ServiceLocator.get<World>('world');
+        return world.getEntitiesWithComponent(CrewMemberComponent).length;
     }
 }

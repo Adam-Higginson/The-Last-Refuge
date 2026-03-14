@@ -215,7 +215,7 @@ export class ShipInfoUIComponent extends Component {
             if (crewCountEl) {
                 const world = ServiceLocator.get<World>('world');
                 const counts = getCrewCounts(world);
-                crewCountEl.innerHTML = `<span class="crew-dot"></span>${counts.ship} ABOARD / ${counts.colony} COLONISTS`;
+                crewCountEl.innerHTML = `<span class="crew-dot"></span>${counts.ship} SOULS ABOARD`;
             }
         }
     }

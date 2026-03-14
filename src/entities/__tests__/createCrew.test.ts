@@ -201,6 +201,26 @@ describe('createCrew', () => {
         }
     });
 
+    // --- Captain ---
+
+    it('Commander Soren Vael is the ship captain', () => {
+        createCrew(world);
+        const soren = getAllCrew().find(c => c.fullName === 'Commander Soren Vael');
+        expect(soren?.isCaptain).toBe(true);
+    });
+
+    it('only one crew member is captain', () => {
+        createCrew(world);
+        const captains = getAllCrew().filter(c => c.isCaptain);
+        expect(captains).toHaveLength(1);
+    });
+
+    it('no crew start as leaders', () => {
+        createCrew(world);
+        const leaders = getAllCrew().filter(c => c.isLeader);
+        expect(leaders).toHaveLength(0);
+    });
+
     // --- Determinism ---
 
     it('produces identical output with the same seed', () => {

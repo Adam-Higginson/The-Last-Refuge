@@ -323,5 +323,14 @@ export function createCrew(world: World): Entity[] {
         }
     }
 
+    // --- 7. Appoint Commander Soren Vael as ship captain ---
+    for (const entity of entities) {
+        const crew = entity.getComponent(CrewMemberComponent);
+        if (crew?.fullName === 'Commander Soren Vael') {
+            crew.isCaptain = true;
+            break;
+        }
+    }
+
     return entities;
 }

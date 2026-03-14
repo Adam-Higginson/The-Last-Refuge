@@ -40,6 +40,14 @@ export const GameEvents = {
     RESOURCE_DEFICIT: 'resources:deficit',
     /** Crew member(s) transferred between locations. */
     CREW_TRANSFERRED: 'crew:transferred',
+    /** A colony leader was appointed. */
+    LEADER_APPOINTED: 'leader:appointed',
+    /** A colony leader was removed. */
+    LEADER_REMOVED: 'leader:removed',
+    /** The ship captain was appointed. */
+    CAPTAIN_APPOINTED: 'captain:appointed',
+    /** The ship captain was removed. */
+    CAPTAIN_REMOVED: 'captain:removed',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -140,4 +148,20 @@ export interface CrewTransferredEvent extends GameEvent {
     type: typeof GameEvents.CREW_TRANSFERRED;
     /** Number of crew transferred. */
     count: number;
+}
+
+export interface LeaderAppointedEvent extends GameEvent {
+    type: typeof GameEvents.LEADER_APPOINTED;
+}
+
+export interface LeaderRemovedEvent extends GameEvent {
+    type: typeof GameEvents.LEADER_REMOVED;
+}
+
+export interface CaptainAppointedEvent extends GameEvent {
+    type: typeof GameEvents.CAPTAIN_APPOINTED;
+}
+
+export interface CaptainRemovedEvent extends GameEvent {
+    type: typeof GameEvents.CAPTAIN_REMOVED;
 }

@@ -29,6 +29,8 @@ export class CrewMemberComponent extends Component {
     traits: [Trait, Trait];
     relationships: Relationship[];
     location: CrewLocation;
+    isLeader: boolean;
+    isCaptain: boolean;
 
     constructor(
         fullName: string,
@@ -45,5 +47,7 @@ export class CrewMemberComponent extends Component {
         this.traits = traits;
         this.relationships = [];
         this.location = { type: 'ship' };
+        this.isLeader = false;
+        this.isCaptain = false;
     }
 }

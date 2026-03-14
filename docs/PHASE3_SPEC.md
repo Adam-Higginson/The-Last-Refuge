@@ -412,6 +412,8 @@ Build in the data structures but no gameplay effect yet:
 - Net resource display and breakdown tooltips
 - Visual polish on colony view and building icons
 - Mobile HUD responsiveness (resource bar layout, button sizing, tooltip behaviour on touch)
+- Replace native `confirm()` dialogs with styled modals matching the game UI (leader appointment, transfer warnings, ship minimum warnings)
+- Reusable confirmation modal component for all game dialogs
 
 ---
 

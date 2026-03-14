@@ -69,8 +69,8 @@
     color: #c0c8d8;
     font-size: 11px;
     line-height: 1.5;
-    max-width: 240px;
-    white-space: normal;
+    max-width: 280px;
+    white-space: pre-line;
     z-index: 20;
     pointer-events: none;
 }

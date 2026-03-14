@@ -13,6 +13,8 @@ import { RegionDataComponent } from './RegionDataComponent';
 import { PlanetDataComponent } from './PlanetDataComponent';
 import { TransformComponent } from './TransformComponent';
 import { CameraComponent } from './CameraComponent';
+import { TransferScreenComponent } from './TransferScreenComponent';
+import { CrewMemberComponent } from './CrewMemberComponent';
 import { getBiomePool } from '../data/biomes';
 import type { EventQueue } from '../core/EventQueue';
 import type { World } from '../core/World';
@@ -75,10 +77,12 @@ export class PlanetInfoUIComponent extends Component {
                 <span class="planet-status-dot" id="planet-status-dot"></span>
                 <span id="planet-status-text">UNCOLONISED</span>
             </div>
+            <div id="planet-colonist-count" style="margin-top:8px; font-size:12px; opacity:0.6;"></div>
             <div class="planet-biome-summary" id="planet-biome-summary" style="margin-top:12px; font-size:12px; opacity:0.6; line-height:1.8"></div>
             ` : ''}
             <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px">
                 <button class="hud-btn" id="planet-view-surface-btn" type="button">${isRocky ? 'VIEW SURFACE' : 'VIEW ATMOSPHERE'}</button>
+                <button class="hud-btn" id="planet-colony-roster-btn" type="button" style="display:none">COLONY ROSTER</button>
                 <button class="hud-btn" id="planet-centre-btn" type="button">CENTRE ON ${displayName.toUpperCase()}</button>
             </div>
         `;
@@ -115,6 +119,28 @@ export class PlanetInfoUIComponent extends Component {
             const camera = cameraEntity?.getComponent(CameraComponent);
             if (planetTransform && camera) {
                 camera.panTo(planetTransform.x, planetTransform.y);
+            }
+        });
+
+        // COLONY ROSTER button — opens transfer screen filtered to first colony on this planet
+        const colonyRosterBtn = document.getElementById('planet-colony-roster-btn');
+        colonyRosterBtn?.addEventListener('click', () => {
+            const world = ServiceLocator.get<World>('world');
+            const regionData = this.entity.getComponent(RegionDataComponent);
+            if (!regionData) return;
+
+            // Find first colonised region
+            const colonisedRegion = regionData.regions.find(r => r.colonised);
+            if (!colonisedRegion) return;
+
+            const hud = world.getEntityByName('hud');
+            const transferScreen = hud?.getComponent(TransferScreenComponent);
+            if (transferScreen && !transferScreen.isOpen) {
+                transferScreen.open({
+                    type: 'colony',
+                    planetEntityId: this.entity.id,
+                    regionId: colonisedRegion.id,
+                });
             }
         });
 
@@ -161,6 +187,29 @@ export class PlanetInfoUIComponent extends Component {
         }
         if (this.statusText) {
             this.statusText.textContent = isColonised ? 'COLONY ESTABLISHED' : 'UNCOLONISED';
+        }
+
+        // Colonist count
+        const colonistCountEl = document.getElementById('planet-colonist-count');
+        const colonyRosterBtn = document.getElementById('planet-colony-roster-btn');
+        if (isColonised) {
+            const world = ServiceLocator.get<World>('world');
+            let totalColonists = 0;
+            for (const entity of world.getEntitiesWithComponent(CrewMemberComponent)) {
+                const crew = entity.getComponent(CrewMemberComponent);
+                if (crew?.location.type === 'colony' && crew.location.planetEntityId === this.entity.id) {
+                    totalColonists++;
+                }
+            }
+            if (colonistCountEl) {
+                colonistCountEl.textContent = `${totalColonists} COLONIST${totalColonists !== 1 ? 'S' : ''}`;
+            }
+            if (colonyRosterBtn) {
+                colonyRosterBtn.style.display = '';
+            }
+        } else {
+            if (colonistCountEl) colonistCountEl.textContent = '';
+            if (colonyRosterBtn) colonyRosterBtn.style.display = 'none';
         }
 
         // Biome summary — use planet-specific biome pool
