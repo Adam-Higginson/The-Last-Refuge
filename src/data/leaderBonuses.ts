@@ -2,6 +2,11 @@
 
 import type { CrewRole, Trait } from '../components/CrewMemberComponent';
 
+export interface BonusEffect {
+    text: string;
+    sentiment: 'positive' | 'negative' | 'neutral';
+}
+
 export interface LeaderBonus {
     /** Flat morale bonus for colonists at this location. */
     moraleBonus?: number;
@@ -15,8 +20,10 @@ export interface LeaderBonus {
     dataPerTurn?: number;
     /** Extra population capacity. */
     populationCapBonus?: number;
-    /** Human-readable description. */
+    /** Human-readable description (legacy, use effects for display). */
     description: string;
+    /** Individual effects with sentiment for colour-coded display. */
+    effects: BonusEffect[];
 }
 
 /** Bonuses granted by a leader based on their role. */
@@ -24,24 +31,42 @@ export const LEADER_ROLE_BONUSES: Record<CrewRole, LeaderBonus> = {
     Soldier: {
         moraleBonus: 5,
         description: '+5 colony morale',
+        effects: [
+            { text: '+5 colony morale', sentiment: 'positive' },
+        ],
     },
     Engineer: {
         constructionTimeReduction: 0.2,
         materialCostReduction: 0.1,
         description: '-20% construction time, -10% material cost',
+        effects: [
+            { text: '-20% construction time', sentiment: 'positive' },
+            { text: '-10% material cost', sentiment: 'positive' },
+        ],
     },
     Medic: {
         moraleBonus: 10,
         description: '+10 colony morale, slower morale decay',
+        effects: [
+            { text: '+10 colony morale', sentiment: 'positive' },
+            { text: 'Slower morale decay', sentiment: 'positive' },
+        ],
     },
     Scientist: {
         dataPerTurn: 1,
         description: '+1 Data/turn (future)',
+        effects: [
+            { text: '+1 Data/turn', sentiment: 'neutral' },
+        ],
     },
     Civilian: {
         foodProductionMultiplier: 0.2,
         populationCapBonus: 1,
         description: '+20% food production, +1 population capacity',
+        effects: [
+            { text: '+20% food production', sentiment: 'positive' },
+            { text: '+1 population capacity', sentiment: 'positive' },
+        ],
     },
 };
 
@@ -50,24 +75,43 @@ export const LEADER_TRAIT_BONUSES: Partial<Record<Trait, LeaderBonus>> = {
     Resourceful: {
         materialCostReduction: 0.1,
         description: '-10% material cost',
+        effects: [
+            { text: '-10% material cost', sentiment: 'positive' },
+        ],
     },
     Analytical: {
         description: '+10% building efficiency',
+        effects: [
+            { text: '+10% building efficiency', sentiment: 'positive' },
+        ],
     },
     Hopeful: {
         moraleBonus: 5,
         description: '+5 morale to all colonists',
+        effects: [
+            { text: '+5 morale to all colonists', sentiment: 'positive' },
+        ],
     },
     Stubborn: {
         moraleBonus: -5,
         description: '+10 morale in crisis, -5 morale normally',
+        effects: [
+            { text: '+10 morale in crisis', sentiment: 'positive' },
+            { text: '-5 morale normally', sentiment: 'negative' },
+        ],
     },
     Haunted: {
         moraleBonus: -5,
         description: '-5 morale',
+        effects: [
+            { text: '-5 morale', sentiment: 'negative' },
+        ],
     },
     Protective: {
         description: 'Colony takes less damage from events',
+        effects: [
+            { text: 'Less damage from events', sentiment: 'positive' },
+        ],
     },
 };
 
@@ -89,33 +133,20 @@ export const COLONY_ROLE_DESCRIPTIONS: Record<CrewRole, string> = {
     Civilian: 'Operates Farms and basic buildings.',
 };
 
-export interface BonusLine {
-    text: string;
-    sentiment: 'positive' | 'negative' | 'neutral';
-}
-
-/** Get all bonus lines for a crew member if they were leader. */
-export function getLeaderBonusLines(role: CrewRole, traits: readonly Trait[]): BonusLine[] {
-    const lines: BonusLine[] = [];
+/** Get all bonus effect lines for a crew member if they were leader. */
+export function getLeaderBonusLines(role: CrewRole, traits: readonly Trait[]): BonusEffect[] {
+    const lines: BonusEffect[] = [];
     const roleBonus = LEADER_ROLE_BONUSES[role];
 
-    // Parse role bonus description into sentiment-tagged lines
-    for (const part of roleBonus.description.split(', ')) {
-        lines.push({
-            text: `${part} (${role})`,
-            sentiment: part.startsWith('-') ? 'negative' : 'positive',
-        });
+    for (const effect of roleBonus.effects) {
+        lines.push({ text: `${effect.text} (${role})`, sentiment: effect.sentiment });
     }
 
     for (const trait of traits) {
         const traitBonus = LEADER_TRAIT_BONUSES[trait];
         if (traitBonus) {
-            // Split compound descriptions (e.g. Stubborn) into separate lines
-            for (const part of traitBonus.description.split(', ')) {
-                lines.push({
-                    text: `${part} (${trait})`,
-                    sentiment: part.startsWith('-') ? 'negative' : part.startsWith('+') ? 'positive' : 'neutral',
-                });
+            for (const effect of traitBonus.effects) {
+                lines.push({ text: `${effect.text} (${trait})`, sentiment: effect.sentiment });
             }
         }
     }
