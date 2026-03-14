@@ -7,6 +7,8 @@ import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import { getBuildingType } from '../data/buildings';
 import { getCrewAtColony } from '../utils/crewUtils';
 import { drawBuilding } from './colonyBuildingSprites';
+import { advanceClock, getDayNightState } from './colonyDayNight';
+import type { DayNightState } from './colonyDayNight';
 import {
     gridToScreen,
     drawIsometricTile,
@@ -88,6 +90,9 @@ function getVisuals(biome: BiomeName): BiomeVisuals {
     return BIOME_VISUALS[biome] ?? DEFAULT_VISUALS;
 }
 
+/** Last frame timestamp for delta time calculation. */
+let lastFrameTime = 0;
+
 // --- Main draw function ---
 
 export function drawColonyScene(
@@ -108,18 +113,31 @@ export function drawColonyScene(
     const visuals = getVisuals(region.biome);
     const horizonY = h * 0.35;
 
+    // Advance day/night clock
+    const now = performance.now();
+    if (lastFrameTime > 0) {
+        const dtSeconds = (now - lastFrameTime) / 1000;
+        advanceClock(dtSeconds);
+    }
+    lastFrameTime = now;
+
+    const dayNight = getDayNightState();
+
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    drawSky(ctx, w, h, horizonY, visuals, t);
+    drawSky(ctx, w, h, horizonY, visuals, t, dayNight);
+    drawStars(ctx, w, horizonY, dayNight);
     drawHorizonFeatures(ctx, w, horizonY, visuals, region.id);
     drawNaturalGround(ctx, w, h, horizonY, visuals, region.id);
     drawGroundDressing(ctx, w, h, horizonY, visuals, region.id);
     drawPaths(ctx, w, h, region);
     const slotRects = drawBuildingSlots(ctx, w, h, region, t);
-    drawBuildingShadows(ctx, region, slotRects);
+    drawBuildingShadows(ctx, region, slotRects, dayNight);
     drawColonists(ctx, entity, region, slotRects, t);
     drawAmbientParticles(ctx, w, h, visuals, t);
+    drawAmbientOverlay(ctx, w, h, dayNight);
     drawColonyLabel(ctx, w, region);
+    drawTimeIndicator(ctx, w, dayNight);
 
     return slotRects;
 }
@@ -131,59 +149,140 @@ function drawSky(
     w: number,
     h: number,
     horizonY: number,
-    visuals: BiomeVisuals,
+    _visuals: BiomeVisuals,
     t: number,
+    dayNight: DayNightState,
 ): void {
-    // Sky gradient
-    const grad = ctx.createLinearGradient(0, 0, 0, horizonY);
-    grad.addColorStop(0, visuals.skyTop);
-    grad.addColorStop(0.7, visuals.skyBottom);
-    grad.addColorStop(1, visuals.skyHaze);
+    // Sky gradient driven by day/night cycle
+    const grad = ctx.createLinearGradient(0, 0, 0, horizonY + 10);
+    grad.addColorStop(0, dayNight.skyTop);
+    grad.addColorStop(0.8, dayNight.skyBottom);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, horizonY + 10);
 
-    // Atmospheric haze near horizon
-    const hazeGrad = ctx.createLinearGradient(0, horizonY - h * 0.08, 0, horizonY + 10);
+    // Atmospheric haze near horizon (warmer during dawn/dusk)
+    const hazeAlpha = dayNight.phase === 'dawn' || dayNight.phase === 'dusk' ? 0.25 : 0.12;
+    const hazeGrad = ctx.createLinearGradient(0, horizonY - h * 0.1, 0, horizonY + 10);
     hazeGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    hazeGrad.addColorStop(1, visuals.skyHaze);
+    hazeGrad.addColorStop(1, `rgba(${dayNight.warmth > 0 ? '200,150,100' : '100,120,150'}, ${hazeAlpha})`);
     ctx.fillStyle = hazeGrad;
-    ctx.fillRect(0, horizonY - h * 0.08, w, h * 0.08 + 10);
+    ctx.fillRect(0, horizonY - h * 0.1, w, h * 0.1 + 10);
 
-    // Star glow
-    const starX = w * 0.75;
-    const starY = horizonY * 0.55;
-    const pulse = 0.8 + 0.2 * Math.sin(t / 3000);
-    const r = w * 0.14;
-    const starGrad = ctx.createRadialGradient(starX, starY, 0, starX, starY, r);
-    starGrad.addColorStop(0, visuals.starTint.replace(/[\d.]+\)$/, `${(0.6 * pulse).toFixed(2)})`));
-    starGrad.addColorStop(0.3, visuals.starTint.replace(/[\d.]+\)$/, `${(0.3 * pulse).toFixed(2)})`));
-    starGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = starGrad;
-    ctx.beginPath();
-    ctx.arc(starX, starY, r, 0, Math.PI * 2);
-    ctx.fill();
+    // Sun/moon
+    if (dayNight.celestialHeight > 0) {
+        const sunProgress = dayNight.celestialAngle / Math.PI;
+        const sunX = w * (0.1 + sunProgress * 0.8);
+        const sunY = horizonY * (1 - dayNight.celestialHeight * 0.8);
+        const sunR = dayNight.phase === 'night' ? w * 0.03 : w * 0.05;
+        const pulse = 0.85 + 0.15 * Math.sin(t / 3000);
 
-    // Drifting clouds
-    drawClouds(ctx, w, horizonY, t);
+        if (dayNight.phase === 'night') {
+            // Moon — pale white
+            ctx.fillStyle = 'rgba(200, 210, 230, 0.7)';
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Sun — warm glow with bloom
+            const bloomR = sunR * 3;
+            const sunGlow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, bloomR);
+
+            if (dayNight.phase === 'dawn' || dayNight.phase === 'dusk') {
+                // Intense warm bloom at dawn/dusk
+                sunGlow.addColorStop(0, `rgba(255, 220, 150, ${(0.8 * pulse).toFixed(2)})`);
+                sunGlow.addColorStop(0.2, `rgba(255, 180, 80, ${(0.4 * pulse).toFixed(2)})`);
+                sunGlow.addColorStop(0.5, `rgba(255, 140, 50, ${(0.15 * pulse).toFixed(2)})`);
+            } else {
+                // Bright white-yellow during day
+                sunGlow.addColorStop(0, `rgba(255, 250, 230, ${(0.9 * pulse).toFixed(2)})`);
+                sunGlow.addColorStop(0.15, `rgba(255, 240, 200, ${(0.5 * pulse).toFixed(2)})`);
+                sunGlow.addColorStop(0.4, `rgba(255, 220, 150, ${(0.15 * pulse).toFixed(2)})`);
+            }
+            sunGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = sunGlow;
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, bloomR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Solid sun core
+            ctx.fillStyle = `rgba(255, 250, 235, ${(0.95 * pulse).toFixed(2)})`;
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, sunR * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Drifting clouds (tinted by time of day)
+    drawClouds(ctx, w, horizonY, t, dayNight);
 }
 
-function drawClouds(ctx: CanvasRenderingContext2D, w: number, horizonY: number, t: number): void {
+function drawClouds(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    horizonY: number,
+    t: number,
+    dayNight: DayNightState,
+): void {
     ctx.save();
-    ctx.globalAlpha = 0.15;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
 
-    for (let i = 0; i < 5; i++) {
-        const speed = 0.008 + i * 0.003;
-        const baseX = ((t * speed + i * w * 0.25) % (w + 200)) - 100;
-        const baseY = horizonY * (0.2 + i * 0.12);
-        const cloudW = 80 + i * 30;
-        const cloudH = 15 + i * 5;
+    // Cloud colour shifts with time of day
+    let cloudColour: string;
+    if (dayNight.phase === 'dawn' || dayNight.phase === 'dusk') {
+        cloudColour = 'rgba(255, 180, 120, 0.8)';
+    } else if (dayNight.phase === 'night') {
+        cloudColour = 'rgba(30, 35, 50, 0.6)';
+    } else {
+        cloudColour = 'rgba(255, 255, 255, 0.8)';
+    }
 
-        // Cloud as overlapping ellipses
+    ctx.fillStyle = cloudColour;
+    ctx.globalAlpha = dayNight.phase === 'night' ? 0.1 : 0.18;
+
+    // Three cloud layers at different speeds
+    for (let layer = 0; layer < 3; layer++) {
+        const layerAlpha = (0.12 - layer * 0.03);
+        ctx.globalAlpha = layerAlpha;
+
+        for (let i = 0; i < 3; i++) {
+            const speed = (0.006 + layer * 0.004) + i * 0.002;
+            const baseX = ((t * speed + i * w * 0.35 + layer * w * 0.15) % (w + 300)) - 150;
+            const baseY = horizonY * (0.15 + layer * 0.15 + i * 0.08);
+            const cloudW = (100 + i * 40 - layer * 15);
+            const cloudH = (18 + i * 6 - layer * 3);
+
+            ctx.beginPath();
+            ctx.ellipse(baseX, baseY, cloudW, cloudH, 0, 0, Math.PI * 2);
+            ctx.ellipse(baseX + cloudW * 0.3, baseY - cloudH * 0.4, cloudW * 0.7, cloudH * 0.9, 0, 0, Math.PI * 2);
+            ctx.ellipse(baseX - cloudW * 0.25, baseY + cloudH * 0.2, cloudW * 0.5, cloudH * 0.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    ctx.restore();
+}
+
+// --- Stars ---
+
+function drawStars(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    horizonY: number,
+    dayNight: DayNightState,
+): void {
+    if (dayNight.starAlpha <= 0) return;
+
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+
+    for (let i = 0; i < 60; i++) {
+        const sx = (Math.sin(i * 7.13 + 0.5) * 0.5 + 0.5) * w;
+        const sy = (Math.sin(i * 3.71 + 1.2) * 0.5 + 0.5) * horizonY * 0.85;
+        const size = 0.5 + Math.abs(Math.sin(i * 2.37)) * 1.2;
+        const twinkle = 0.5 + 0.5 * Math.sin(performance.now() / 1000 + i * 1.7);
+
+        ctx.globalAlpha = dayNight.starAlpha * twinkle * 0.7;
         ctx.beginPath();
-        ctx.ellipse(baseX, baseY, cloudW, cloudH, 0, 0, Math.PI * 2);
-        ctx.ellipse(baseX + cloudW * 0.3, baseY - cloudH * 0.3, cloudW * 0.6, cloudH * 0.8, 0, 0, Math.PI * 2);
-        ctx.ellipse(baseX - cloudW * 0.2, baseY + cloudH * 0.2, cloudW * 0.5, cloudH * 0.7, 0, 0, Math.PI * 2);
+        ctx.arc(sx, sy, size, 0, Math.PI * 2);
         ctx.fill();
     }
     ctx.restore();
@@ -478,24 +577,79 @@ function drawBuildingShadows(
     ctx: CanvasRenderingContext2D,
     _region: Region,
     slotRects: ColonySlotRect[],
+    dayNight: DayNightState,
 ): void {
+    if (dayNight.phase === 'night') return; // No sharp shadows at night
+
+    const shadowAlpha = 0.08 + dayNight.ambientLight * 0.12;
+    const shadowOffsetX = Math.cos(dayNight.shadowAngle) * 20 * dayNight.shadowLength;
+    const shadowOffsetY = Math.sin(dayNight.shadowAngle) * 8 * dayNight.shadowLength;
+    const shadowScale = 0.5 + dayNight.shadowLength * 0.5;
+
     ctx.save();
-    ctx.globalAlpha = 0.12;
+    ctx.globalAlpha = shadowAlpha;
     ctx.fillStyle = 'rgba(0, 0, 0, 1)';
 
     for (const rect of slotRects) {
         if (!rect.occupied) continue;
 
-        // Shadow as a dark parallelogram offset to the right
-        const sx = rect.x + rect.width / 2;
-        const sy = rect.y + rect.height * 0.5;
-        const shadowW = TILE_WIDTH * 0.5;
-        const shadowH = TILE_HEIGHT * 0.3;
+        const sx = rect.x + rect.width / 2 + shadowOffsetX;
+        const sy = rect.y + rect.height * 0.5 + shadowOffsetY;
+        const shadowW = TILE_WIDTH * 0.4 * shadowScale;
+        const shadowH = TILE_HEIGHT * 0.25 * shadowScale;
 
         ctx.beginPath();
-        ctx.ellipse(sx + 15, sy + 10, shadowW, shadowH, 0.3, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy + 10, shadowW, shadowH, dayNight.shadowAngle * 0.1, 0, Math.PI * 2);
         ctx.fill();
     }
+    ctx.restore();
+}
+
+// --- Ambient light overlay (night darkening, warm/cool tint) ---
+
+function drawAmbientOverlay(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    dayNight: DayNightState,
+): void {
+    // Night darkness overlay
+    if (dayNight.ambientLight < 0.9) {
+        const darkness = 1 - dayNight.ambientLight;
+        ctx.save();
+        ctx.globalAlpha = darkness * 0.6;
+        ctx.fillStyle = dayNight.warmth < 0 ? '#0a0a20' : '#1a1008';
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+    }
+
+    // Warm/cool colour grade
+    if (Math.abs(dayNight.warmth) > 0.1) {
+        ctx.save();
+        ctx.globalAlpha = Math.abs(dayNight.warmth) * 0.08;
+        ctx.fillStyle = dayNight.warmth > 0 ? 'rgba(255, 180, 80, 1)' : 'rgba(80, 120, 200, 1)';
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+    }
+}
+
+// --- Time indicator (subtle, top-right) ---
+
+function drawTimeIndicator(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    dayNight: DayNightState,
+): void {
+    const hours = Math.floor(dayNight.hour);
+    const minutes = Math.floor((dayNight.hour - hours) * 60);
+    const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = dayNight.phase === 'night' ? '#8090a0' : '#ffffff';
+    ctx.font = '11px "Share Tech Mono", "Courier New", monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(timeStr, w - 16, 28);
     ctx.restore();
 }
 
