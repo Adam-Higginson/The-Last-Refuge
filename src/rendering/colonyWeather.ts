@@ -177,43 +177,42 @@ function drawOvercastSky(
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
-    // Storm clouds — organic billowy shapes, darker at base
+    // Overcast clouds — lighter grey, wispy, spread out, soft edges
     ctx.save();
-    const cloudAlpha = weather.overcastAmount * 0.35;
 
-    // Main cloud layer
-    for (let i = 0; i < 10; i++) {
-        const speed = 0.002 + (i % 3) * 0.001;
-        const baseX = ((t * speed + i * w * 0.12) % (w + 300)) - 150;
-        const baseY = horizonY * (0.05 + (i % 4) * 0.08);
+    // Main cloud layer — wide, soft, lighter grey
+    for (let i = 0; i < 12; i++) {
+        const speed = 0.0015 + (i % 3) * 0.0008;
+        const baseX = ((t * speed + i * w * 0.1) % (w + 400)) - 200;
+        const baseY = horizonY * (0.02 + (i % 5) * 0.06);
 
-        // Build billowy cloud from overlapping circles
-        const circles = 4 + (i % 3);
-        for (let c = 0; c < circles; c++) {
-            const cx = baseX + c * 25 - circles * 12;
-            const cy = baseY + Math.sin(i + c * 1.3) * 8;
-            const cr = 30 + Math.sin(i * 2.7 + c) * 15;
+        // Each cloud is a spread of soft overlapping ellipses
+        const puffs = 5 + (i % 3);
+        for (let c = 0; c < puffs; c++) {
+            const cx = baseX + c * 35 - puffs * 17;
+            const cy = baseY + Math.sin(i + c * 1.3) * 6;
+            const rw = 50 + Math.sin(i * 2.7 + c) * 25;
+            const rh = 14 + Math.sin(i * 1.5 + c) * 6;
 
-            // Darker at base, lighter at top
-            const verticalPos = cy / (horizonY * 0.4);
-            const shade = Math.floor(35 + verticalPos * 25);
-            ctx.globalAlpha = cloudAlpha * (0.6 + Math.sin(i + c) * 0.2);
-            ctx.fillStyle = `rgb(${shade}, ${shade + 3}, ${shade + 8})`;
+            // Lighter at top, slightly darker at base — all in grey range
+            const shade = Math.floor(120 + (1 - cy / (horizonY * 0.35)) * 40);
+            ctx.globalAlpha = weather.overcastAmount * (0.12 + Math.sin(i + c) * 0.04);
+            ctx.fillStyle = `rgb(${shade}, ${shade + 2}, ${shade + 6})`;
             ctx.beginPath();
-            ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+            ctx.ellipse(cx, cy, rw, rh, 0, 0, Math.PI * 2);
             ctx.fill();
         }
     }
 
-    // Faster wispy layer beneath
-    ctx.globalAlpha = cloudAlpha * 0.4;
-    ctx.fillStyle = '#3a3a45';
-    for (let i = 0; i < 6; i++) {
-        const speed = 0.006 + i * 0.002;
-        const baseX = ((t * speed + i * w * 0.2 + 500) % (w + 200)) - 100;
-        const baseY = horizonY * (0.2 + i * 0.05);
+    // Wispy streaks — thinner, faster, more transparent
+    for (let i = 0; i < 8; i++) {
+        const speed = 0.004 + i * 0.0015;
+        const baseX = ((t * speed + i * w * 0.15 + 300) % (w + 300)) - 150;
+        const baseY = horizonY * (0.15 + i * 0.04);
+        ctx.globalAlpha = weather.overcastAmount * 0.06;
+        ctx.fillStyle = 'rgb(140, 145, 155)';
         ctx.beginPath();
-        ctx.ellipse(baseX, baseY, 60 + i * 10, 8 + i * 2, 0, 0, Math.PI * 2);
+        ctx.ellipse(baseX, baseY, 80 + i * 12, 5 + i * 1.5, 0, 0, Math.PI * 2);
         ctx.fill();
     }
 

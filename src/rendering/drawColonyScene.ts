@@ -197,7 +197,7 @@ function drawSky(
     const sunX = w * (0.1 + sunProgress * 0.8);
     const sunY = horizonY - dayNight.celestialHeight * horizonY * 0.75;
     const pulse = 0.85 + 0.15 * Math.sin(t / 3000);
-    const weatherDim = 1 - weather.overcastAmount * 0.8; // Sun fades behind clouds
+    const weatherDim = 1 - weather.overcastAmount * 1.2; // Sun fully hidden at ~80% overcast
 
     // Only render if not too far below horizon and not fully overcast
     if (dayNight.celestialHeight > -0.15 && weatherDim > 0.05) {
