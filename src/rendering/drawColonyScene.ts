@@ -98,6 +98,10 @@ function getVisuals(biome: BiomeName): BiomeVisuals {
 /** Last frame timestamp for delta time calculation. */
 let lastFrameTime = 0;
 
+/** Gust state shared between ground and grass. */
+let _lastGustX = -1;
+let _lastGustActive = false;
+
 /** Debug keyboard handler (W = cycle weather, T = advance time 3 hours). */
 let debugKeysRegistered = false;
 function registerDebugKeys(): void {
@@ -473,7 +477,7 @@ function drawHorizonFeatures(
     ctx.restore();
 }
 
-// --- Natural ground (no checkerboard) ---
+// --- Ground surface — layered grass field ---
 
 function drawNaturalGround(
     ctx: CanvasRenderingContext2D,
@@ -484,37 +488,130 @@ function drawNaturalGround(
     seed: number,
 ): void {
     const terrainH = h - horizonY;
+    const t = performance.now();
+    const weather = getWeatherInfo();
+    const isWet = weather.rainIntensity > 0.3;
 
-    // Base gradient from horizon to bottom
+    // --- Base gradient: atmospheric perspective (yellower toward horizon, richer foreground) ---
     const grad = ctx.createLinearGradient(0, horizonY, 0, h);
-    grad.addColorStop(0, visuals.groundLight);
-    grad.addColorStop(0.3, visuals.groundBase);
-    grad.addColorStop(1, visuals.groundDark);
+    grad.addColorStop(0, isWet ? '#3a5a30' : visuals.groundLight);  // horizon: lighter/yellower
+    grad.addColorStop(0.15, isWet ? '#2a4a22' : visuals.groundBase);
+    grad.addColorStop(0.5, isWet ? '#1a3a18' : visuals.groundBase);
+    grad.addColorStop(1, isWet ? '#152a12' : visuals.groundDark);    // foreground: darker/richer
     ctx.fillStyle = grad;
     ctx.fillRect(0, horizonY, w, terrainH);
 
-    // Organic noise patches for natural variation
+    // --- Noise texture overlay — breaks up flatness ---
     ctx.save();
-    for (let i = 0; i < 20; i++) {
-        const patchSeed = seed * 13.7 + i * 7.3;
-        const px = (Math.sin(patchSeed) * 0.5 + 0.5) * w;
-        const py = horizonY + (Math.sin(patchSeed * 2.1) * 0.5 + 0.5) * terrainH;
-        const pr = 30 + Math.abs(Math.sin(patchSeed * 3.7)) * 80;
+    for (let i = 0; i < 35; i++) {
+        const ps = seed * 13.7 + i * 7.3;
+        const px = (Math.sin(ps) * 0.5 + 0.5) * w;
+        const py = horizonY + (Math.sin(ps * 2.1) * 0.5 + 0.5) * terrainH;
+        const pr = 20 + Math.abs(Math.sin(ps * 3.7)) * 60;
 
         const patchGrad = ctx.createRadialGradient(px, py, 0, px, py, pr);
-        const isLight = i % 3 === 0;
-        patchGrad.addColorStop(0, isLight ? visuals.groundLight : visuals.groundDark);
+        const variant = i % 4;
+        if (variant === 0) {
+            patchGrad.addColorStop(0, 'rgba(80, 100, 50, 0.12)');  // yellow-green patch
+        } else if (variant === 1) {
+            patchGrad.addColorStop(0, 'rgba(30, 50, 20, 0.1)');   // dark shadow patch
+        } else if (variant === 2) {
+            patchGrad.addColorStop(0, 'rgba(60, 90, 40, 0.08)');  // mid green
+        } else {
+            patchGrad.addColorStop(0, 'rgba(90, 70, 40, 0.06)');  // earthy patch
+        }
         patchGrad.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.globalAlpha = 0.15;
+        ctx.globalAlpha = 1;
         ctx.fillStyle = patchGrad;
         ctx.beginPath();
         ctx.arc(px, py, pr, 0, Math.PI * 2);
         ctx.fill();
     }
     ctx.restore();
+
+    // --- Worn earth patches (darker, irregularly shaped) ---
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = '#3a3020';
+    for (let i = 0; i < 6; i++) {
+        const es = seed * 5.3 + i * 19.7;
+        const ex = (Math.sin(es * 1.1) * 0.5 + 0.5) * w;
+        const ey = horizonY + (0.3 + Math.sin(es * 1.7) * 0.25) * terrainH;
+        const ew = 20 + Math.abs(Math.sin(es * 2.3)) * 40;
+        const eh = ew * (0.3 + Math.sin(es) * 0.15);
+        ctx.beginPath();
+        ctx.ellipse(ex, ey, ew, eh, Math.sin(es * 0.7) * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+
+    // --- Worn dirt area around shelter (slot 0 area) ---
+    ctx.save();
+    ctx.globalAlpha = 0.1;
+    ctx.fillStyle = '#4a3a28';
+    const shelterX = w * 0.5 - 30;
+    const shelterY = horizonY + terrainH * 0.38;
+    ctx.beginPath();
+    ctx.ellipse(shelterX, shelterY, 60, 25, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Dirt path from shelter toward bottom of screen
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = '#5a4a30';
+    ctx.beginPath();
+    ctx.moveTo(shelterX - 8, shelterY + 20);
+    ctx.quadraticCurveTo(shelterX - 5, shelterY + terrainH * 0.3, shelterX + 5, h);
+    ctx.lineTo(shelterX + 15, h);
+    ctx.quadraticCurveTo(shelterX + 10, shelterY + terrainH * 0.3, shelterX + 8, shelterY + 20);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // --- Scattered small rocks ---
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    for (let i = 0; i < 8; i++) {
+        const rs = seed * 7.1 + i * 23.3;
+        const rx = (Math.sin(rs * 1.3) * 0.5 + 0.5) * w;
+        const ry = horizonY + (0.2 + Math.sin(rs * 1.9) * 0.3) * terrainH;
+        const rw = 3 + Math.abs(Math.sin(rs * 2.1)) * 5;
+        const rh = rw * (0.4 + Math.sin(rs) * 0.15);
+
+        ctx.fillStyle = '#6a6058';
+        ctx.beginPath();
+        ctx.ellipse(rx, ry, rw, rh, Math.sin(rs * 0.5) * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        // Highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.beginPath();
+        ctx.ellipse(rx - rw * 0.2, ry - rh * 0.4, rw * 0.5, rh * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+
+    // --- Wind gust wave across grass (visible ripple) ---
+    const gustCycle = (t / 18000) % 1; // One gust every ~18 seconds
+    const gustActive = gustCycle < 0.15;
+    const gustX = gustActive ? gustCycle / 0.15 * w : -1;
+
+    // --- Wet ground sheen during rain ---
+    if (isWet) {
+        ctx.save();
+        ctx.globalAlpha = weather.rainIntensity * 0.06;
+        const sheenGrad = ctx.createLinearGradient(0, horizonY, 0, h);
+        sheenGrad.addColorStop(0, 'rgba(120, 150, 180, 0.5)');
+        sheenGrad.addColorStop(1, 'rgba(80, 100, 120, 0.3)');
+        ctx.fillStyle = sheenGrad;
+        ctx.fillRect(0, horizonY, w, terrainH);
+        ctx.restore();
+    }
+
+    // Store gust info for grass to use
+    _lastGustX = gustX;
+    _lastGustActive = gustActive;
 }
 
-// --- Ground dressing (grass, rocks, ice, ferns) — dense coverage ---
+// --- Grass blade clusters with wind sway and depth ---
 
 function drawGroundDressing(
     ctx: CanvasRenderingContext2D,
@@ -524,62 +621,140 @@ function drawGroundDressing(
     visuals: BiomeVisuals,
     seed: number,
 ): void {
+    if (visuals.dressing !== 'grass') {
+        drawNonGrassDressing(ctx, w, h, horizonY, visuals, seed);
+        return;
+    }
+
+    const terrainH = h - horizonY;
+    const t = performance.now();
+    const weather = getWeatherInfo();
+    const windLean = weather.windAngle * 12;
+    const rainBoost = weather.rainIntensity * 3;
+
+    // Gust wave from drawNaturalGround
+    const gustX = _lastGustX;
+    const gustActive = _lastGustActive;
+
+    // Green tone palette for variety
+    const greens = ['#4a8a3a', '#3a7a2a', '#5a9a4a', '#3a6a28'];
+
+    ctx.save();
+
+    // --- Mid-ground grass (bulk of the field, 200 tufts) ---
+    const midCount = 200;
+    for (let i = 0; i < midCount; i++) {
+        const ds = seed * 3.1 + i * 7.13;
+        const dx = (Math.sin(ds * 1.1) * 0.5 + 0.5) * w;
+        const depthRatio = (Math.sin(ds * 1.7) * 0.5 + 0.5);
+        const dy = horizonY + depthRatio * terrainH * 0.88 + terrainH * 0.04;
+        const scale = 0.3 + depthRatio * 0.7;
+
+        // Wind sway — consistent direction, stronger in foreground
+        const baseSway = Math.sin(t / 1800 + dx * 0.005 + i * 0.3) * (2 + rainBoost) * scale;
+        const gustSway = (gustActive && Math.abs(dx - gustX) < 80) ? 4 * scale : 0;
+        const sway = baseSway + windLean * scale + gustSway;
+
+        ctx.globalAlpha = 0.25 + depthRatio * 0.45;
+
+        const bladeCount = 3 + Math.floor(Math.abs(Math.sin(ds * 2.3)) * 3);
+        const greenIdx = Math.floor(Math.abs(Math.sin(ds * 4.1)) * greens.length);
+        ctx.strokeStyle = greens[greenIdx];
+        ctx.lineWidth = (0.6 + depthRatio * 0.6) * scale;
+        ctx.lineCap = 'round';
+
+        for (let j = 0; j < bladeCount; j++) {
+            const gx = dx + (j - bladeCount / 2) * 2.5 * scale;
+            const bladeH = (5 + Math.abs(Math.sin(ds + j * 1.3)) * 8) * scale;
+            const bladeLean = sway + Math.sin(ds + j * 0.7) * 2 * scale;
+
+            ctx.beginPath();
+            ctx.moveTo(gx, dy);
+            ctx.quadraticCurveTo(
+                gx + bladeLean * 0.4, dy - bladeH * 0.6,
+                gx + bladeLean, dy - bladeH,
+            );
+            ctx.stroke();
+        }
+
+        // Occasional wildflower
+        if (i % 18 === 0 && depthRatio > 0.3) {
+            ctx.fillStyle = i % 36 === 0 ? '#e8d040' : '#d060a0';
+            const flowerSize = 1.5 * scale;
+            ctx.beginPath();
+            ctx.arc(dx + sway * 0.5, dy - 7 * scale, flowerSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // --- Foreground grass (bottom edge, tallest, most detailed) ---
+    ctx.globalAlpha = 0.7;
+    const fgCount = 40;
+    for (let i = 0; i < fgCount; i++) {
+        const ds = seed * 11.3 + i * 13.7;
+        const dx = (i / fgCount) * w + Math.sin(ds) * 15;
+        const dy = h - Math.abs(Math.sin(ds * 1.7)) * 15;
+        const scale = 1.2 + Math.abs(Math.sin(ds * 2.1)) * 0.4;
+
+        const sway = Math.sin(t / 1500 + dx * 0.004 + i * 0.5) * (3 + rainBoost) + windLean;
+        const gustFg = (gustActive && Math.abs(dx - gustX) < 100) ? 6 : 0;
+        const totalSway = sway + gustFg;
+
+        const bladeCount = 4 + Math.floor(Math.abs(Math.sin(ds * 3.1)) * 3);
+        const greenIdx = Math.floor(Math.abs(Math.sin(ds * 2.7)) * greens.length);
+        // Foreground grass is darker, more saturated
+        ctx.strokeStyle = greenIdx % 2 === 0 ? '#2a5a1a' : '#1a4a12';
+        ctx.lineWidth = 1.2 * scale;
+        ctx.lineCap = 'round';
+
+        for (let j = 0; j < bladeCount; j++) {
+            const gx = dx + (j - bladeCount / 2) * 3 * scale;
+            const bladeH = (12 + Math.abs(Math.sin(ds + j * 1.5)) * 10) * scale;
+            const bladeLean = totalSway + Math.sin(ds + j * 0.9) * 3;
+
+            ctx.beginPath();
+            ctx.moveTo(gx, dy);
+            ctx.quadraticCurveTo(
+                gx + bladeLean * 0.3, dy - bladeH * 0.5,
+                gx + bladeLean * 0.8, dy - bladeH,
+            );
+            ctx.stroke();
+        }
+    }
+
+    ctx.restore();
+}
+
+/** Non-grass biome dressing (rocks, ice, ferns) — preserved from original. */
+function drawNonGrassDressing(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    horizonY: number,
+    visuals: BiomeVisuals,
+    seed: number,
+): void {
     ctx.save();
     const terrainH = h - horizonY;
-
-    // Dense coverage — 150+ elements
-    const count = 150;
+    const count = 100;
 
     for (let i = 0; i < count; i++) {
         const ds = seed * 3.1 + i * 7.13;
         const dx = (Math.sin(ds * 1.1) * 0.5 + 0.5) * w;
         const depthRatio = (Math.sin(ds * 1.7) * 0.5 + 0.5);
         const dy = horizonY + depthRatio * terrainH * 0.85 + terrainH * 0.05;
-
-        // Scale with depth (smaller near horizon, larger at bottom)
         const scale = 0.4 + depthRatio * 0.6;
-        // Fade with depth (more transparent near horizon)
         ctx.globalAlpha = 0.2 + depthRatio * 0.4;
 
-        if (visuals.dressing === 'grass') {
-            // Grass tufts — multiple blades per tuft
-            const bladeCount = 3 + Math.floor(Math.abs(Math.sin(ds * 2.3)) * 4);
-            ctx.strokeStyle = i % 3 === 0 ? visuals.groundLight : visuals.groundBase;
-            ctx.lineWidth = 0.8 * scale;
-            for (let j = 0; j < bladeCount; j++) {
-                const gx = dx + (j - bladeCount / 2) * 2.5 * scale;
-                const bladeH = (4 + Math.abs(Math.sin(ds + j * 1.3)) * 6) * scale;
-                const lean = Math.sin(ds + j * 0.7) * 3 * scale;
-                ctx.beginPath();
-                ctx.moveTo(gx, dy);
-                ctx.quadraticCurveTo(gx + lean * 0.5, dy - bladeH * 0.6, gx + lean, dy - bladeH);
-                ctx.stroke();
-            }
-
-            // Occasional wildflower
-            if (i % 12 === 0) {
-                ctx.fillStyle = i % 24 === 0 ? '#e8d040' : '#d060a0';
-                ctx.beginPath();
-                ctx.arc(dx + Math.sin(ds) * 3, dy - 6 * scale, 1.5 * scale, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        } else if (visuals.dressing === 'rocks') {
-            // Scattered rocks of varying sizes
-            const rockW = (2 + Math.abs(Math.sin(ds * 1.5)) * 6) * scale;
+        if (visuals.dressing === 'rocks') {
+            const rockW = (3 + Math.abs(Math.sin(ds * 1.5)) * 6) * scale;
             const rockH = rockW * 0.5;
             ctx.fillStyle = i % 2 === 0 ? visuals.groundLight : '#5a4a3a';
             ctx.beginPath();
             ctx.ellipse(dx, dy, rockW, rockH, Math.sin(ds) * 0.3, 0, Math.PI * 2);
             ctx.fill();
-            // Rock highlight
-            ctx.fillStyle = 'rgba(255,255,255,0.08)';
-            ctx.beginPath();
-            ctx.ellipse(dx - rockW * 0.2, dy - rockH * 0.3, rockW * 0.5, rockH * 0.3, 0, 0, Math.PI * 2);
-            ctx.fill();
         } else if (visuals.dressing === 'ice') {
-            // Ice crystals and snow patches
             if (i % 3 === 0) {
-                // Crystal
                 ctx.fillStyle = 'rgba(200, 220, 255, 0.3)';
                 const s = 3 * scale;
                 ctx.beginPath();
@@ -590,23 +765,19 @@ function drawGroundDressing(
                 ctx.closePath();
                 ctx.fill();
             } else {
-                // Snow patch
                 ctx.fillStyle = 'rgba(230, 240, 255, 0.2)';
                 ctx.beginPath();
                 ctx.ellipse(dx, dy, 5 * scale, 2 * scale, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
         } else if (visuals.dressing === 'ferns') {
-            // Dense fern/undergrowth
             ctx.strokeStyle = i % 2 === 0 ? '#2a8a2a' : '#1a6a1a';
             ctx.lineWidth = 0.8 * scale;
             const fernH = (5 + Math.abs(Math.sin(ds)) * 5) * scale;
-            // Main stem
             ctx.beginPath();
             ctx.moveTo(dx, dy);
             ctx.lineTo(dx, dy - fernH);
             ctx.stroke();
-            // Fronds
             for (let j = 1; j <= 3; j++) {
                 const fy = dy - j * fernH * 0.25;
                 const fw = (4 - j) * 2 * scale;
