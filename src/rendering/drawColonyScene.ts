@@ -159,9 +159,6 @@ export function drawColonyScene(
 
     // Weather effects drawn AFTER ambient overlay so rain is visible on dark nights
     drawWeatherEffects(ctx, w, h, t);
-    if (weather.rainIntensity > 0) {
-        drawWetSheen(ctx, slotRects, weather.rainIntensity);
-    }
     drawColonyLabel(ctx, w, region);
     drawTimeIndicator(ctx, w, dayNight, weather);
 
@@ -433,7 +430,9 @@ function drawHorizonFeatures(
             const cx = (i + 0.3) * w / 8 + Math.sin(seed * 2 + i * 5.1) * w * 0.03;
             const treeH = 18 + Math.abs(Math.sin(seed + i * 3.1)) * 20;
             const treeW = 12 + Math.abs(Math.sin(seed + i * 2.3)) * 10;
-            const sway = Math.sin(t / 2000 + i * 1.5) * 2;
+            const weatherInfo = getWeatherInfo();
+            const windSway = weatherInfo.windAngle * 20; // Wind pushes trees
+            const sway = Math.sin(t / 2000 + i * 1.5) * 2 + windSway;
 
             // Trunk
             ctx.fillRect(cx - 2, horizonY - treeH * 0.4, 4, treeH * 0.4 + 5);
@@ -767,30 +766,6 @@ function drawTimeIndicator(
 
 // --- Wet sheen on buildings during rain ---
 
-function drawWetSheen(
-    ctx: CanvasRenderingContext2D,
-    slotRects: ColonySlotRect[],
-    rainIntensity: number,
-): void {
-    ctx.save();
-    ctx.globalAlpha = rainIntensity * 0.12;
-
-    for (const rect of slotRects) {
-        if (!rect.occupied) continue;
-
-        // Shiny wet highlight on top of buildings
-        const cx = rect.x + rect.width / 2;
-        const cy = rect.y + rect.height * 0.3;
-        const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, rect.width * 0.4);
-        glow.addColorStop(0, 'rgba(180, 210, 240, 0.6)');
-        glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(cx, cy, rect.width * 0.4, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.restore();
-}
 
 // --- Ambient particles ---
 
