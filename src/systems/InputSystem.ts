@@ -11,7 +11,7 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { CameraComponent, MIN_ZOOM, MAX_ZOOM } from '../components/CameraComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
-import { FogOfWarComponent } from '../components/FogOfWarComponent';
+import { getEntityFogZone } from '../components/FogOfWarComponent';
 import { MinimapComponent } from '../components/MinimapComponent';
 import { MoveConfirmComponent } from '../components/MoveConfirmComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
@@ -324,19 +324,14 @@ export class InputSystem extends System {
         let hoveredCursor = '';
         let clickedEntity = false;
 
-        // Fog of war interaction gating
-        const fogComp = gameState?.getComponent(FogOfWarComponent) ?? null;
-        const ship = this.world.getEntityByName('arkSalvage');
-        const shipTransform = ship?.getComponent(TransformComponent) ?? null;
-
         for (const entity of entities) {
             const selectable = entity.getComponent(SelectableComponent);
             const transform = entity.getComponent(TransformComponent);
             if (!selectable || !transform) continue;
 
             // Ship is always interactable; other entities need fog check
-            if (entity.name !== 'arkSalvage' && fogComp && shipTransform) {
-                if (!fogComp.isInteractable(transform.x, transform.y, shipTransform.x, shipTransform.y)) {
+            if (entity.name !== 'arkSalvage') {
+                if (getEntityFogZone(transform.x, transform.y) !== 'active') {
                     selectable.hovered = false;
                     continue;
                 }
@@ -410,8 +405,8 @@ export class InputSystem extends System {
                 if (!selectable || !transform) continue;
 
                 // Fog gating for right-click too
-                if (entity.name !== 'arkSalvage' && fogComp && shipTransform) {
-                    if (!fogComp.isInteractable(transform.x, transform.y, shipTransform.x, shipTransform.y)) {
+                if (entity.name !== 'arkSalvage') {
+                    if (getEntityFogZone(transform.x, transform.y) !== 'active') {
                         continue;
                     }
                 }

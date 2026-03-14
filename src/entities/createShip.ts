@@ -13,6 +13,7 @@ import { ShipInfoUIComponent } from '../components/ShipInfoUIComponent';
 import { CrewManifestUIComponent } from '../components/CrewManifestUIComponent';
 import { CrewDetailUIComponent } from '../components/CrewDetailUIComponent';
 import { getPlanetConfig } from '../data/planets';
+import { FOG_DETAIL_RADIUS, FOG_BLIP_RADIUS } from '../data/constants';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -173,6 +174,27 @@ function drawShip(
             ctx.arc(x, y, r + 32, 0, Math.PI * 2);
             ctx.fill();
         }
+    }
+
+    // --- Scan radius visualisation (only when selected, not moving) ---
+    if (selected && !movement?.moving) {
+        // Detail radius — inner scan zone
+        ctx.beginPath();
+        ctx.arc(x, y, FOG_DETAIL_RADIUS, 0, Math.PI * 2);
+        ctx.setLineDash([12, 8]);
+        ctx.strokeStyle = 'rgba(79, 168, 255, 0.15)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Blip radius — outer scan zone
+        ctx.beginPath();
+        ctx.arc(x, y, FOG_BLIP_RADIUS, 0, Math.PI * 2);
+        ctx.setLineDash([16, 12]);
+        ctx.strokeStyle = 'rgba(79, 168, 255, 0.08)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
     }
 
     // --- Hover highlight ring (warm amber) ---

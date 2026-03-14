@@ -12,7 +12,7 @@ import { RegionDataComponent } from '../components/RegionDataComponent';
 import { PlanetDataComponent } from '../components/PlanetDataComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
 import { CameraComponent } from '../components/CameraComponent';
-import { FogOfWarComponent } from '../components/FogOfWarComponent';
+import { FogOfWarComponent, getEntityFogZone } from '../components/FogOfWarComponent';
 import { PlanetViewInputComponent } from '../components/PlanetViewInputComponent';
 import { ColoniseUIComponent } from '../components/ColoniseUIComponent';
 import { PlanetInfoUIComponent } from '../components/PlanetInfoUIComponent';
@@ -790,21 +790,27 @@ function drawBlip(
 }
 
 // ---------------------------------------------------------------------------
-// Fog zone helper
+// Stale position label
 // ---------------------------------------------------------------------------
 
-function getPlanetZone(entity: Entity): EntityZone {
+function drawStaleLabel(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    radius: number,
+): void {
     const world = ServiceLocator.get<World>('world');
-    const gameState = world.getEntityByName('gameState');
-    const fog = gameState?.getComponent(FogOfWarComponent);
-    if (!fog) return 'active'; // no fog = full visibility
+    const cameraEntity = world.getEntityByName('camera');
+    const camera = cameraEntity?.getComponent(CameraComponent);
+    const fontSize = camera ? 9 / camera.scale : 9;
 
-    const ship = world.getEntityByName('arkSalvage');
-    const shipTransform = ship?.getComponent(TransformComponent);
-    const planetTransform = entity.getComponent(TransformComponent);
-    if (!shipTransform || !planetTransform) return 'hidden';
-
-    return fog.getEntityZone(planetTransform.x, planetTransform.y, shipTransform.x, shipTransform.y);
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = '#a08040';
+    ctx.font = `${fontSize}px "Share Tech Mono", "Courier New", monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText('LAST KNOWN POSITION', x, y + radius + fontSize * 3);
+    ctx.restore();
 }
 
 // ---------------------------------------------------------------------------
@@ -828,29 +834,33 @@ function drawPlanetDispatch(
     const isViewedPlanet = gameMode?.planetEntityId === entity.id;
 
     if (!gameMode || gameMode.mode === 'system') {
-        // Check fog zone for system view
-        const zone = getPlanetZone(entity);
+        const zone = getEntityFogZone(x, y);
+        const fog = gameState?.getComponent(FogOfWarComponent);
 
         if (zone === 'hidden') {
-            // Check if cell is revealed (dimmed rendering)
-            const fog = gameState?.getComponent(FogOfWarComponent);
-            const planetTransform = entity.getComponent(TransformComponent);
-            if (fog && planetTransform) {
-                const vis = fog.getVisibilityAtWorld(planetTransform.x, planetTransform.y);
-                if (vis > 0) {
-                    // Revealed but outside scan range — draw dimmed
+            // Check for last known position — render stale if previously seen
+            if (fog) {
+                const lastKnown = fog.getLastKnownPosition(entity.id);
+                if (lastKnown) {
+                    // Draw dimmed at stale position
                     ctx.save();
                     ctx.globalAlpha = 0.3;
                     if (config.type === 'rocky') {
-                        drawRockyGlobe(entity, ctx, x, y, config);
+                        drawRockyGlobe(entity, ctx, lastKnown.x, lastKnown.y, config);
                     } else {
-                        drawGasGiantGlobe(entity, ctx, x, y, config);
+                        drawGasGiantGlobe(entity, ctx, lastKnown.x, lastKnown.y, config);
                     }
                     ctx.restore();
-                    drawPlanetLabel(ctx, x, y, config.radius, config.displayName, 'blip');
+                    drawPlanetLabel(ctx, lastKnown.x, lastKnown.y, config.radius, config.displayName, 'blip');
+                    drawStaleLabel(ctx, lastKnown.x, lastKnown.y, config.radius);
                 }
             }
             return;
+        }
+
+        // Record current position for stale rendering later
+        if (fog) {
+            fog.recordPosition(entity.id, x, y);
         }
 
         if (zone === 'blip') {

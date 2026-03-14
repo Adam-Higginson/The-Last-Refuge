@@ -41,6 +41,9 @@ export class FogOfWarComponent extends Component {
     /** Set of cell indices marked Revealed (for efficient rendering). */
     readonly revealedCells = new Set<number>();
 
+    /** Last known positions of entities (for stale rendering when revealed). */
+    private readonly lastKnownPositions = new Map<number, { x: number; y: number }>();
+
     /** Last ship position used for fog update (skip if unchanged). */
     private lastShipX = NaN;
     private lastShipY = NaN;
@@ -95,6 +98,16 @@ export class FogOfWarComponent extends Component {
     /** Whether an entity at (wx,wy) can be clicked/hovered. */
     isInteractable(wx: number, wy: number, shipX: number, shipY: number): boolean {
         return this.getEntityZone(wx, wy, shipX, shipY) === 'active';
+    }
+
+    /** Record an entity's position as its last known location (for stale rendering). */
+    recordPosition(entityId: number, x: number, y: number): void {
+        this.lastKnownPositions.set(entityId, { x, y });
+    }
+
+    /** Get the last known position of an entity (stale position for revealed planets). */
+    getLastKnownPosition(entityId: number): { x: number; y: number } | undefined {
+        return this.lastKnownPositions.get(entityId);
     }
 
     /** Pre-reveal cells around a position (called on init). */
@@ -182,4 +195,27 @@ export class FogOfWarComponent extends Component {
             }
         }
     }
+}
+
+/**
+ * Standalone fog zone lookup — resolves ship + fog from ServiceLocator.
+ * Returns 'active' if no fog or world service exists (graceful degradation).
+ */
+export function getEntityFogZone(wx: number, wy: number): EntityZone {
+    let world: World;
+    try {
+        world = ServiceLocator.get<World>('world');
+    } catch {
+        return 'active';
+    }
+
+    const gameState = world.getEntityByName('gameState');
+    const fog = gameState?.getComponent(FogOfWarComponent);
+    if (!fog) return 'active';
+
+    const ship = world.getEntityByName('arkSalvage');
+    const shipTransform = ship?.getComponent(TransformComponent);
+    if (!shipTransform) return 'hidden';
+
+    return fog.getEntityZone(wx, wy, shipTransform.x, shipTransform.y);
 }
