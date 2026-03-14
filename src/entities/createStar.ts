@@ -130,11 +130,12 @@ function drawStar(
     const fontSize = camera ? 14 / camera.scale : 14;
 
     ctx.save();
-    ctx.globalAlpha = 0.9;
-    ctx.fillStyle = '#c0c8d8';
-    ctx.font = `${fontSize}px "Share Tech Mono", "Courier New", monospace`;
+    ctx.globalAlpha = 1.0;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${fontSize}px "Share Tech Mono", "Courier New", monospace`;
     ctx.textAlign = 'center';
-    ctx.fillText('SOLACE', x, y + 120 + fontSize * 1.5);
+    // Position below the outermost glow layer (radius 2160) so it's outside the bright area
+    ctx.fillText('SOLACE', x, y + 300 + fontSize * 2);
     ctx.restore();
 }
 
