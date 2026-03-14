@@ -145,3 +145,9 @@ Use Claude Preview to manually test the game in a headless browser during develo
 - `npm run lint:fix` — Run ESLint with auto-fix
 - `npm run check` — Lint + type-check + tests (run before committing)
 - `npm run preview` — Preview production build
+
+## Game Bible
+
+This project includes a game design bible for The Last Refuge. Read this file at the start of every session and follow the update instructions inside it:
+
+@../The-Last-Refuge-Bible/The Last Refuge Bible/_active-context.md

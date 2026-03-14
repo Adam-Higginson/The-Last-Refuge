@@ -13,7 +13,7 @@ import { RegionDataComponent } from './RegionDataComponent';
 import { PlanetViewInputComponent } from './PlanetViewInputComponent';
 import { TransformComponent } from './TransformComponent';
 import type { EventQueue } from '../core/EventQueue';
-import { COLONISE_RANGE } from '../data/constants';
+import { FOG_DETAIL_RADIUS } from '../data/constants';
 import type { World } from '../core/World';
 
 export class ColoniseUIComponent extends Component {
@@ -39,8 +39,9 @@ export class ColoniseUIComponent extends Component {
         this.modalConfirm = document.getElementById('colonise-modal-confirm');
         this.modalCancel = document.getElementById('colonise-modal-cancel');
 
-        // COLONISE button → open confirmation modal
+        // COLONISE button → open confirmation modal (guarded by disabled state)
         this.onColoniseBtnClick = (): void => {
+            if (this.coloniseBtn?.classList.contains('disabled')) return;
             const inputComp = this.entity.getComponent(PlanetViewInputComponent);
             if (!inputComp) return;
             const regionData = this.entity.getComponent(RegionDataComponent);
@@ -101,12 +102,6 @@ export class ColoniseUIComponent extends Component {
         // Don't toggle button while modal is open
         if (this.modal && this.modal.style.display === 'flex') return;
 
-        // Check if ship is in range of planet
-        if (!this.isShipInRange()) {
-            if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
-            return;
-        }
-
         // Check if selected region is colonisable and not yet colonised
         const inputComp = this.entity.getComponent(PlanetViewInputComponent);
         const regionData = this.entity.getComponent(RegionDataComponent);
@@ -117,7 +112,17 @@ export class ColoniseUIComponent extends Component {
 
         const selectedRegion = regionData.regions.find(r => r.id === inputComp.selectedRegionId);
         if (selectedRegion && selectedRegion.canColonise && !selectedRegion.colonised) {
-            if (this.coloniseBtn) this.coloniseBtn.style.display = 'block';
+            if (this.coloniseBtn) {
+                this.coloniseBtn.style.display = 'block';
+                // Grey out if ship not in range
+                if (this.isShipInRange()) {
+                    this.coloniseBtn.classList.remove('disabled');
+                    this.coloniseBtn.title = '';
+                } else {
+                    this.coloniseBtn.classList.add('disabled');
+                    this.coloniseBtn.title = 'Ship with crew needs to be in range to set up a colony';
+                }
+            }
         } else {
             if (this.coloniseBtn) this.coloniseBtn.style.display = 'none';
         }
@@ -135,7 +140,7 @@ export class ColoniseUIComponent extends Component {
 
         const dx = shipTransform.x - planetTransform.x;
         const dy = shipTransform.y - planetTransform.y;
-        return Math.sqrt(dx * dx + dy * dy) <= COLONISE_RANGE;
+        return Math.sqrt(dx * dx + dy * dy) <= FOG_DETAIL_RADIUS;
     }
 
     private getGameMode(): GameModeComponent | null {

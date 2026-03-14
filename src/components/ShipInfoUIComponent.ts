@@ -1,20 +1,19 @@
 // ShipInfoUIComponent.ts — Ship info panel that slides in from the right.
 // Opens when the ship is selected (left-click), closes on deselection.
-// Manages three sub-views: ship overview, crew manifest, and crew detail.
-// Sibling components (CrewManifestUIComponent, CrewDetailUIComponent) read
-// activeView and selectedCrewEntityId to coordinate their display.
+// Shows ship overview with crew count, range, and buttons to open the
+// crew roster (TransferScreenComponent) or centre camera on ship.
 
 import './ShipInfoUIComponent.css';
 
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
-import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { MovementComponent } from './MovementComponent';
 import { TransformComponent } from './TransformComponent';
-import { COLONISE_RANGE } from '../data/constants';
+import { CameraComponent } from './CameraComponent';
+import { TransferScreenComponent } from './TransferScreenComponent';
+import { getCrewCounts } from '../utils/crewUtils';
 import type { World } from '../core/World';
-import type { EventQueue } from '../core/EventQueue';
 
 export type PanelView = 'overview' | 'manifest' | 'detail';
 
@@ -35,8 +34,6 @@ export class ShipInfoUIComponent extends Component {
     private rangeFill: HTMLElement | null = null;
     private rangeText: HTMLElement | null = null;
     private overviewSection: HTMLElement | null = null;
-    private coloniseBtn: HTMLElement | null = null;
-    private coloniseTooltip: HTMLElement | null = null;
 
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
@@ -92,20 +89,17 @@ export class ShipInfoUIComponent extends Component {
                     Extiris Slaver Vessel, designation unknown.
                     Captured during the Keth-7 exodus.
                 </div>
-                <div class="crew-count">
-                    <span class="crew-dot"></span>50 SOULS ABOARD
+                <div class="crew-count" id="ship-crew-count">
+                    <span class="crew-dot"></span>
                 </div>
                 <div class="ship-range-section">
                     <span class="ship-range-label">RANGE</span>
                     <div class="ship-range-bar"><div class="ship-range-fill" id="ship-range-fill"></div></div>
                     <span class="ship-range-text" id="ship-range-text">300 / 300</span>
                 </div>
-                <div style="margin-top:16px">
-                    <button class="hud-btn" id="ship-view-manifest-btn" type="button">VIEW MANIFEST</button>
-                </div>
-                <div id="ship-colonise-wrapper" style="margin-top:8px; position:relative">
-                    <button class="hud-btn" id="ship-colonise-btn" type="button">COLONISE</button>
-                    <div class="surface-tooltip" id="ship-colonise-tooltip" style="display:none">Ship must be closer to colonise</div>
+                <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px">
+                    <button class="hud-btn" id="ship-crew-roster-btn" type="button">CREW ROSTER</button>
+                    <button class="hud-btn" id="ship-centre-btn" type="button">CENTRE ON SHIP</button>
                 </div>
             </div>
             <div class="view-section" id="crew-manifest-section"></div>
@@ -132,38 +126,26 @@ export class ShipInfoUIComponent extends Component {
             }
         });
 
-        // VIEW MANIFEST button
-        const manifestBtn = document.getElementById('ship-view-manifest-btn');
-        manifestBtn?.addEventListener('click', () => {
-            this.activeView = 'manifest';
-        });
-
-        // COLONISE button — go to planet surface (guarded by disabled state)
-        this.coloniseBtn = document.getElementById('ship-colonise-btn');
-        this.coloniseTooltip = document.getElementById('ship-colonise-tooltip');
-        this.coloniseBtn?.addEventListener('click', () => {
-            if (this.coloniseBtn?.classList.contains('disabled')) return;
+        // CREW ROSTER button — opens transfer screen (on the HUD entity)
+        const crewRosterBtn = document.getElementById('ship-crew-roster-btn');
+        crewRosterBtn?.addEventListener('click', () => {
             const world = ServiceLocator.get<World>('world');
-            const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
-            const planet = world.getEntityByName('newTerra');
-            if (planet) {
-                eventQueue.emit({
-                    type: GameEvents.PLANET_VIEW_ENTER,
-                    entityId: planet.id,
-                });
+            const hud = world.getEntityByName('hud');
+            const transferScreen = hud?.getComponent(TransferScreenComponent);
+            if (transferScreen && !transferScreen.isOpen) {
+                transferScreen.open();
             }
         });
 
-        // Tooltip hover on wrapper
-        const coloniseWrapper = document.getElementById('ship-colonise-wrapper');
-        coloniseWrapper?.addEventListener('mouseenter', () => {
-            if (this.coloniseBtn?.classList.contains('disabled') && this.coloniseTooltip) {
-                this.coloniseTooltip.style.display = 'block';
-            }
-        });
-        coloniseWrapper?.addEventListener('mouseleave', () => {
-            if (this.coloniseTooltip) {
-                this.coloniseTooltip.style.display = 'none';
+        // CENTRE ON SHIP button
+        const centreBtn = document.getElementById('ship-centre-btn');
+        centreBtn?.addEventListener('click', () => {
+            const world = ServiceLocator.get<World>('world');
+            const shipTransform = this.entity.getComponent(TransformComponent);
+            const cameraEntity = world.getEntityByName('camera');
+            const camera = cameraEntity?.getComponent(CameraComponent);
+            if (shipTransform && camera) {
+                camera.panTo(shipTransform.x, shipTransform.y);
             }
         });
 
@@ -222,13 +204,19 @@ export class ShipInfoUIComponent extends Component {
             }
         }
 
-        // Update range display and colonise button when panel is open and on overview
+        // Update range display and crew count when panel is open and on overview
         if (this.panelOpen && this.activeView === 'overview') {
             const movement = this.entity.getComponent(MovementComponent);
             if (movement) {
                 this.updateRangeDisplay(movement.budgetRemaining, movement.budgetMax);
             }
-            this.updateColoniseButton();
+
+            const crewCountEl = document.getElementById('ship-crew-count');
+            if (crewCountEl) {
+                const world = ServiceLocator.get<World>('world');
+                const counts = getCrewCounts(world);
+                crewCountEl.innerHTML = `<span class="crew-dot"></span>${counts.ship} ABOARD / ${counts.colony} COLONISTS`;
+            }
         }
     }
 
@@ -265,34 +253,6 @@ export class ShipInfoUIComponent extends Component {
         if (ratio > 0.5) return '#44cc66';
         if (ratio > 0.25) return '#ccaa44';
         return '#cc4444';
-    }
-
-    private updateColoniseButton(): void {
-        if (!this.coloniseBtn) return;
-
-        const world = ServiceLocator.get<World>('world');
-        const planet = world.getEntityByName('newTerra');
-        if (!planet) {
-            this.coloniseBtn.classList.add('disabled');
-            return;
-        }
-
-        const shipTransform = this.entity.getComponent(TransformComponent);
-        const planetTransform = planet.getComponent(TransformComponent);
-        if (!shipTransform || !planetTransform) {
-            this.coloniseBtn.classList.add('disabled');
-            return;
-        }
-
-        const dx = shipTransform.x - planetTransform.x;
-        const dy = shipTransform.y - planetTransform.y;
-        const inRange = Math.sqrt(dx * dx + dy * dy) <= COLONISE_RANGE;
-
-        if (inRange) {
-            this.coloniseBtn.classList.remove('disabled');
-        } else {
-            this.coloniseBtn.classList.add('disabled');
-        }
     }
 
     private enterRenameMode(): void {

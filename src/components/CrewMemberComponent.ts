@@ -12,6 +12,10 @@ export interface Relationship {
 
 export type CrewRole = 'Engineer' | 'Soldier' | 'Medic' | 'Scientist' | 'Civilian';
 
+export type CrewLocation =
+    | { type: 'ship' }
+    | { type: 'colony'; regionId: number; planetEntityId: number };
+
 export type Trait =
     | 'Stubborn' | 'Empathetic' | 'Reckless' | 'Analytical'
     | 'Protective' | 'Haunted' | 'Resourceful' | 'Quiet'
@@ -24,6 +28,7 @@ export class CrewMemberComponent extends Component {
     morale: number;
     traits: [Trait, Trait];
     relationships: Relationship[];
+    location: CrewLocation;
 
     constructor(
         fullName: string,
@@ -39,5 +44,6 @@ export class CrewMemberComponent extends Component {
         this.morale = morale;
         this.traits = traits;
         this.relationships = [];
+        this.location = { type: 'ship' };
     }
 }
