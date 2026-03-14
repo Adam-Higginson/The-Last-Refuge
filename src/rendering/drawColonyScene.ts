@@ -34,45 +34,54 @@ export interface ColonySlotRect {
 interface BiomeVisuals {
     skyTop: string;
     skyBottom: string;
-    groundTile: string;
-    groundTileAlt: string;
-    groundStroke: string;
+    skyHaze: string;
+    groundBase: string;
+    groundDark: string;
+    groundLight: string;
     horizonFeature: 'mountains' | 'trees' | 'volcanoes' | 'none';
     starTint: string;
+    particleColour: string;
+    particleType: 'pollen' | 'snow' | 'embers' | 'fireflies';
+    dressing: 'grass' | 'ice' | 'ferns' | 'rocks';
 }
 
 const BIOME_VISUALS: Partial<Record<BiomeName, BiomeVisuals>> = {
     'Temperate Plains': {
-        skyTop: '#4a8ac0', skyBottom: '#c8d8e8',
-        groundTile: '#5a8a4a', groundTileAlt: '#4a7a3a',
-        groundStroke: 'rgba(0,0,0,0.08)',
+        skyTop: '#4a8ac0', skyBottom: '#c8d8e8', skyHaze: 'rgba(200,220,240,0.3)',
+        groundBase: '#4a7a3a', groundDark: '#3a6a2a', groundLight: '#5a8a4a',
         horizonFeature: 'trees', starTint: 'rgba(255, 220, 150, 0.25)',
+        particleColour: 'rgba(255,255,200,0.4)', particleType: 'pollen',
+        dressing: 'grass',
     },
     'Arctic Wastes': {
-        skyTop: '#5a7a90', skyBottom: '#b0c0d0',
-        groundTile: '#c0d0e0', groundTileAlt: '#b0c0d0',
-        groundStroke: 'rgba(0,0,0,0.05)',
+        skyTop: '#5a7a90', skyBottom: '#b0c0d0', skyHaze: 'rgba(200,210,220,0.4)',
+        groundBase: '#b8c8d8', groundDark: '#a0b0c0', groundLight: '#c8d8e8',
         horizonFeature: 'mountains', starTint: 'rgba(255, 240, 200, 0.15)',
+        particleColour: 'rgba(255,255,255,0.6)', particleType: 'snow',
+        dressing: 'ice',
     },
     'Dense Jungle': {
-        skyTop: '#3a6a5a', skyBottom: '#8aaa7a',
-        groundTile: '#3a6a2a', groundTileAlt: '#2a5a2a',
-        groundStroke: 'rgba(0,0,0,0.1)',
+        skyTop: '#3a6a5a', skyBottom: '#8aaa7a', skyHaze: 'rgba(100,150,100,0.3)',
+        groundBase: '#2a5a2a', groundDark: '#1a4a1a', groundLight: '#3a6a3a',
         horizonFeature: 'trees', starTint: 'rgba(255, 200, 100, 0.2)',
+        particleColour: 'rgba(150,255,100,0.3)', particleType: 'fireflies',
+        dressing: 'ferns',
     },
     'Volcanic Highlands': {
-        skyTop: '#4a2a1a', skyBottom: '#8a5a3a',
-        groundTile: '#4a3a2a', groundTileAlt: '#3a2a2a',
-        groundStroke: 'rgba(255,80,0,0.06)',
+        skyTop: '#4a2a1a', skyBottom: '#8a5a3a', skyHaze: 'rgba(100,50,20,0.3)',
+        groundBase: '#3a2a2a', groundDark: '#2a1a1a', groundLight: '#4a3a2a',
         horizonFeature: 'volcanoes', starTint: 'rgba(255, 150, 50, 0.3)',
+        particleColour: 'rgba(255,120,30,0.5)', particleType: 'embers',
+        dressing: 'rocks',
     },
 };
 
 const DEFAULT_VISUALS: BiomeVisuals = {
-    skyTop: '#4a8ac0', skyBottom: '#c8d8e8',
-    groundTile: '#5a8a4a', groundTileAlt: '#4a7a3a',
-    groundStroke: 'rgba(0,0,0,0.08)',
+    skyTop: '#4a8ac0', skyBottom: '#c8d8e8', skyHaze: 'rgba(200,220,240,0.3)',
+    groundBase: '#5a7a4a', groundDark: '#4a6a3a', groundLight: '#6a8a5a',
     horizonFeature: 'none', starTint: 'rgba(255, 220, 150, 0.2)',
+    particleColour: 'rgba(255,255,200,0.3)', particleType: 'pollen',
+    dressing: 'grass',
 };
 
 function getVisuals(biome: BiomeName): BiomeVisuals {
@@ -101,11 +110,15 @@ export function drawColonyScene(
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    drawSky(ctx, w, horizonY, visuals, t);
+    drawSky(ctx, w, h, horizonY, visuals, t);
     drawHorizonFeatures(ctx, w, horizonY, visuals, region.id);
-    drawIsometricGround(ctx, w, h, horizonY, visuals);
+    drawNaturalGround(ctx, w, h, horizonY, visuals, region.id);
+    drawGroundDressing(ctx, w, h, horizonY, visuals, region.id);
+    drawPaths(ctx, w, h, region);
     const slotRects = drawBuildingSlots(ctx, w, h, region, t);
+    drawBuildingShadows(ctx, region, slotRects);
     drawColonists(ctx, entity, region, slotRects, t);
+    drawAmbientParticles(ctx, w, h, visuals, t);
     drawColonyLabel(ctx, w, region);
 
     return slotRects;
@@ -116,27 +129,64 @@ export function drawColonyScene(
 function drawSky(
     ctx: CanvasRenderingContext2D,
     w: number,
+    h: number,
     horizonY: number,
     visuals: BiomeVisuals,
     t: number,
 ): void {
+    // Sky gradient
     const grad = ctx.createLinearGradient(0, 0, 0, horizonY);
     grad.addColorStop(0, visuals.skyTop);
-    grad.addColorStop(1, visuals.skyBottom);
+    grad.addColorStop(0.7, visuals.skyBottom);
+    grad.addColorStop(1, visuals.skyHaze);
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, horizonY);
+    ctx.fillRect(0, 0, w, horizonY + 10);
+
+    // Atmospheric haze near horizon
+    const hazeGrad = ctx.createLinearGradient(0, horizonY - h * 0.08, 0, horizonY + 10);
+    hazeGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    hazeGrad.addColorStop(1, visuals.skyHaze);
+    ctx.fillStyle = hazeGrad;
+    ctx.fillRect(0, horizonY - h * 0.08, w, h * 0.08 + 10);
 
     // Star glow
     const starX = w * 0.75;
-    const starY = horizonY * 0.6;
+    const starY = horizonY * 0.55;
     const pulse = 0.8 + 0.2 * Math.sin(t / 3000);
-    const starGrad = ctx.createRadialGradient(starX, starY, 0, starX, starY, w * 0.12);
-    starGrad.addColorStop(0, visuals.starTint.replace(/[\d.]+\)$/, `${(0.5 * pulse).toFixed(2)})`));
+    const r = w * 0.14;
+    const starGrad = ctx.createRadialGradient(starX, starY, 0, starX, starY, r);
+    starGrad.addColorStop(0, visuals.starTint.replace(/[\d.]+\)$/, `${(0.6 * pulse).toFixed(2)})`));
+    starGrad.addColorStop(0.3, visuals.starTint.replace(/[\d.]+\)$/, `${(0.3 * pulse).toFixed(2)})`));
     starGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = starGrad;
     ctx.beginPath();
-    ctx.arc(starX, starY, w * 0.12, 0, Math.PI * 2);
+    ctx.arc(starX, starY, r, 0, Math.PI * 2);
     ctx.fill();
+
+    // Drifting clouds
+    drawClouds(ctx, w, horizonY, t);
+}
+
+function drawClouds(ctx: CanvasRenderingContext2D, w: number, horizonY: number, t: number): void {
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+
+    for (let i = 0; i < 5; i++) {
+        const speed = 0.008 + i * 0.003;
+        const baseX = ((t * speed + i * w * 0.25) % (w + 200)) - 100;
+        const baseY = horizonY * (0.2 + i * 0.12);
+        const cloudW = 80 + i * 30;
+        const cloudH = 15 + i * 5;
+
+        // Cloud as overlapping ellipses
+        ctx.beginPath();
+        ctx.ellipse(baseX, baseY, cloudW, cloudH, 0, 0, Math.PI * 2);
+        ctx.ellipse(baseX + cloudW * 0.3, baseY - cloudH * 0.3, cloudW * 0.6, cloudH * 0.8, 0, 0, Math.PI * 2);
+        ctx.ellipse(baseX - cloudW * 0.2, baseY + cloudH * 0.2, cloudW * 0.5, cloudH * 0.7, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
 }
 
 // --- Horizon features ---
@@ -179,35 +229,222 @@ function drawHorizonFeatures(
     }
 }
 
-// --- Isometric ground ---
+// --- Natural ground (no checkerboard) ---
 
-function drawIsometricGround(
+function drawNaturalGround(
     ctx: CanvasRenderingContext2D,
     w: number,
     h: number,
     horizonY: number,
     visuals: BiomeVisuals,
+    seed: number,
 ): void {
-    // Fill below horizon with base ground colour
-    ctx.fillStyle = visuals.groundTile;
-    ctx.fillRect(0, horizonY, w, h - horizonY);
+    const terrainH = h - horizonY;
 
-    // Draw isometric grid tiles for the colony area
-    const centreX = w / 2;
-    const centreY = horizonY + (h - horizonY) * 0.35;
-    const gridSize = 5;
+    // Base gradient from horizon to bottom
+    const grad = ctx.createLinearGradient(0, horizonY, 0, h);
+    grad.addColorStop(0, visuals.groundLight);
+    grad.addColorStop(0.3, visuals.groundBase);
+    grad.addColorStop(1, visuals.groundDark);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, horizonY, w, terrainH);
 
-    for (let gy = -gridSize; gy <= gridSize; gy++) {
-        for (let gx = -gridSize; gx <= gridSize; gx++) {
-            const pos = gridToScreen(gx, gy, centreX, centreY);
-            // Only draw if on screen
-            if (pos.x < -TILE_WIDTH || pos.x > w + TILE_WIDTH) continue;
-            if (pos.y < horizonY - TILE_HEIGHT || pos.y > h + TILE_HEIGHT) continue;
+    // Organic noise patches for natural variation
+    ctx.save();
+    for (let i = 0; i < 20; i++) {
+        const patchSeed = seed * 13.7 + i * 7.3;
+        const px = (Math.sin(patchSeed) * 0.5 + 0.5) * w;
+        const py = horizonY + (Math.sin(patchSeed * 2.1) * 0.5 + 0.5) * terrainH;
+        const pr = 30 + Math.abs(Math.sin(patchSeed * 3.7)) * 80;
 
-            const colour = (gx + gy) % 2 === 0 ? visuals.groundTile : visuals.groundTileAlt;
-            drawIsometricTile(ctx, pos.x, pos.y, colour, visuals.groundStroke);
+        const patchGrad = ctx.createRadialGradient(px, py, 0, px, py, pr);
+        const isLight = i % 3 === 0;
+        patchGrad.addColorStop(0, isLight ? visuals.groundLight : visuals.groundDark);
+        patchGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalAlpha = 0.15;
+        ctx.fillStyle = patchGrad;
+        ctx.beginPath();
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+// --- Ground dressing (grass, rocks, ice, ferns) ---
+
+function drawGroundDressing(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    horizonY: number,
+    visuals: BiomeVisuals,
+    seed: number,
+): void {
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+
+    for (let i = 0; i < 40; i++) {
+        const ds = seed * 3.1 + i * 11.7;
+        const dx = (Math.sin(ds) * 0.5 + 0.5) * w;
+        const dy = horizonY + (Math.sin(ds * 1.7) * 0.5 + 0.5) * (h - horizonY) * 0.9;
+
+        if (visuals.dressing === 'grass') {
+            // Small grass tufts
+            ctx.strokeStyle = visuals.groundLight;
+            ctx.lineWidth = 1;
+            for (let j = 0; j < 3; j++) {
+                const gx = dx + (j - 1) * 3;
+                ctx.beginPath();
+                ctx.moveTo(gx, dy);
+                ctx.lineTo(gx + Math.sin(ds + j) * 3, dy - 4 - Math.random() * 4);
+                ctx.stroke();
+            }
+        } else if (visuals.dressing === 'rocks') {
+            // Small rocks
+            ctx.fillStyle = visuals.groundLight;
+            ctx.beginPath();
+            ctx.ellipse(dx, dy, 3 + Math.abs(Math.sin(ds)) * 4, 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (visuals.dressing === 'ice') {
+            // Ice crystals
+            ctx.fillStyle = 'rgba(200, 220, 255, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(dx, dy - 4);
+            ctx.lineTo(dx + 3, dy);
+            ctx.lineTo(dx, dy + 4);
+            ctx.lineTo(dx - 3, dy);
+            ctx.closePath();
+            ctx.fill();
+        } else if (visuals.dressing === 'ferns') {
+            // Small fern shapes
+            ctx.strokeStyle = '#2a8a2a';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(dx, dy);
+            ctx.lineTo(dx - 4, dy - 6);
+            ctx.moveTo(dx, dy);
+            ctx.lineTo(dx + 4, dy - 6);
+            ctx.moveTo(dx, dy - 2);
+            ctx.lineTo(dx, dy - 8);
+            ctx.stroke();
         }
     }
+    ctx.restore();
+}
+
+// --- Paths between buildings ---
+
+function drawPaths(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    region: Region,
+): void {
+    if (region.buildings.length < 2) return;
+
+    const horizonY = h * 0.35;
+    const centreX = w / 2;
+    const centreY = horizonY + (h - horizonY) * 0.35;
+    const gridPositions = getSlotGridPositions(region.buildingSlots);
+
+    ctx.save();
+    ctx.globalAlpha = 0.2;
+    ctx.strokeStyle = 'rgba(100, 80, 60, 0.8)';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+
+    // Connect occupied buildings with worn paths
+    const occupiedIndices = region.buildings.map(b => b.slotIndex);
+    for (let i = 0; i < occupiedIndices.length - 1; i++) {
+        const a = gridPositions[occupiedIndices[i]];
+        const b = gridPositions[occupiedIndices[i + 1]];
+        if (!a || !b) continue;
+
+        const posA = gridToScreen(a.gridX, a.gridY, centreX, centreY);
+        const posB = gridToScreen(b.gridX, b.gridY, centreX, centreY);
+
+        ctx.beginPath();
+        ctx.moveTo(posA.x, posA.y + TILE_HEIGHT * 0.3);
+        ctx.lineTo(posB.x, posB.y + TILE_HEIGHT * 0.3);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+// --- Building shadows ---
+
+function drawBuildingShadows(
+    ctx: CanvasRenderingContext2D,
+    _region: Region,
+    slotRects: ColonySlotRect[],
+): void {
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+
+    for (const rect of slotRects) {
+        if (!rect.occupied) continue;
+
+        // Shadow as a dark parallelogram offset to the right
+        const sx = rect.x + rect.width / 2;
+        const sy = rect.y + rect.height * 0.5;
+        const shadowW = TILE_WIDTH * 0.5;
+        const shadowH = TILE_HEIGHT * 0.3;
+
+        ctx.beginPath();
+        ctx.ellipse(sx + 15, sy + 10, shadowW, shadowH, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+// --- Ambient particles ---
+
+function drawAmbientParticles(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    visuals: BiomeVisuals,
+    t: number,
+): void {
+    ctx.save();
+    ctx.fillStyle = visuals.particleColour;
+
+    const count = 25;
+    for (let i = 0; i < count; i++) {
+        const seed = i * 7.13;
+        let px: number;
+        let py: number;
+        let size: number;
+
+        if (visuals.particleType === 'snow') {
+            // Falling snow
+            px = (Math.sin(seed) * 0.5 + 0.5) * w + Math.sin(t / 3000 + seed) * 20;
+            py = ((t / 4000 + seed * 0.3) % 1.2 - 0.1) * h;
+            size = 1.5 + Math.sin(seed * 2) * 1;
+        } else if (visuals.particleType === 'embers') {
+            // Rising embers
+            px = (Math.sin(seed * 1.3) * 0.5 + 0.5) * w + Math.sin(t / 1500 + seed) * 30;
+            py = h - ((t / 3000 + seed * 0.4) % 1.2) * h;
+            size = 1 + Math.sin(seed) * 1;
+        } else if (visuals.particleType === 'fireflies') {
+            // Glowing fireflies with erratic movement
+            px = (Math.sin(seed * 1.7) * 0.5 + 0.5) * w + Math.sin(t / 1000 + seed) * 40;
+            py = h * 0.4 + Math.sin(t / 1200 + seed * 2) * h * 0.25;
+            size = 1.5 + Math.sin(t / 500 + seed) * 0.5;
+            ctx.globalAlpha = 0.3 + Math.sin(t / 400 + seed * 3) * 0.3;
+        } else {
+            // Floating pollen
+            px = (Math.sin(seed) * 0.5 + 0.5) * w + Math.sin(t / 4000 + seed) * 30;
+            py = h * 0.3 + Math.sin(t / 3000 + seed * 1.5) * h * 0.2;
+            size = 1 + Math.sin(seed * 3) * 0.5;
+        }
+
+        ctx.beginPath();
+        ctx.arc(px, py, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
 }
 
 // --- Building slots ---
