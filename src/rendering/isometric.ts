@@ -1,8 +1,8 @@
 // isometric.ts — Isometric projection utilities for the colony scene.
 
-/** Tile dimensions for the isometric grid (zoomed in — surface-level feel). */
-export const TILE_WIDTH = 300;
-export const TILE_HEIGHT = 150;
+/** Tile dimensions for the isometric grid. */
+export const TILE_WIDTH = 200;
+export const TILE_HEIGHT = 100;
 
 /** Convert grid coordinates to screen coordinates. */
 export function gridToScreen(
