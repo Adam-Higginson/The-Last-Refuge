@@ -529,16 +529,19 @@ function drawNaturalGround(
     }
     ctx.restore();
 
-    // --- Worn earth patches (darker, irregularly shaped) ---
+    // --- Subtle shadow variation patches (very gentle) ---
     ctx.save();
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = '#3a3020';
     for (let i = 0; i < 6; i++) {
         const es = seed * 5.3 + i * 19.7;
         const ex = (Math.sin(es * 1.1) * 0.5 + 0.5) * w;
         const ey = horizonY + (0.3 + Math.sin(es * 1.7) * 0.25) * terrainH;
-        const ew = 20 + Math.abs(Math.sin(es * 2.3)) * 40;
+        const ew = 30 + Math.abs(Math.sin(es * 2.3)) * 50;
         const eh = ew * (0.3 + Math.sin(es) * 0.15);
+        const patchGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, ew);
+        patchGrad.addColorStop(0, 'rgba(40, 35, 25, 0.05)');
+        patchGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = patchGrad;
         ctx.beginPath();
         ctx.ellipse(ex, ey, ew, eh, Math.sin(es * 0.7) * 0.4, 0, Math.PI * 2);
         ctx.fill();
@@ -677,14 +680,6 @@ function drawGroundDressing(
             ctx.stroke();
         }
 
-        // Occasional wildflower
-        if (i % 18 === 0 && depthRatio > 0.3) {
-            ctx.fillStyle = i % 36 === 0 ? '#e8d040' : '#d060a0';
-            const flowerSize = 1.5 * scale;
-            ctx.beginPath();
-            ctx.arc(dx + sway * 0.5, dy - 7 * scale, flowerSize, 0, Math.PI * 2);
-            ctx.fill();
-        }
     }
 
     // --- Foreground grass (bottom edge, tallest, most detailed) ---
