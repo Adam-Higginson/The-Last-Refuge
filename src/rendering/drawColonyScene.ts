@@ -9,6 +9,7 @@ import { getCrewAtColony } from '../utils/crewUtils';
 import { drawBuilding } from './colonyBuildingSprites';
 import { drawSettlementProps, drawMicroDetails } from './colonyProps';
 import { drawParticles } from './colonyParticles';
+import { drawCrewSprites } from './colonyCrewSprites';
 import { advanceClock, getDayNightState, setGameHour, getGameHour } from './colonyDayNight';
 import { advanceWeather, drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
 import type { WeatherInfo } from './colonyWeather';
@@ -157,7 +158,7 @@ export function drawColonyScene(
     drawBuildingShadows(ctx, region, slotRects, dayNight);
     drawMicroDetails(ctx, w, h, region, t);
     drawSettlementProps(ctx, region, slotRects, t);
-    drawColonists(ctx, entity, region, slotRects, t);
+    drawCrewOnSurface(ctx, entity, region, slotRects, t, dtSeconds);
     drawParticles(ctx, dtSeconds);
     drawAmbientParticles(ctx, w, h, visuals, t);
     drawAmbientOverlay(ctx, w, h, dayNight);
@@ -891,67 +892,29 @@ function drawBuildingSlots(
 
 // --- Colonists ---
 
-function drawColonists(
+/** Gather crew data and draw walking sprite figures. */
+function drawCrewOnSurface(
     ctx: CanvasRenderingContext2D,
     entity: Entity,
     region: Region,
     slotRects: ColonySlotRect[],
     t: number,
+    dtSeconds: number,
 ): void {
     const world = ServiceLocator.get<World>('world');
     const crew = getCrewAtColony(world, entity.id, region.id);
     if (crew.length === 0) return;
 
-    const ROLE_COLOURS: Record<string, string> = {
-        Soldier: '#4fa8ff',
-        Civilian: '#66bb6a',
-        Engineer: '#c0c8d8',
-        Medic: '#ef5350',
-        Scientist: '#ffca28',
-    };
+    const crewData = crew.map(e => {
+        const c = e.getComponent(CrewMemberComponent);
+        return {
+            id: e.id,
+            role: c?.role ?? 'Civilian',
+            isLeader: c?.isLeader ?? false,
+        };
+    });
 
-    for (let i = 0; i < crew.length; i++) {
-        const crewComp = crew[i].getComponent(CrewMemberComponent);
-        if (!crewComp) continue;
-
-        // Wander near occupied buildings
-        const occupiedSlots = slotRects.filter(s => s.occupied);
-        const targetSlot = occupiedSlots.length > 0
-            ? occupiedSlots[i % occupiedSlots.length]
-            : slotRects[i % slotRects.length];
-
-        if (!targetSlot) continue;
-
-        const slotCentreX = targetSlot.x + targetSlot.width / 2;
-        const slotCentreY = targetSlot.y + targetSlot.height * 0.6;
-        const wanderX = Math.sin(t / 2000 + i * 1.7) * TILE_WIDTH * 0.3;
-        const wanderY = Math.sin(t / 2500 + i * 2.3) * TILE_HEIGHT * 0.2;
-        const dotX = slotCentreX + wanderX;
-        const dotY = slotCentreY + wanderY + 15;
-
-        const colour = ROLE_COLOURS[crewComp.role] ?? '#c0c8d8';
-        const r = crewComp.isLeader ? 4 : 2.5;
-
-        // Shadow
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-        ctx.beginPath();
-        ctx.ellipse(dotX, dotY + r, r * 0.8, r * 0.3, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Dot
-        ctx.fillStyle = colour;
-        ctx.beginPath();
-        ctx.arc(dotX, dotY, r, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Leader star
-        if (crewComp.isLeader) {
-            ctx.fillStyle = '#d4a020';
-            ctx.font = '8px "Share Tech Mono"';
-            ctx.textAlign = 'center';
-            ctx.fillText('★', dotX, dotY - 7);
-        }
-    }
+    drawCrewSprites(ctx, crewData, slotRects, t, dtSeconds);
 }
 
 // --- Colony label ---
