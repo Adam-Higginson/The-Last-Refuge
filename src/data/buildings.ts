@@ -1,6 +1,7 @@
 // buildings.ts — Static building type definitions for habitable planet colonies.
 
 import type { CrewRole } from '../components/CrewMemberComponent';
+import type { HabitableBiomeName } from './biomes';
 import type { ResourceType } from './resources';
 
 export type BuildingId =
@@ -165,7 +166,7 @@ export interface BuildingInstance {
 }
 
 /** Default building slots by biome type. */
-export const BUILDING_SLOTS_BY_BIOME: Record<string, number> = {
+export const BUILDING_SLOTS_BY_BIOME: Record<HabitableBiomeName, number> = {
     'Temperate Plains': 6,
     'Arctic Wastes': 4,
     'Dense Jungle': 5,

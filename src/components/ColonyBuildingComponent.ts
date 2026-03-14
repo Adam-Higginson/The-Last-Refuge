@@ -1,6 +1,7 @@
 // ColonyBuildingComponent.ts — Manages colony buildings on a planet entity.
-// Progresses construction on TURN_END, registers resource modifiers for
-// active buildings, and handles staffing calculations.
+// Progresses construction on TURN_ADVANCE (before resource resolution on TURN_END),
+// registers resource modifiers for active buildings, and handles staffing.
+// Uses TURN_ADVANCE to ensure modifiers are ready before ResourceComponent resolves.
 
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
@@ -22,10 +23,37 @@ export class ColonyBuildingComponent extends Component {
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
 
+        // Subscribe to TURN_ADVANCE (not TURN_END) so buildings process
+        // before ResourceComponent resolves on TURN_END
         this.turnEndHandler = (): void => {
             this.processTurn();
         };
-        this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
+        this.eventQueue.on(GameEvents.TURN_ADVANCE, this.turnEndHandler);
+    }
+
+    /** Add a pre-completed building (e.g. auto-shelter on colonise). */
+    addCompletedBuilding(regionId: number, buildingId: BuildingId): boolean {
+        const regionData = this.entity.getComponent(RegionDataComponent);
+        if (!regionData) return false;
+
+        const region = regionData.regions.find(r => r.id === regionId);
+        if (!region) return false;
+
+        const slotIndex = this.getNextSlotIndex(region);
+        const building: BuildingInstance = {
+            typeId: buildingId,
+            slotIndex,
+            state: 'active',
+            turnsRemaining: 0,
+            modifierIds: [],
+        };
+
+        region.buildings.push(building);
+
+        const world = ServiceLocator.get<World>('world');
+        this.activateBuilding(building, regionId, world);
+
+        return true;
     }
 
     /** Start construction of a building in a region. Returns true if successful. */
@@ -51,8 +79,8 @@ export class ColonyBuildingComponent extends Component {
         // Deduct cost
         resources.deduct('materials', buildingType.materialCost);
 
-        // Create building instance
-        const slotIndex = region.buildings.length;
+        // Create building instance with unique slot index
+        const slotIndex = this.getNextSlotIndex(region);
         const building: BuildingInstance = {
             typeId: buildingId,
             slotIndex,
@@ -91,7 +119,7 @@ export class ColonyBuildingComponent extends Component {
 
     destroy(): void {
         if (this.eventQueue && this.turnEndHandler) {
-            this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
+            this.eventQueue.off(GameEvents.TURN_ADVANCE, this.turnEndHandler);
         }
     }
 
@@ -172,11 +200,13 @@ export class ColonyBuildingComponent extends Component {
             resources.removeModifier(modId);
         }
 
-        // Reverse storage cap increases
-        const buildingType = getBuildingType(building.typeId);
-        for (const effect of buildingType.effects) {
-            if (effect.type === 'storage_cap' && effect.resource) {
-                resources.resources[effect.resource].cap -= effect.amount;
+        // Reverse storage cap increases (only if building was active — caps only added on activation)
+        if (building.state === 'active') {
+            const buildingType = getBuildingType(building.typeId);
+            for (const effect of buildingType.effects) {
+                if (effect.type === 'storage_cap' && effect.resource) {
+                    resources.resources[effect.resource].cap -= effect.amount;
+                }
             }
         }
 
@@ -191,6 +221,9 @@ export class ColonyBuildingComponent extends Component {
         const resources = gameState?.getComponent(ResourceComponent);
         if (!resources) return;
 
+        // Shared pool staffing: all workers of a role are pooled across all buildings.
+        // If 3 Engineers serve 2 buildings (each needing 2), each operates at 75%.
+        // This avoids per-building crew assignment UI (deferred to Step 5 Colony View).
         // Count available workers of the required role at this colony (excluding leaders)
         const colonyCrew = getCrewAtColony(world, this.entity.id, regionId);
         const requiredRole = buildingType.workers.role;
@@ -222,12 +255,7 @@ export class ColonyBuildingComponent extends Component {
         for (const effect of buildingType.effects) {
             if (effect.type === 'production' && effect.resource) {
                 const modId = `${baseId}:${effect.resource}`;
-                // Update the modifier amount scaled by staffing ratio
-                const existingMod = resources.getModifiers(effect.resource).find(m => m.id === modId);
-                if (existingMod) {
-                    // Cast away readonly to update amount (modifiers are owned by ResourceComponent)
-                    (existingMod as { amount: number }).amount = Math.round(effect.amount * ratio);
-                }
+                resources.updateModifierAmount(modId, Math.round(effect.amount * ratio));
             }
         }
     }
@@ -254,5 +282,11 @@ export class ColonyBuildingComponent extends Component {
         }
 
         return totalRequired > 0 ? Math.min(1, available / totalRequired) : 1;
+    }
+
+    /** Get a unique slot index for a region (monotonically increasing). */
+    private getNextSlotIndex(region: { buildings: BuildingInstance[] }): number {
+        if (region.buildings.length === 0) return 0;
+        return Math.max(...region.buildings.map(b => b.slotIndex)) + 1;
     }
 }

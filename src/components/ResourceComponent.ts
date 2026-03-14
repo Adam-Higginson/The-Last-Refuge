@@ -88,6 +88,12 @@ export class ResourceComponent extends Component {
         if (idx !== -1) this.modifiers.splice(idx, 1);
     }
 
+    /** Update the amount of an existing modifier by ID. */
+    updateModifierAmount(id: string, amount: number): void {
+        const mod = this.modifiers.find(m => m.id === id);
+        if (mod) mod.amount = amount;
+    }
+
     /** Get all modifiers for a given resource. */
     getModifiers(resource: ResourceType): readonly ResourceModifier[] {
         return this.modifiers.filter(m => m.resource === resource);

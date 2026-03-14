@@ -171,3 +171,15 @@ export interface CaptainAppointedEvent extends GameEvent {
 export interface CaptainRemovedEvent extends GameEvent {
     type: typeof GameEvents.CAPTAIN_REMOVED;
 }
+
+export interface BuildingStartedEvent extends GameEvent {
+    type: typeof GameEvents.BUILDING_STARTED;
+}
+
+export interface BuildingCompletedEvent extends GameEvent {
+    type: typeof GameEvents.BUILDING_COMPLETED;
+}
+
+export interface BuildingDemolishedEvent extends GameEvent {
+    type: typeof GameEvents.BUILDING_DEMOLISHED;
+}
