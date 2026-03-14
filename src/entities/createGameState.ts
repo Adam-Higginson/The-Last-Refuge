@@ -4,6 +4,7 @@
 
 import { GameModeComponent } from '../components/GameModeComponent';
 import { PlanetViewTransitionComponent } from '../components/PlanetViewTransitionComponent';
+import { FogOfWarComponent } from '../components/FogOfWarComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -11,5 +12,6 @@ export function createGameState(world: World): Entity {
     const entity = world.createEntity('gameState');
     entity.addComponent(new GameModeComponent());
     entity.addComponent(new PlanetViewTransitionComponent());
+    entity.addComponent(new FogOfWarComponent());
     return entity;
 }

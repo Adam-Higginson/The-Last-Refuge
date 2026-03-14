@@ -263,10 +263,12 @@ On "END TURN":
 
 ### Step 6: Polish & Tuning
 - Tune zoom limits, pan bounds, movement budget
-- Scan radius visualisation on selected ship
+- Scan radius visualisation on selected ship (faint concentric circles showing detail/blip radii)
 - "CENTRE ON SHIP" HUD button
 - Visual verification at multiple viewport sizes
 - Performance testing with fog overlay
+- Last known position tracking for revealed planets (show stale positions when ship moves away, with "LAST KNOWN POSITION" label)
+- Consolidate fog zone lookup helpers (currently duplicated between createPlanet.ts and InputSystem.ts)
 
 ---
 

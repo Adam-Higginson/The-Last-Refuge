@@ -11,6 +11,8 @@ import { SelectableComponent } from '../components/SelectableComponent';
 import { RegionDataComponent } from '../components/RegionDataComponent';
 import { PlanetDataComponent } from '../components/PlanetDataComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
+import { CameraComponent } from '../components/CameraComponent';
+import { FogOfWarComponent } from '../components/FogOfWarComponent';
 import { PlanetViewInputComponent } from '../components/PlanetViewInputComponent';
 import { ColoniseUIComponent } from '../components/ColoniseUIComponent';
 import { PlanetInfoUIComponent } from '../components/PlanetInfoUIComponent';
@@ -19,6 +21,7 @@ import { assignBiomes } from '../data/biomes';
 import { polygonCentroid } from '../utils/geometry';
 import { mulberry32 } from '../utils/prng';
 import type { PlanetConfig } from '../data/planets';
+import type { EntityZone } from '../components/FogOfWarComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -710,6 +713,101 @@ function drawTransitionToSystem(
 }
 
 // ---------------------------------------------------------------------------
+// Planet name label (system view)
+// ---------------------------------------------------------------------------
+
+function drawPlanetLabel(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    radius: number,
+    displayName: string,
+    zone: EntityZone,
+): void {
+    if (zone === 'hidden') return;
+
+    const world = ServiceLocator.get<World>('world');
+    const cameraEntity = world.getEntityByName('camera');
+    const camera = cameraEntity?.getComponent(CameraComponent);
+
+    // Consistent screen-space font size regardless of zoom
+    const fontSize = camera ? 12 / camera.scale : 12;
+    const alpha = zone === 'active' ? 0.8 : 0.4;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#c0c8d8';
+    ctx.font = `${fontSize}px "Share Tech Mono", "Courier New", monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(displayName.toUpperCase(), x, y + radius + fontSize * 1.5);
+    ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+// Blip rendering (simplified dot + label for entities in the blip zone)
+// ---------------------------------------------------------------------------
+
+function drawBlip(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    colour: string,
+    displayName: string,
+): void {
+    const world = ServiceLocator.get<World>('world');
+    const cameraEntity = world.getEntityByName('camera');
+    const camera = cameraEntity?.getComponent(CameraComponent);
+    const dotR = camera ? 6 / camera.scale : 6;
+    const fontSize = camera ? 11 / camera.scale : 11;
+
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+
+    // Coloured dot
+    ctx.fillStyle = colour;
+    ctx.beginPath();
+    ctx.arc(x, y, dotR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glow
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, dotR * 3);
+    glow.addColorStop(0, colour);
+    glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, dotR * 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Label
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = '#c0c8d8';
+    ctx.font = `${fontSize}px "Share Tech Mono", "Courier New", monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(displayName.toUpperCase(), x, y + dotR * 2 + fontSize);
+
+    ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+// Fog zone helper
+// ---------------------------------------------------------------------------
+
+function getPlanetZone(entity: Entity): EntityZone {
+    const world = ServiceLocator.get<World>('world');
+    const gameState = world.getEntityByName('gameState');
+    const fog = gameState?.getComponent(FogOfWarComponent);
+    if (!fog) return 'active'; // no fog = full visibility
+
+    const ship = world.getEntityByName('arkSalvage');
+    const shipTransform = ship?.getComponent(TransformComponent);
+    const planetTransform = entity.getComponent(TransformComponent);
+    if (!shipTransform || !planetTransform) return 'hidden';
+
+    return fog.getEntityZone(planetTransform.x, planetTransform.y, shipTransform.x, shipTransform.y);
+}
+
+// ---------------------------------------------------------------------------
 // Mode-aware draw dispatcher
 // ---------------------------------------------------------------------------
 
@@ -730,11 +828,43 @@ function drawPlanetDispatch(
     const isViewedPlanet = gameMode?.planetEntityId === entity.id;
 
     if (!gameMode || gameMode.mode === 'system') {
+        // Check fog zone for system view
+        const zone = getPlanetZone(entity);
+
+        if (zone === 'hidden') {
+            // Check if cell is revealed (dimmed rendering)
+            const fog = gameState?.getComponent(FogOfWarComponent);
+            const planetTransform = entity.getComponent(TransformComponent);
+            if (fog && planetTransform) {
+                const vis = fog.getVisibilityAtWorld(planetTransform.x, planetTransform.y);
+                if (vis > 0) {
+                    // Revealed but outside scan range — draw dimmed
+                    ctx.save();
+                    ctx.globalAlpha = 0.3;
+                    if (config.type === 'rocky') {
+                        drawRockyGlobe(entity, ctx, x, y, config);
+                    } else {
+                        drawGasGiantGlobe(entity, ctx, x, y, config);
+                    }
+                    ctx.restore();
+                    drawPlanetLabel(ctx, x, y, config.radius, config.displayName, 'blip');
+                }
+            }
+            return;
+        }
+
+        if (zone === 'blip') {
+            drawBlip(ctx, x, y, config.palette.body, config.displayName);
+            return;
+        }
+
+        // Active zone — full rendering + label
         if (config.type === 'rocky') {
             drawRockyGlobe(entity, ctx, x, y, config);
         } else {
             drawGasGiantGlobe(entity, ctx, x, y, config);
         }
+        drawPlanetLabel(ctx, x, y, config.radius, config.displayName, zone);
     } else if (gameMode.mode === 'planet' && isViewedPlanet) {
         if (config.type === 'rocky') {
             drawPlanetSurface(entity, ctx);
