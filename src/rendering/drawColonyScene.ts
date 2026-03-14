@@ -133,7 +133,7 @@ export function drawColonyScene(
     const h = canvas.height;
     const t = performance.now();
     const visuals = getVisuals(region.biome);
-    const horizonY = h * 0.35;
+    const horizonY = h * 0.25;
 
     // Compute frame delta and advance systems
     const now = performance.now();
@@ -632,9 +632,9 @@ function drawPaths(
 ): void {
     if (region.buildings.length < 1) return;
 
-    const horizonY = h * 0.35;
+    const horizonY = h * 0.25;
     const centreX = w / 2;
-    const centreY = horizonY + (h - horizonY) * 0.35;
+    const centreY = horizonY + (h - horizonY) * 0.45;
     const gridPositions = getSlotGridPositions(region.buildingSlots);
 
     const occupiedIndices = region.buildings.map(b => b.slotIndex);
@@ -835,9 +835,9 @@ function drawBuildingSlots(
     const totalSlots = region.buildingSlots;
     if (totalSlots === 0) return slotRects;
 
-    const horizonY = h * 0.35;
+    const horizonY = h * 0.25;
     const centreX = w / 2;
-    const centreY = horizonY + (h - horizonY) * 0.35;
+    const centreY = horizonY + (h - horizonY) * 0.45;
 
     const gridPositions = getSlotGridPositions(totalSlots);
 
