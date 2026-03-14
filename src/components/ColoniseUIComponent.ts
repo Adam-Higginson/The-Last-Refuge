@@ -13,7 +13,7 @@ import { RegionDataComponent } from './RegionDataComponent';
 import { PlanetViewInputComponent } from './PlanetViewInputComponent';
 import { TransformComponent } from './TransformComponent';
 import type { EventQueue } from '../core/EventQueue';
-import { COLONISE_RANGE } from '../data/constants';
+import { FOG_DETAIL_RADIUS } from '../data/constants';
 import type { World } from '../core/World';
 
 export class ColoniseUIComponent extends Component {
@@ -140,7 +140,7 @@ export class ColoniseUIComponent extends Component {
 
         const dx = shipTransform.x - planetTransform.x;
         const dy = shipTransform.y - planetTransform.y;
-        return Math.sqrt(dx * dx + dy * dy) <= COLONISE_RANGE;
+        return Math.sqrt(dx * dx + dy * dy) <= FOG_DETAIL_RADIUS;
     }
 
     private getGameMode(): GameModeComponent | null {
