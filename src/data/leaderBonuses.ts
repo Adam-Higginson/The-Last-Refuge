@@ -60,7 +60,7 @@ export const LEADER_TRAIT_BONUSES: Partial<Record<Trait, LeaderBonus>> = {
     },
     Stubborn: {
         moraleBonus: -5,
-        description: '+10 morale in crisis, -5 normally',
+        description: '+10 morale in crisis, -5 morale normally',
     },
     Haunted: {
         moraleBonus: -5,
@@ -89,18 +89,36 @@ export const COLONY_ROLE_DESCRIPTIONS: Record<CrewRole, string> = {
     Civilian: 'Operates Farms and basic buildings.',
 };
 
-/** Get all bonus descriptions for a crew member if they were leader. */
-export function getLeaderBonusDescriptions(role: CrewRole, traits: readonly Trait[]): string[] {
-    const descriptions: string[] = [];
+export interface BonusLine {
+    text: string;
+    sentiment: 'positive' | 'negative' | 'neutral';
+}
+
+/** Get all bonus lines for a crew member if they were leader. */
+export function getLeaderBonusLines(role: CrewRole, traits: readonly Trait[]): BonusLine[] {
+    const lines: BonusLine[] = [];
     const roleBonus = LEADER_ROLE_BONUSES[role];
-    descriptions.push(`${roleBonus.description} (${role})`);
+
+    // Parse role bonus description into sentiment-tagged lines
+    for (const part of roleBonus.description.split(', ')) {
+        lines.push({
+            text: `${part} (${role})`,
+            sentiment: part.startsWith('-') ? 'negative' : 'positive',
+        });
+    }
 
     for (const trait of traits) {
         const traitBonus = LEADER_TRAIT_BONUSES[trait];
         if (traitBonus) {
-            descriptions.push(`${traitBonus.description} (${trait})`);
+            // Split compound descriptions (e.g. Stubborn) into separate lines
+            for (const part of traitBonus.description.split(', ')) {
+                lines.push({
+                    text: `${part} (${trait})`,
+                    sentiment: part.startsWith('-') ? 'negative' : part.startsWith('+') ? 'positive' : 'neutral',
+                });
+            }
         }
     }
 
-    return descriptions;
+    return lines;
 }

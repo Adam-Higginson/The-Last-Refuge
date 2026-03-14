@@ -25,7 +25,7 @@ import {
     removeLeader,
     removeCaptain,
 } from '../utils/leaderUtils';
-import { getLeaderBonusDescriptions } from '../data/leaderBonuses';
+import { getLeaderBonusLines } from '../data/leaderBonuses';
 import { FOOD_PER_PERSON } from '../data/resources';
 import type { CrewLocation, CrewRole } from './CrewMemberComponent';
 import type { EventQueue } from '../core/EventQueue';
@@ -333,30 +333,30 @@ export class TransferScreenComponent extends Component {
         ];
 
         // Leader/captain bonuses
-        const bonusDescriptions = getLeaderBonusDescriptions(c.role, c.traits);
+        const bonusLines = getLeaderBonusLines(c.role, c.traits);
         let leaderSection: string;
+
+        const renderBonusLines = (prefix: string, cssBase: string): string =>
+            bonusLines.map(line => {
+                const cls = line.sentiment === 'negative' ? 'negative' : line.sentiment === 'positive' ? cssBase : '';
+                return `<div class="detail-bonus ${cls}">${prefix} ${line.text}</div>`;
+            }).join('');
 
         if (c.isLeader) {
             leaderSection = `
                 <div class="detail-section-title">LEADER BONUSES (ACTIVE)</div>
-                <div class="detail-bonus-list">
-                    ${bonusDescriptions.map(d => `<div class="detail-bonus active">✓ ${d}</div>`).join('')}
-                </div>
+                <div class="detail-bonus-list">${renderBonusLines('✓', 'active')}</div>
             `;
         } else if (c.isCaptain) {
             leaderSection = `
                 <div class="detail-section-title">CAPTAIN BONUSES (ACTIVE)</div>
-                <div class="detail-bonus-list">
-                    ${bonusDescriptions.map(d => `<div class="detail-bonus active">✓ ${d}</div>`).join('')}
-                </div>
+                <div class="detail-bonus-list">${renderBonusLines('✓', 'active')}</div>
             `;
         } else {
             const appointLabel = c.location.type === 'ship' ? 'CAPTAIN' : 'LEADER';
             leaderSection = `
                 <div class="detail-section-title">IF APPOINTED AS ${appointLabel}</div>
-                <div class="detail-bonus-list">
-                    ${bonusDescriptions.map(d => `<div class="detail-bonus potential">→ ${d}</div>`).join('')}
-                </div>
+                <div class="detail-bonus-list">${renderBonusLines('→', 'potential')}</div>
                 <button class="hud-btn" id="detail-appoint-btn" type="button" style="margin-top:8px">
                     APPOINT AS ${appointLabel}
                 </button>
@@ -393,7 +393,7 @@ export class TransferScreenComponent extends Component {
                 </div>
                 <div class="detail-section-title">CONTRIBUTIONS</div>
                 <div class="detail-bonus-list">
-                    ${contributions.map(d => `<div class="detail-bonus">${d}</div>`).join('')}
+                    ${contributions.map(d => `<div class="detail-bonus negative">${d}</div>`).join('')}
                 </div>
                 ${leaderSection}
                 ${c.relationships.length > 0 ? `

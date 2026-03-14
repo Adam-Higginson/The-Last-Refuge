@@ -399,8 +399,13 @@
     color: #66bb6a;
 }
 
+.detail-bonus.negative {
+    opacity: 0.8;
+    color: #ef5350;
+}
+
 .detail-bonus.potential {
-    opacity: 0.5;
+    opacity: 0.6;
     color: #c0c8d8;
     font-style: italic;
 }
