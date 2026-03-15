@@ -949,25 +949,41 @@ function drawMidgroundScenery(
         const rw = (8 + Math.abs(Math.sin(rs * 1.5)) * 10) * scale;
         const rh = rw * (0.45 + Math.sin(rs) * 0.1);
 
-        // Rock body
+        const rockAngle = Math.sin(rs * 0.5) * 0.2;
+
+        // Shadow on ground beneath rock
+        ctx.globalAlpha = isNight ? 0.04 : 0.1;
+        ctx.fillStyle = '#1a1a10';
+        ctx.beginPath();
+        ctx.ellipse(rx + rw * 0.15, ry + rh * 0.4, rw * 0.9, rh * 0.3, rockAngle, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dark face (shadow side — right/bottom)
+        ctx.globalAlpha = isNight ? 0.3 : 0.55;
+        ctx.fillStyle = isNight ? '#1a1a18' : '#4a4238';
+        ctx.beginPath();
+        ctx.ellipse(rx + rw * 0.08, ry + rh * 0.05, rw * 0.85, rh * 0.9, rockAngle, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Main body (mid tone)
         ctx.globalAlpha = isNight ? 0.3 : 0.6;
         ctx.fillStyle = isNight ? '#2a2a28' : '#6a6258';
         ctx.beginPath();
-        ctx.ellipse(rx, ry, rw, rh, Math.sin(rs * 0.5) * 0.2, 0, Math.PI * 2);
+        ctx.ellipse(rx, ry, rw * 0.9, rh * 0.85, rockAngle, 0, Math.PI * 2);
         ctx.fill();
 
-        // Highlight on top
-        ctx.globalAlpha = isNight ? 0.03 : 0.08;
-        ctx.fillStyle = '#aaa89a';
+        // Light face (sun side — left/top)
+        ctx.globalAlpha = isNight ? 0.08 : 0.25;
+        ctx.fillStyle = isNight ? '#3a3a38' : '#9a9488';
         ctx.beginPath();
-        ctx.ellipse(rx - rw * 0.15, ry - rh * 0.35, rw * 0.55, rh * 0.3, 0, 0, Math.PI * 2);
+        ctx.ellipse(rx - rw * 0.15, ry - rh * 0.2, rw * 0.55, rh * 0.45, rockAngle - 0.1, 0, Math.PI * 2);
         ctx.fill();
 
-        // Shadow
-        ctx.globalAlpha = isNight ? 0.03 : 0.06;
-        ctx.fillStyle = '#1a1a10';
+        // Specular highlight (small bright spot)
+        ctx.globalAlpha = isNight ? 0.02 : 0.1;
+        ctx.fillStyle = '#c8c0b0';
         ctx.beginPath();
-        ctx.ellipse(rx + rw * 0.3, ry + rh * 0.3, rw * 0.7, rh * 0.2, 0.2, 0, Math.PI * 2);
+        ctx.ellipse(rx - rw * 0.2, ry - rh * 0.3, rw * 0.2, rh * 0.15, 0, 0, Math.PI * 2);
         ctx.fill();
     }
 
