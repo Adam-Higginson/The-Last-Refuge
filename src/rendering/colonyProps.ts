@@ -43,8 +43,8 @@ export function drawSettlementProps(
                 drawAnvil(ctx, cx - 20, cy + 10, seed + 1);
                 break;
             case 'shelter':
-                drawCampfire(ctx, cx - 25, cy + 12, t, isNight);
-                drawSupplyCrate(ctx, cx + 28, cy + 6, seed);
+                drawCampfire(ctx, cx - 45, cy + 25, t, isNight);
+                drawSupplyCrate(ctx, cx + 40, cy + 15, seed);
                 break;
             case 'farm':
                 drawWaterTrough(ctx, cx + 30, cy + 5, seed);
@@ -248,50 +248,67 @@ function drawCampfire(
 ): void {
     ctx.save();
 
-    // Stone ring
+    // Small log pile
     ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#3a2a18';
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-0.3);
+    ctx.fillRect(-4, -1, 8, 2);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(0.4);
+    ctx.fillRect(-4, -1, 8, 2);
+    ctx.restore();
+
+    // Stone ring
+    ctx.globalAlpha = 0.4;
     ctx.fillStyle = '#5a5a5a';
-    for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2;
-        const rx = x + Math.cos(angle) * 7;
-        const ry = y + Math.sin(angle) * 3;
+    for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const rx = x + Math.cos(angle) * 5;
+        const ry = y + Math.sin(angle) * 2.5;
         ctx.beginPath();
-        ctx.arc(rx, ry, 2, 0, Math.PI * 2);
+        ctx.arc(rx, ry, 1.5, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // Fire (flickering)
+    // Flame — two layers
     const flicker1 = 0.6 + 0.4 * Math.sin(t / 150 + Math.sin(t / 400) * 2);
     const flicker2 = 0.5 + 0.5 * Math.sin(t / 200 + 1);
-    const intensity = isNight ? 1 : 0.5;
+    const intensity = isNight ? 0.9 : 0.4;
 
+    // Outer flame (orange)
     ctx.globalAlpha = intensity * flicker1;
-    ctx.fillStyle = 'rgba(255, 140, 30, 0.8)';
+    ctx.fillStyle = 'rgba(255, 140, 30, 0.7)';
     ctx.beginPath();
-    ctx.moveTo(x - 3, y);
-    ctx.quadraticCurveTo(x, y - 8 * flicker2, x + 1, y);
+    ctx.moveTo(x - 2.5, y);
+    ctx.quadraticCurveTo(x - 1, y - 6 * flicker2, x, y - 7 * flicker2);
+    ctx.quadraticCurveTo(x + 1, y - 6 * flicker2, x + 2.5, y);
     ctx.closePath();
     ctx.fill();
 
-    ctx.globalAlpha = intensity * flicker2 * 0.7;
-    ctx.fillStyle = 'rgba(255, 80, 20, 0.6)';
+    // Inner flame (yellow)
+    ctx.globalAlpha = intensity * flicker2 * 0.8;
+    ctx.fillStyle = 'rgba(255, 220, 80, 0.6)';
     ctx.beginPath();
-    ctx.moveTo(x - 2, y);
-    ctx.quadraticCurveTo(x + 1, y - 6 * flicker1, x + 2, y);
+    ctx.moveTo(x - 1.5, y);
+    ctx.quadraticCurveTo(x, y - 4 * flicker1, x + 1.5, y);
     ctx.closePath();
     ctx.fill();
 
-    // Light pool on ground
-    if (isNight) {
-        const glow = ctx.createRadialGradient(x, y, 0, x, y, 25);
-        glow.addColorStop(0, `rgba(255, 140, 50, ${(0.15 * flicker1).toFixed(2)})`);
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x, y, 25, 0, Math.PI * 2);
-        ctx.fill();
-    }
+    // Warm amber glow pool
+    const glowR = isNight ? 18 : 10;
+    const glowAlpha = isNight ? 0.12 * flicker1 : 0.04 * flicker1;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, glowR);
+    glow.addColorStop(0, `rgba(255, 160, 60, ${glowAlpha.toFixed(3)})`);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, glowR, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
 }
