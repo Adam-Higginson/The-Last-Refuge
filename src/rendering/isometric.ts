@@ -1,11 +1,11 @@
 // isometric.ts — Isometric projection utilities for the colony scene.
 
 /** Visual tile dimensions (building sprite size). */
-export const TILE_WIDTH = 200;
-export const TILE_HEIGHT = 100;
+export const TILE_WIDTH = 320;
+export const TILE_HEIGHT = 160;
 
-/** Grid spacing — how far apart slots are placed (larger = more zoom feel). */
-export const GRID_SPACING = 450;
+/** Grid spacing — how far apart slots are placed. */
+export const GRID_SPACING = 500;
 
 /** Convert grid coordinates to screen coordinates (uses GRID_SPACING for position). */
 export function gridToScreen(
