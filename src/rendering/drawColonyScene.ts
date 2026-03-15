@@ -137,7 +137,7 @@ export function drawColonyScene(
     const h = canvas.height;
     const t = performance.now();
     const visuals = getVisuals(region.biome);
-    const horizonY = h * 0.28;
+    const horizonY = h * 0.22;
 
     // Compute frame delta and advance systems
     const now = performance.now();
@@ -1041,7 +1041,7 @@ function drawForegroundTrees(
 
         const sway = Math.sin(t / 1500 + i * 2.1) * 6 + windLean * 1.5;
 
-        const trunkBaseY = h * 0.75;
+        const trunkBaseY = h * 0.8;
         const trunkTopY = trunkBaseY - treeH * 0.55;
 
         // Trunk — warm brown, tapers upward
@@ -1154,9 +1154,9 @@ function drawPaths(
 ): void {
     if (region.buildings.length < 1) return;
 
-    const horizonY = h * 0.28;
+    const horizonY = h * 0.22;
     const centreX = w / 2;
-    const centreY = horizonY + (h - horizonY) * 0.4;
+    const centreY = horizonY + (h - horizonY) * 0.38;
     const gridPositions = getSlotGridPositions(region.buildingSlots);
 
     const occupiedIndices = region.buildings.map(b => b.slotIndex);
@@ -1357,9 +1357,9 @@ function drawBuildingSlots(
     const totalSlots = region.buildingSlots;
     if (totalSlots === 0) return slotRects;
 
-    const horizonY = h * 0.28;
+    const horizonY = h * 0.22;
     const centreX = w / 2;
-    const centreY = horizonY + (h - horizonY) * 0.4;
+    const centreY = horizonY + (h - horizonY) * 0.38;
 
     const gridPositions = getSlotGridPositions(totalSlots);
 

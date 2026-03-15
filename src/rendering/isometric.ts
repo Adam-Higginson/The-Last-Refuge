@@ -1,8 +1,8 @@
 // isometric.ts — Isometric projection utilities for the colony scene.
 
-/** Tile dimensions for the isometric grid. */
-export const TILE_WIDTH = 200;
-export const TILE_HEIGHT = 100;
+/** Tile dimensions for the isometric grid (40% zoom from previous). */
+export const TILE_WIDTH = 280;
+export const TILE_HEIGHT = 140;
 
 /** Convert grid coordinates to screen coordinates. */
 export function gridToScreen(
@@ -114,23 +114,24 @@ export function getSlotGridPositions(totalSlots: number): { gridX: number; gridY
 
     // Pre-computed organic positions for up to 6 slots
     // Spread across a wider area with natural spacing
+    // Tighter layout to keep all slots visible at zoomed-in tile size
     const LAYOUTS: Record<number, { gridX: number; gridY: number }[]> = {
         1: [{ gridX: 0, gridY: 0 }],
-        2: [{ gridX: -1, gridY: 0 }, { gridX: 1, gridY: 0 }],
-        3: [{ gridX: -1, gridY: -0.3 }, { gridX: 1, gridY: 0 }, { gridX: 0, gridY: 1 }],
+        2: [{ gridX: -0.7, gridY: 0 }, { gridX: 0.7, gridY: 0 }],
+        3: [{ gridX: -0.7, gridY: -0.2 }, { gridX: 0.7, gridY: 0 }, { gridX: 0, gridY: 0.7 }],
         4: [
-            { gridX: -1.2, gridY: -0.3 }, { gridX: 0.8, gridY: -0.5 },
-            { gridX: -0.5, gridY: 0.8 }, { gridX: 1.3, gridY: 0.7 },
+            { gridX: -0.8, gridY: -0.2 }, { gridX: 0.6, gridY: -0.35 },
+            { gridX: -0.35, gridY: 0.55 }, { gridX: 0.9, gridY: 0.5 },
         ],
         5: [
-            { gridX: -1.3, gridY: -0.5 }, { gridX: 0.7, gridY: -0.7 },
-            { gridX: -0.3, gridY: 0.3 },
-            { gridX: -1, gridY: 1 }, { gridX: 1.2, gridY: 0.8 },
+            { gridX: -0.9, gridY: -0.35 }, { gridX: 0.5, gridY: -0.5 },
+            { gridX: -0.2, gridY: 0.2 },
+            { gridX: -0.7, gridY: 0.7 }, { gridX: 0.85, gridY: 0.55 },
         ],
         6: [
-            { gridX: -1.5, gridY: -0.5 }, { gridX: 0.5, gridY: -0.8 },
-            { gridX: -0.5, gridY: 0.2 }, { gridX: 1.5, gridY: 0 },
-            { gridX: -1, gridY: 1.1 }, { gridX: 1, gridY: 1 },
+            { gridX: -1, gridY: -0.35 }, { gridX: 0.35, gridY: -0.55 },
+            { gridX: -0.35, gridY: 0.15 }, { gridX: 1, gridY: 0 },
+            { gridX: -0.7, gridY: 0.75 }, { gridX: 0.7, gridY: 0.7 },
         ],
     };
 
