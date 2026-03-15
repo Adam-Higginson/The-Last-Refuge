@@ -161,7 +161,7 @@ export function drawColonyScene(
     drawPaths(ctx, w, h, region);
     const slotRects = drawBuildingSlots(ctx, w, h, region, t);
     drawBuildingShadows(ctx, region, slotRects, dayNight);
-    drawMicroDetails(ctx, w, h, region, t);
+    drawMicroDetails(ctx, w, h, region, t, slotRects);
     drawSettlementProps(ctx, region, slotRects, t);
     drawCrewOnSurface(ctx, entity, region, slotRects, t, dtSeconds);
     drawParticles(ctx, dtSeconds);
@@ -900,8 +900,8 @@ function drawForegroundTrees(
 
         const sway = Math.sin(t / 1500 + i * 2.1) * 6 + windLean * 1.5;
 
-        const trunkBaseY = h + 5;
-        const trunkTopY = h - treeH * 0.55;
+        const trunkBaseY = h * 0.75;
+        const trunkTopY = trunkBaseY - treeH * 0.55;
 
         // Trunk — warm brown, tapers upward
         ctx.globalAlpha = isNight ? 0.4 : 0.6;
@@ -975,7 +975,7 @@ function drawForegroundTrees(
             ctx.fillStyle = '#aac880';
             for (let d = 0; d < 5; d++) {
                 const dx = tx + Math.sin(ts + d * 3.1) * 30;
-                const dy = h - 15 + Math.sin(ts + d * 2.7) * 10;
+                const dy = trunkBaseY - 10 + Math.sin(ts + d * 2.7) * 10;
                 const dr = 10 + Math.sin(ts + d) * 6;
                 const dGrad = ctx.createRadialGradient(dx, dy, 0, dx, dy, dr);
                 dGrad.addColorStop(0, 'rgba(180, 210, 140, 0.3)');

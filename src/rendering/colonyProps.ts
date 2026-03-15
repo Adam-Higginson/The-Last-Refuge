@@ -76,42 +76,52 @@ export function drawSettlementProps(
 // Scattered micro-details (between buildings)
 // =========================================================================
 
-/** Draw ambient micro-details scattered around the colony. */
+/** Draw ambient micro-details near occupied buildings (not scattered randomly). */
 export function drawMicroDetails(
     ctx: CanvasRenderingContext2D,
-    w: number,
-    h: number,
+    _w: number,
+    _h: number,
     region: Region,
     t: number,
+    slotRects?: ColonySlotRect[],
 ): void {
-    const horizonY = h * 0.35;
-    const groundH = h - horizonY;
+    if (!slotRects || region.buildings.length === 0) return;
+
     const dayNight = getDayNightState();
     const isNight = dayNight.ambientLight < 0.3;
     const seed = region.id * 31.7;
+    const occupiedSlots = slotRects.filter(s => s.occupied);
+    if (occupiedSlots.length === 0) return;
 
     ctx.save();
 
-    // Scattered barrels
-    for (let i = 0; i < 3; i++) {
+    // Place barrels and signposts near buildings (within 2-3 tile units)
+    for (let i = 0; i < Math.min(occupiedSlots.length, 3); i++) {
+        const slot = occupiedSlots[i];
+        const cx = slot.x + slot.width / 2;
+        const cy = slot.y + slot.height * 0.6;
         const ds = seed + i * 23.1;
-        const dx = (Math.sin(ds * 1.2) * 0.5 + 0.5) * w * 0.6 + w * 0.2;
-        const dy = horizonY + (0.35 + Math.sin(ds * 1.8) * 0.2) * groundH;
-        drawBarrel(ctx, dx, dy, ds);
+        const offsetX = 35 + Math.sin(ds * 1.2) * 15;
+        const offsetY = 15 + Math.sin(ds * 1.8) * 8;
+
+        drawBarrel(ctx, cx + offsetX, cy + offsetY, ds);
+
+        if (i === 0) {
+            drawSignpost(ctx, cx - offsetX - 10, cy + offsetY + 5, ds + 50);
+        }
     }
 
-    // Signposts
-    for (let i = 0; i < 2; i++) {
-        const ds = seed + i * 37.9 + 100;
-        const dx = (Math.sin(ds * 1.1) * 0.5 + 0.5) * w * 0.7 + w * 0.15;
-        const dy = horizonY + (0.25 + Math.sin(ds * 2.3) * 0.15) * groundH;
-        drawSignpost(ctx, dx, dy, ds);
-    }
-
-    // Campfire ring (one central, always present if colony has buildings)
-    if (region.buildings.length > 0) {
-        const cfx = w * 0.5 + Math.sin(seed) * 30;
-        const cfy = horizonY + groundH * 0.55;
+    // Campfire ring between first two buildings (or near first building)
+    if (occupiedSlots.length >= 2) {
+        const a = occupiedSlots[0];
+        const b = occupiedSlots[1];
+        const cfx = (a.x + a.width / 2 + b.x + b.width / 2) / 2;
+        const cfy = (a.y + a.height * 0.6 + b.y + b.height * 0.6) / 2 + 20;
+        drawCampfireRing(ctx, cfx, cfy, t, isNight);
+    } else {
+        const slot = occupiedSlots[0];
+        const cfx = slot.x + slot.width / 2 + 40;
+        const cfy = slot.y + slot.height * 0.6 + 20;
         drawCampfireRing(ctx, cfx, cfy, t, isNight);
     }
 
