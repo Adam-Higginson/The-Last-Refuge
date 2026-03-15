@@ -726,36 +726,42 @@ function drawGroundDressing(
 
     }
 
-    // --- Foreground grass (bottom edge, tallest, most detailed) ---
-    ctx.globalAlpha = 0.7;
-    const fgCount = 40;
-    for (let i = 0; i < fgCount; i++) {
-        const ds = seed * 11.3 + i * 13.7;
-        const dx = (i / fgCount) * w + Math.sin(ds) * 15;
-        const dy = h - Math.abs(Math.sin(ds * 1.7)) * 15;
-        const scale = 1.2 + Math.abs(Math.sin(ds * 2.1)) * 0.4;
+    // --- Foreground grass — dense, tall, varied, like standing in long grass ---
+    const fgGreens = ['#2a5a1a', '#1a4a12', '#1a5a18', '#2a6a20'];
+    const fgCount = 80;
+    ctx.lineCap = 'round';
 
-        const sway = Math.sin(t / 1500 + dx * 0.004 + i * 0.5) * (3 + rainBoost) + windLean;
-        const gustFg = (gustActive && Math.abs(dx - gustX) < 100) ? 6 : 0;
+    for (let i = 0; i < fgCount; i++) {
+        const ds = seed * 11.3 + i * 9.7;
+        // Irregular spacing across bottom edge
+        const dx = (i / fgCount) * w + Math.sin(ds * 1.3) * 12 + Math.sin(ds * 3.7) * 6;
+        // Varied Y — some clumps sit higher, some right at edge
+        const dy = h - Math.abs(Math.sin(ds * 1.7)) * 10 + 5;
+        const scale = 1.0 + Math.abs(Math.sin(ds * 2.1)) * 0.6;
+
+        const sway = Math.sin(t / 1400 + dx * 0.005 + i * 0.4) * (3.5 + rainBoost) + windLean;
+        const gustFg = (gustActive && Math.abs(dx - gustX) < 120) ? 7 : 0;
         const totalSway = sway + gustFg;
 
-        const bladeCount = 4 + Math.floor(Math.abs(Math.sin(ds * 3.1)) * 3);
-        const greenIdx = Math.floor(Math.abs(Math.sin(ds * 2.7)) * greens.length);
-        // Foreground grass is darker, more saturated
-        ctx.strokeStyle = greenIdx % 2 === 0 ? '#2a5a1a' : '#1a4a12';
-        ctx.lineWidth = 1.2 * scale;
-        ctx.lineCap = 'round';
+        const bladeCount = 4 + Math.floor(Math.abs(Math.sin(ds * 3.1)) * 4);
+        const colourIdx = Math.floor(Math.abs(Math.sin(ds * 4.3)) * fgGreens.length);
+
+        ctx.strokeStyle = fgGreens[colourIdx];
+        ctx.globalAlpha = 0.6 + Math.abs(Math.sin(ds * 1.1)) * 0.3;
+        ctx.lineWidth = (1.0 + Math.abs(Math.sin(ds * 2.7)) * 0.5) * scale;
 
         for (let j = 0; j < bladeCount; j++) {
-            const gx = dx + (j - bladeCount / 2) * 3 * scale;
-            const bladeH = (12 + Math.abs(Math.sin(ds + j * 1.5)) * 10) * scale;
+            const gx = dx + (j - bladeCount / 2) * 2.8 * scale;
+            // Varied heights — some tall, some short
+            const heightMod = 0.7 + Math.abs(Math.sin(ds + j * 1.9)) * 0.6;
+            const bladeH = (14 + Math.abs(Math.sin(ds + j * 1.5)) * 12) * scale * heightMod;
             const bladeLean = totalSway + Math.sin(ds + j * 0.9) * 3;
 
             ctx.beginPath();
             ctx.moveTo(gx, dy);
             ctx.quadraticCurveTo(
                 gx + bladeLean * 0.3, dy - bladeH * 0.5,
-                gx + bladeLean * 0.8, dy - bladeH,
+                gx + bladeLean * 0.7, dy - bladeH,
             );
             ctx.stroke();
         }
