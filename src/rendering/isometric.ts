@@ -1,19 +1,24 @@
 // isometric.ts — Isometric projection utilities for the colony scene.
 
-/** Tile dimensions for the isometric grid. */
-export const TILE_WIDTH = 360;
-export const TILE_HEIGHT = 180;
+/** Visual tile dimensions (building sprite size). */
+export const TILE_WIDTH = 200;
+export const TILE_HEIGHT = 100;
 
-/** Convert grid coordinates to screen coordinates. */
+/** Grid spacing — how far apart slots are placed (larger = more zoom feel). */
+export const GRID_SPACING = 450;
+
+/** Convert grid coordinates to screen coordinates (uses GRID_SPACING for position). */
 export function gridToScreen(
     gridX: number,
     gridY: number,
     centreX: number,
     centreY: number,
 ): { x: number; y: number } {
+    const spacingH = GRID_SPACING / 2;
+    const spacingV = GRID_SPACING / 4;
     return {
-        x: (gridX - gridY) * TILE_WIDTH / 2 + centreX,
-        y: (gridX + gridY) * TILE_HEIGHT / 2 + centreY,
+        x: (gridX - gridY) * spacingH + centreX,
+        y: (gridX + gridY) * spacingV + centreY,
     };
 }
 
@@ -24,11 +29,13 @@ export function screenToGrid(
     centreX: number,
     centreY: number,
 ): { gridX: number; gridY: number } {
+    const spacingH = GRID_SPACING / 2;
+    const spacingV = GRID_SPACING / 4;
     const relX = screenX - centreX;
     const relY = screenY - centreY;
     return {
-        gridX: Math.floor((relX / (TILE_WIDTH / 2) + relY / (TILE_HEIGHT / 2)) / 2),
-        gridY: Math.floor((relY / (TILE_HEIGHT / 2) - relX / (TILE_WIDTH / 2)) / 2),
+        gridX: Math.floor((relX / spacingH + relY / spacingV) / 2),
+        gridY: Math.floor((relY / spacingV - relX / spacingH) / 2),
     };
 }
 
@@ -114,24 +121,24 @@ export function getSlotGridPositions(totalSlots: number): { gridX: number; gridY
 
     // Pre-computed organic positions for up to 6 slots
     // Spread across a wider area with natural spacing
-    // Compact layout — prevents overlap at large tile sizes
+    // Organic layout — GRID_SPACING handles visual separation
     const LAYOUTS: Record<number, { gridX: number; gridY: number }[]> = {
         1: [{ gridX: 0, gridY: 0 }],
-        2: [{ gridX: -0.55, gridY: 0 }, { gridX: 0.55, gridY: 0 }],
-        3: [{ gridX: -0.55, gridY: -0.15 }, { gridX: 0.55, gridY: 0 }, { gridX: 0, gridY: 0.55 }],
+        2: [{ gridX: -0.5, gridY: 0 }, { gridX: 0.5, gridY: 0 }],
+        3: [{ gridX: -0.5, gridY: -0.2 }, { gridX: 0.5, gridY: 0 }, { gridX: 0, gridY: 0.5 }],
         4: [
-            { gridX: -0.6, gridY: -0.15 }, { gridX: 0.5, gridY: -0.3 },
-            { gridX: -0.25, gridY: 0.45 }, { gridX: 0.7, gridY: 0.4 },
+            { gridX: -0.55, gridY: -0.2 }, { gridX: 0.45, gridY: -0.35 },
+            { gridX: -0.25, gridY: 0.4 }, { gridX: 0.6, gridY: 0.35 },
         ],
         5: [
-            { gridX: -0.7, gridY: -0.25 }, { gridX: 0.4, gridY: -0.4 },
-            { gridX: -0.15, gridY: 0.15 },
-            { gridX: -0.55, gridY: 0.55 }, { gridX: 0.65, gridY: 0.45 },
+            { gridX: -0.6, gridY: -0.3 }, { gridX: 0.4, gridY: -0.45 },
+            { gridX: -0.15, gridY: 0.1 },
+            { gridX: -0.5, gridY: 0.5 }, { gridX: 0.55, gridY: 0.4 },
         ],
         6: [
-            { gridX: -0.75, gridY: -0.25 }, { gridX: 0.3, gridY: -0.45 },
-            { gridX: -0.25, gridY: 0.1 }, { gridX: 0.8, gridY: 0 },
-            { gridX: -0.55, gridY: 0.6 }, { gridX: 0.55, gridY: 0.55 },
+            { gridX: -0.65, gridY: -0.3 }, { gridX: 0.3, gridY: -0.5 },
+            { gridX: -0.25, gridY: 0.1 }, { gridX: 0.7, gridY: 0 },
+            { gridX: -0.5, gridY: 0.55 }, { gridX: 0.5, gridY: 0.5 },
         ],
     };
 
