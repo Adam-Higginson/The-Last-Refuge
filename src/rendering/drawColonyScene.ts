@@ -161,6 +161,29 @@ export function drawColonyScene(
     // Ground plane fill at 1x — covers horizon to bottom of screen
     drawNaturalGround(ctx, w, h, horizonY, visuals, region.id);
 
+    // Soft horizon blend — gradient feathering sky into ground
+    const blendH = h * 0.06;
+    const blendGrad = ctx.createLinearGradient(0, horizonY - blendH * 0.3, 0, horizonY + blendH);
+    blendGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    blendGrad.addColorStop(0.3, `rgba(${dayNight.warmth > 0 ? '140,160,120' : '120,140,130'}, 0.15)`);
+    blendGrad.addColorStop(0.7, `rgba(${dayNight.warmth > 0 ? '100,130,80' : '80,110,90'}, 0.1)`);
+    blendGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = blendGrad;
+    ctx.fillRect(0, horizonY - blendH * 0.3, w, blendH * 1.3);
+
+    // Ground fog wisp along treeline
+    ctx.save();
+    ctx.globalAlpha = dayNight.phase === 'night' ? 0.08 : 0.05;
+    ctx.fillStyle = dayNight.warmth > 0 ? 'rgba(200, 210, 180, 1)' : 'rgba(180, 200, 210, 1)';
+    for (let i = 0; i < 6; i++) {
+        const fogX = ((t * 0.002 + i * w * 0.2) % (w + 200)) - 100;
+        const fogY = horizonY + 3 + Math.sin(i * 2.3) * 3;
+        ctx.beginPath();
+        ctx.ellipse(fogX, fogY, 70 + i * 15, 6 + i * 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+
     // === Layer 2: Colony content (zoomed) ===
     // Scale around the colony centre point, which sits in the ground area
     const groundCentreX = w / 2;
