@@ -1,19 +1,27 @@
 // isometric.ts — Isometric projection utilities for the colony scene.
 
-/** Tile dimensions for the isometric grid. */
+/** Visual tile dimensions (building sprite size). */
 export const TILE_WIDTH = 120;
 export const TILE_HEIGHT = 60;
 
-/** Convert grid coordinates to screen coordinates. */
+/** Grid spacing — how far apart slots are placed. */
+export const GRID_SPACING = 160;
+
+/** Camera zoom scale applied to the entire ground scene. */
+export const COLONY_ZOOM = 2.2;
+
+/** Convert grid coordinates to screen coordinates (uses GRID_SPACING for position). */
 export function gridToScreen(
     gridX: number,
     gridY: number,
     centreX: number,
     centreY: number,
 ): { x: number; y: number } {
+    const spacingH = GRID_SPACING / 2;
+    const spacingV = GRID_SPACING / 4;
     return {
-        x: (gridX - gridY) * TILE_WIDTH / 2 + centreX,
-        y: (gridX + gridY) * TILE_HEIGHT / 2 + centreY,
+        x: (gridX - gridY) * spacingH + centreX,
+        y: (gridX + gridY) * spacingV + centreY,
     };
 }
 
@@ -24,11 +32,13 @@ export function screenToGrid(
     centreX: number,
     centreY: number,
 ): { gridX: number; gridY: number } {
+    const spacingH = GRID_SPACING / 2;
+    const spacingV = GRID_SPACING / 4;
     const relX = screenX - centreX;
     const relY = screenY - centreY;
     return {
-        gridX: Math.floor((relX / (TILE_WIDTH / 2) + relY / (TILE_HEIGHT / 2)) / 2),
-        gridY: Math.floor((relY / (TILE_HEIGHT / 2) - relX / (TILE_WIDTH / 2)) / 2),
+        gridX: Math.floor((relX / spacingH + relY / spacingV) / 2),
+        gridY: Math.floor((relY / spacingV - relX / spacingH) / 2),
     };
 }
 
@@ -104,17 +114,42 @@ export function drawIsometricBox(
     ctx.fill();
 }
 
-/** Grid layout for building slots (3 columns x 2 rows for up to 6 slots). */
+/**
+ * Organic building slot positions — spread out with minimum spacing,
+ * weighted toward edges, with random offsets for natural feel.
+ * Uses a deterministic seed so positions are stable across frames.
+ */
 export function getSlotGridPositions(totalSlots: number): { gridX: number; gridY: number }[] {
-    const positions: { gridX: number; gridY: number }[] = [];
-    const cols = Math.min(totalSlots, 3);
-    const rows = Math.ceil(totalSlots / cols);
+    if (totalSlots === 0) return [];
 
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            if (positions.length >= totalSlots) break;
-            positions.push({ gridX: c, gridY: r });
-        }
-    }
-    return positions;
+    // Pre-computed organic positions for up to 6 slots
+    // Spread across a wider area with natural spacing
+    // Organic layout — COLONY_ZOOM scales everything uniformly
+    const LAYOUTS: Record<number, { gridX: number; gridY: number }[]> = {
+        1: [{ gridX: 0, gridY: 0 }],
+        2: [{ gridX: -0.8, gridY: 0 }, { gridX: 0.8, gridY: 0 }],
+        3: [{ gridX: -0.8, gridY: -0.2 }, { gridX: 0.8, gridY: 0 }, { gridX: 0, gridY: 0.8 }],
+        4: [
+            { gridX: -0.9, gridY: -0.2 }, { gridX: 0.7, gridY: -0.4 },
+            { gridX: -0.4, gridY: 0.6 }, { gridX: 1.0, gridY: 0.5 },
+        ],
+        5: [
+            { gridX: -1.0, gridY: -0.4 }, { gridX: 0.6, gridY: -0.6 },
+            { gridX: -0.2, gridY: 0.2 },
+            { gridX: -0.8, gridY: 0.8 }, { gridX: 0.9, gridY: 0.6 },
+        ],
+        6: [
+            { gridX: -1.1, gridY: -0.4 }, { gridX: 0.4, gridY: -0.7 },
+            { gridX: -0.3, gridY: 0.15 }, { gridX: 1.1, gridY: 0 },
+            { gridX: -0.8, gridY: 0.85 }, { gridX: 0.8, gridY: 0.8 },
+        ],
+    };
+
+    const layout = LAYOUTS[Math.min(totalSlots, 6)] ?? LAYOUTS[6];
+
+    // Add small deterministic offsets for organic feel
+    return layout.slice(0, totalSlots).map((pos, i) => ({
+        gridX: pos.gridX + Math.sin(i * 3.7) * 0.15,
+        gridY: pos.gridY + Math.sin(i * 2.3 + 1) * 0.1,
+    }));
 }

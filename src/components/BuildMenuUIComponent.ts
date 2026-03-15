@@ -12,6 +12,8 @@ import { PlanetViewInputComponent } from './PlanetViewInputComponent';
 import { ColonyBuildingComponent } from './ColonyBuildingComponent';
 import { ResourceComponent } from './ResourceComponent';
 import { getAvailableBuildings, getBuildingType } from '../data/buildings';
+import { spawnDustBurst } from '../rendering/colonyParticles';
+import { gridToScreen, getSlotGridPositions } from '../rendering/isometric';
 import { getColonyLocations } from '../utils/crewUtils';
 import type { BuildingId } from '../data/buildings';
 import type { World } from '../core/World';
@@ -169,6 +171,30 @@ export class BuildMenuUIComponent extends Component {
         if (buildingComp) {
             const success = buildingComp.startConstruction(regionId, buildingId);
             if (success) {
+                // Dust burst at the new building's position
+                const regionData = this.entity.getComponent(RegionDataComponent);
+                if (regionData) {
+                    const region = regionData.regions.find(r => r.id === regionId);
+                    if (region) {
+                        const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
+                        const cw = canvas.width;
+                        const ch = canvas.height;
+                        const horizonY = ch * 0.35;
+                        const centreX = cw / 2;
+                        const centreY = horizonY + (ch - horizonY) * 0.35;
+                        const gridPos = getSlotGridPositions(region.buildingSlots);
+                        const newBuilding = region.buildings[region.buildings.length - 1];
+                        if (newBuilding && gridPos[newBuilding.slotIndex]) {
+                            const pos = gridToScreen(
+                                gridPos[newBuilding.slotIndex].gridX,
+                                gridPos[newBuilding.slotIndex].gridY,
+                                centreX,
+                                centreY,
+                            );
+                            spawnDustBurst(pos.x, pos.y + 15);
+                        }
+                    }
+                }
                 this.rebuildMenu();
             }
         }
