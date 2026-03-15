@@ -893,32 +893,34 @@ function drawMidgroundScenery(
         ctx.closePath();
         ctx.fill();
 
-        // Canopy — 3 overlapping circles, lighter on top
+        // Canopy — irregular organic shape with two shade zones
         const canopyCx = tx + sway;
         const canopyCy = ty - trunkH - canopyR * 0.3;
 
-        // Canopy — sunlit top, mid body, darker base
-        // Sunlit top
-        ctx.globalAlpha = isNight ? 0.2 : 0.45;
+        // Zone 1: Sunlit upper canopy — asymmetric blobs, lighter green
+        ctx.globalAlpha = isNight ? 0.2 : 0.4;
         ctx.fillStyle = isNight ? '#1a2a18' : '#5a9a42';
-        ctx.beginPath();
-        ctx.arc(canopyCx + canopyR * 0.1, canopyCy - canopyR * 0.2, canopyR * 0.7, 0, Math.PI * 2);
-        ctx.fill();
+        // Irregular upper shape from 4 offset circles
+        for (let c = 0; c < 4; c++) {
+            const cx = canopyCx + Math.sin(ms + c * 2.7) * canopyR * 0.35;
+            const cy = canopyCy - canopyR * 0.15 + Math.sin(ms + c * 1.3) * canopyR * 0.15;
+            const cr = canopyR * (0.4 + Math.abs(Math.sin(ms + c * 1.9)) * 0.2);
+            ctx.beginPath();
+            ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
-        // Mid body — main mass
-        ctx.globalAlpha = isNight ? 0.25 : 0.5;
-        ctx.fillStyle = isNight ? '#0f1a0d' : '#3a7028';
-        ctx.beginPath();
-        ctx.arc(canopyCx - canopyR * 0.15, canopyCy, canopyR * 0.9, 0, Math.PI * 2);
-        ctx.arc(canopyCx + canopyR * 0.2, canopyCy + canopyR * 0.05, canopyR * 0.8, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Darker underside
-        ctx.globalAlpha = isNight ? 0.15 : 0.3;
-        ctx.fillStyle = isNight ? '#081008' : '#2a5018';
-        ctx.beginPath();
-        ctx.arc(canopyCx, canopyCy + canopyR * 0.2, canopyR * 0.6, 0, Math.PI * 2);
-        ctx.fill();
+        // Zone 2: Darker lower canopy — heavier, shadowed underside
+        ctx.globalAlpha = isNight ? 0.2 : 0.45;
+        ctx.fillStyle = isNight ? '#0f1a0d' : '#2a5a1a';
+        for (let c = 0; c < 3; c++) {
+            const cx = canopyCx + Math.sin(ms + c * 3.1 + 1) * canopyR * 0.3;
+            const cy = canopyCy + canopyR * 0.12 + Math.abs(Math.sin(ms + c * 2.1)) * canopyR * 0.1;
+            const cr = canopyR * (0.45 + Math.abs(Math.sin(ms + c * 1.7)) * 0.15);
+            ctx.beginPath();
+            ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
         // Ground shadow beneath tree
         ctx.globalAlpha = isNight ? 0.04 : 0.1;
