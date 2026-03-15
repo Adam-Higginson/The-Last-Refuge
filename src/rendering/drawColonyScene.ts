@@ -153,20 +153,23 @@ export function drawColonyScene(
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Sky renders at 1x (no zoom)
+    // === Layer 1: Sky, horizon, background (1x scale, fills screen) ===
     drawSky(ctx, w, h, horizonY, visuals, t, dayNight, weather);
     drawStars(ctx, w, horizonY, dayNight);
     drawHorizonFeatures(ctx, w, horizonY, visuals, region.id);
 
-    // Ground-level content zoomed in — scale around colony centre
+    // Ground plane fill at 1x — covers horizon to bottom of screen
+    drawNaturalGround(ctx, w, h, horizonY, visuals, region.id);
+
+    // === Layer 2: Colony content (zoomed) ===
+    // Scale around the colony centre point, which sits in the ground area
     const groundCentreX = w / 2;
-    const groundCentreY = horizonY + (h - horizonY) * 0.38;
+    const groundCentreY = horizonY + (h - horizonY) * 0.35;
     ctx.save();
     ctx.translate(groundCentreX, groundCentreY);
     ctx.scale(COLONY_ZOOM, COLONY_ZOOM);
     ctx.translate(-groundCentreX, -groundCentreY);
 
-    drawNaturalGround(ctx, w, h, horizonY, visuals, region.id);
     drawTerrainUndulation(ctx, w, h, horizonY, visuals, region.id);
     drawGroundDressing(ctx, w, h, horizonY, visuals, region.id);
     drawMidgroundScenery(ctx, w, h, horizonY, visuals, region.id, t);
@@ -178,8 +181,9 @@ export function drawColonyScene(
     drawCrewOnSurface(ctx, entity, region, slotRects, t, dtSeconds);
     drawParticles(ctx, dtSeconds);
 
-    ctx.restore(); // Back to 1x for overlays
+    ctx.restore(); // Back to 1x
 
+    // === Layer 3: Overlays and foreground (1x scale) ===
     drawAmbientParticles(ctx, w, h, visuals, t);
     drawForegroundTrees(ctx, w, h, visuals, region.id, t);
     drawAmbientOverlay(ctx, w, h, dayNight);
