@@ -19,13 +19,14 @@ export function drawBuilding(
     y: number,
     state: BuildingState,
     t: number,
+    gameHour?: number,
 ): void {
     if (state === 'constructing') {
         drawConstructionScaffolding(ctx, x, y, t);
         return;
     }
 
-    const dayNight = getDayNightState();
+    const dayNight = getDayNightState(gameHour ?? 10);
 
     ctx.save();
     if (state === 'idle' || state === 'disabled') ctx.globalAlpha = 0.4;

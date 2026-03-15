@@ -7,6 +7,7 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { GameModeComponent } from './GameModeComponent';
+import { CameraComponent } from './CameraComponent';
 import { RenderComponent } from './RenderComponent';
 import { SelectableComponent } from './SelectableComponent';
 import type { EventQueue, GameEvent } from '../core/EventQueue';
@@ -67,6 +68,7 @@ export class PlanetViewTransitionComponent extends Component {
             if (gameMode.transitionProgress >= 1) {
                 gameMode.transitionProgress = 1;
                 gameMode.mode = 'planet';
+                this.setCameraScreenMode(true);
                 this.setSystemEntitiesVisible(false);
                 this.setHUDVisible(false);
                 this.unblockTurn();
@@ -78,11 +80,19 @@ export class PlanetViewTransitionComponent extends Component {
                 gameMode.transitionProgress = 1;
                 gameMode.mode = 'system';
                 gameMode.planetEntityId = null;
+                this.setCameraScreenMode(false);
                 this.setSystemEntitiesVisible(true);
                 this.setHUDVisible(true);
                 this.unblockTurn();
             }
         }
+    }
+
+    private setCameraScreenMode(screenMode: boolean): void {
+        if (!this.world) return;
+        const cam = this.world.getEntityByName('camera');
+        const camera = cam?.getComponent(CameraComponent);
+        if (camera) camera.screenMode = screenMode;
     }
 
     private deselectAll(): void {

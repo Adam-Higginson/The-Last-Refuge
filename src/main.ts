@@ -32,7 +32,7 @@ function boot(): void {
         throw new Error('Failed to get 2D canvas context');
     }
 
-    // Size canvas to window (initial sizing before entities exist)
+    // Size canvas to window
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
@@ -74,17 +74,30 @@ function boot(): void {
     }
 
     // Resize handler — updates canvas pixel dimensions.
-    // CameraComponent and RegionDataComponent subscribe to CANVAS_RESIZE.
-    window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    // CameraComponent, RegionDataComponent, and ColonySceneStateComponent
+    // all subscribe to CANVAS_RESIZE to recalculate their layouts.
+    function handleResize(): void {
+        const newW = window.innerWidth;
+        const newH = window.innerHeight;
+        if (canvas.width === newW && canvas.height === newH) return;
+
+        canvas.width = newW;
+        canvas.height = newH;
 
         eventQueue.emit({
             type: GameEvents.CANVAS_RESIZE,
-            width: canvas.width,
-            height: canvas.height,
+            width: newW,
+            height: newH,
         });
-    });
+    }
+
+    window.addEventListener('resize', handleResize);
+
+    // On mobile, visualViewport fires for address bar show/hide and
+    // orientation changes that window.resize may miss.
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', handleResize);
+    }
 
     // Expose world for browser console debugging (dev only)
     (window as unknown as Record<string, unknown>).__debugWorld = world;

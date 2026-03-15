@@ -30,6 +30,13 @@ export const PAN_CLAMP_FACTOR = 0.8;
 const ZOOM_SMOOTHING = 0.06;
 
 export class CameraComponent extends Component {
+    /**
+     * When true, the camera maps to screen-pixel coordinates (identity).
+     * Used by planet and colony views. When false (default), maps world
+     * coordinates to screen via scale + offset (system map view).
+     */
+    screenMode = false;
+
     /** Current canvas width in pixels. */
     canvasWidth = 0;
     /** Current canvas height in pixels. */
@@ -142,16 +149,18 @@ export class CameraComponent extends Component {
 
     /**
      * Apply the camera transform to a 2D context.
-     * After calling this, drawing at world coordinates (x, y) will appear
-     * at the correct screen position.
+     * In world mode: maps world coordinates to screen via scale + offset.
+     * In screen mode: identity — drawing coordinates equal screen pixels.
      */
     applyTransform(ctx: CanvasRenderingContext2D): void {
+        if (this.screenMode) return; // identity — no transform needed
         ctx.translate(this.offsetX, this.offsetY);
         ctx.scale(this.scale, this.scale);
     }
 
     /** Convert world coordinates to screen (pixel) coordinates. */
     worldToScreen(wx: number, wy: number): { x: number; y: number } {
+        if (this.screenMode) return { x: wx, y: wy };
         return {
             x: wx * this.scale + this.offsetX,
             y: wy * this.scale + this.offsetY,
@@ -160,6 +169,7 @@ export class CameraComponent extends Component {
 
     /** Convert screen (pixel) coordinates to world coordinates. */
     screenToWorld(sx: number, sy: number): { x: number; y: number } {
+        if (this.screenMode) return { x: sx, y: sy };
         return {
             x: (sx - this.offsetX) / this.scale,
             y: (sy - this.offsetY) / this.scale,
@@ -168,6 +178,7 @@ export class CameraComponent extends Component {
 
     /** Convert a world-space distance to screen-space pixels. */
     worldToScreenDist(d: number): number {
+        if (this.screenMode) return d;
         return d * this.scale;
     }
 

@@ -1,24 +1,13 @@
 // colonyParticles.ts — Particle effects for colony scene (dust bursts, etc).
 
-interface Particle {
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    life: number;
-    maxLife: number;
-    size: number;
-    colour: string;
-}
-
-const particles: Particle[] = [];
+import type { ColonySceneStateComponent } from '../components/ColonySceneStateComponent';
 
 /** Spawn a dust burst at the given position (e.g. on building placement). */
-export function spawnDustBurst(x: number, y: number, count = 12): void {
+export function spawnDustBurst(state: ColonySceneStateComponent, x: number, y: number, count = 12): void {
     for (let i = 0; i < count; i++) {
         const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
         const speed = 20 + Math.random() * 40;
-        particles.push({
+        state.particles.push({
             x,
             y,
             vx: Math.cos(angle) * speed,
@@ -32,15 +21,15 @@ export function spawnDustBurst(x: number, y: number, count = 12): void {
 }
 
 /** Update and draw all active particles. Call each frame. */
-export function drawParticles(ctx: CanvasRenderingContext2D, dtSeconds: number): void {
-    if (particles.length === 0) return;
+export function drawParticles(ctx: CanvasRenderingContext2D, dtSeconds: number, state: ColonySceneStateComponent): void {
+    if (state.particles.length === 0) return;
 
     ctx.save();
-    for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
         p.life -= dtSeconds;
         if (p.life <= 0) {
-            particles.splice(i, 1);
+            state.particles.splice(i, 1);
             continue;
         }
 

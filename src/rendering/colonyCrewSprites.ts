@@ -2,8 +2,9 @@
 // Small humanoid figures that walk between buildings on dirt paths,
 // idle bob when stationary, and head to shelter at dusk/night.
 
-import { getDayNightState } from './colonyDayNight';
+import type { DayNightState } from './colonyDayNight';
 import type { ColonySlotRect } from './drawColonyScene';
+import type { ColonySceneStateComponent, ColonyCrewSprite } from '../components/ColonySceneStateComponent';
 
 const ROLE_COLOURS: Record<string, string> = {
     Soldier: '#4fa8ff',
@@ -13,34 +14,6 @@ const ROLE_COLOURS: Record<string, string> = {
     Scientist: '#ffca28',
 };
 
-interface CrewSprite {
-    x: number;
-    y: number;
-    targetX: number;
-    targetY: number;
-    colour: string;
-    skinTone: string;
-    hairColour: string;
-    name: string;
-    isLeader: boolean;
-    speed: number;
-    walkPhase: number;
-    idleTimer: number;
-    targetSlotIdx: number;
-    sheltered: boolean;
-}
-
-const sprites: Map<number, CrewSprite> = new Map();
-
-/** Reset sprites when leaving colony view. */
-export function resetCrewSprites(): void {
-    sprites.clear();
-}
-
-/**
- * Update and draw crew sprites.
- * Call each frame with the crew data and slot positions.
- */
 /** Skin tone palette — diverse range derived deterministically from crew ID. */
 const SKIN_TONES = [
     '#f5d0b0', // light
@@ -71,14 +44,19 @@ function getHairColour(id: number): string {
     return HAIR_COLOURS[(id * 3 + 7) % HAIR_COLOURS.length];
 }
 
+/**
+ * Update and draw crew sprites.
+ * Call each frame with the crew data, slot positions, and state component.
+ */
 export function drawCrewSprites(
     ctx: CanvasRenderingContext2D,
     crewData: { id: number; role: string; isLeader: boolean; name: string }[],
     slotRects: ColonySlotRect[],
     t: number,
     dtSeconds: number,
+    state: ColonySceneStateComponent,
+    dayNight: DayNightState,
 ): void {
-    const dayNight = getDayNightState();
     const isNight = dayNight.phase === 'night';
     const isDusk = dayNight.phase === 'dusk' && dayNight.phaseProgress > 0.6;
     const shouldShelter = isNight || isDusk;
@@ -94,7 +72,7 @@ export function drawCrewSprites(
 
     for (let i = 0; i < crewData.length; i++) {
         const crew = crewData[i];
-        let sprite = sprites.get(crew.id);
+        let sprite = state.crewSprites.get(crew.id);
 
         if (!sprite) {
             // Initialise sprite near a random building
@@ -115,7 +93,7 @@ export function drawCrewSprites(
                 targetSlotIdx: startSlot.slotIndex,
                 sheltered: false,
             };
-            sprites.set(crew.id, sprite);
+            state.crewSprites.set(crew.id, sprite);
         }
 
         // Don't draw if night (sheltered) or beyond visible limit
@@ -178,7 +156,7 @@ export function drawCrewSprites(
 
 function drawFigure(
     ctx: CanvasRenderingContext2D,
-    sprite: CrewSprite,
+    sprite: ColonyCrewSprite,
     t: number,
     isWalking: boolean,
 ): void {

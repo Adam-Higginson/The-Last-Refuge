@@ -1,0 +1,141 @@
+/* --- Colony Build Picker Popup --- */
+#colony-build-picker {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 340px;
+    max-height: 450px;
+    overflow-y: auto;
+    background: rgba(3, 4, 10, 0.96);
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    padding: 20px;
+    z-index: 30;
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    font-size: 12px;
+    color: #c0c8d8;
+    display: none;
+}
+
+#colony-build-picker.open {
+    display: block;
+}
+
+.build-picker-title {
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+    margin-bottom: 4px;
+}
+
+.build-picker-slots {
+    font-size: 11px;
+    opacity: 0.5;
+    margin-bottom: 12px;
+}
+
+.build-picker-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #c0c8d8;
+    font-size: 18px;
+    cursor: pointer;
+    opacity: 0.5;
+}
+
+.build-picker-close:hover {
+    opacity: 1;
+}
+
+.build-picker-item {
+    padding: 10px;
+    border: 1px solid rgba(79, 168, 255, 0.15);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.build-picker-item:hover:not(.build-picker-item--disabled) {
+    border-color: rgba(79, 168, 255, 0.5);
+    background: rgba(79, 168, 255, 0.05);
+}
+
+.build-picker-item--disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.build-picker-item-name {
+    color: #ffffff;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.build-picker-item-desc {
+    font-size: 10px;
+    opacity: 0.5;
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+
+.build-picker-item-cost {
+    font-size: 10px;
+    display: flex;
+    gap: 12px;
+}
+
+.build-picker-cost-mat { color: #b0a080; }
+.build-picker-cost-time { color: rgba(192, 200, 216, 0.6); }
+.build-picker-cost-energy { color: #ffca28; }
+
+.build-picker-item-tier {
+    font-size: 9px;
+    opacity: 0.4;
+}
+
+/* --- Building info popup (occupied slot) --- */
+.build-picker-info {
+    padding: 12px;
+}
+
+.build-picker-info-name {
+    color: #ffffff;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.build-picker-info-desc {
+    font-size: 11px;
+    opacity: 0.6;
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+
+.build-picker-info-status {
+    font-size: 11px;
+    margin-bottom: 10px;
+}
+
+.build-picker-demolish {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    background: rgba(239, 83, 80, 0.1);
+    border: 1px solid rgba(239, 83, 80, 0.3);
+    color: #ef5350;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.build-picker-demolish:hover {
+    background: rgba(239, 83, 80, 0.25);
+}

@@ -8,6 +8,7 @@ import { CameraComponent } from '../components/CameraComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
 import { FogOfWarComponent } from '../components/FogOfWarComponent';
+
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 

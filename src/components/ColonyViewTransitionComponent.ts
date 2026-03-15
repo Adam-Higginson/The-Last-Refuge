@@ -6,19 +6,23 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { GameModeComponent } from './GameModeComponent';
+import { CameraComponent } from './CameraComponent';
 import type { EventQueue, GameEvent } from '../core/EventQueue';
+import type { World } from '../core/World';
 
 /** Colony transition is faster than system-to-planet (less dramatic). */
 const COLONY_TRANSITION_DURATION = 1.0;
 
 export class ColonyViewTransitionComponent extends Component {
     private eventQueue: EventQueue | null = null;
+    private world: World | null = null;
     private onEnter: ((e: GameEvent) => void) | null = null;
     private onExit: ((e: GameEvent) => void) | null = null;
     private turnBlocked = false;
 
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
+        this.world = ServiceLocator.get<World>('world');
 
         this.onEnter = (e: GameEvent): void => {
             const gameMode = this.entity.getComponent(GameModeComponent);
@@ -31,6 +35,7 @@ export class ColonyViewTransitionComponent extends Component {
             gameMode.planetEntityId = event.entityId;
             gameMode.colonyRegionId = event.regionId;
 
+            this.setCameraScreenMode(true);
             this.blockTurn();
         };
 
@@ -71,6 +76,13 @@ export class ColonyViewTransitionComponent extends Component {
                 this.unblockTurn();
             }
         }
+    }
+
+    private setCameraScreenMode(screenMode: boolean): void {
+        if (!this.world) return;
+        const cam = this.world.getEntityByName('camera');
+        const camera = cam?.getComponent(CameraComponent);
+        if (camera) camera.screenMode = screenMode;
     }
 
     private blockTurn(): void {

@@ -79,27 +79,21 @@ function lerp(a: number, b: number, t: number): number {
     return a + (b - a) * t;
 }
 
-/** Global time accumulator (in-game hours). Persists across frames. */
-let gameHour = 10.0; // Start at 10am (pleasant daytime)
+import type { ColonySceneStateComponent } from '../components/ColonySceneStateComponent';
 
-/** Get the current in-game hour. */
-export function getGameHour(): GameHour {
-    return gameHour;
+/** Advance the clock by real-time delta (seconds). Mutates state component. */
+export function advanceClock(state: ColonySceneStateComponent, dtSeconds: number): void {
+    state.gameHour += dtSeconds * CYCLE_SPEED;
+    state.gameHour = state.gameHour % 24;
 }
 
-/** Set the game hour directly (for testing/debugging). */
-export function setGameHour(hour: GameHour): void {
-    gameHour = ((hour % 24) + 24) % 24;
+/** Set the game hour directly (for testing/debugging). Mutates state component. */
+export function setGameHour(state: ColonySceneStateComponent, hour: GameHour): void {
+    state.gameHour = ((hour % 24) + 24) % 24;
 }
 
-/** Advance the clock by real-time delta (seconds). */
-export function advanceClock(dtSeconds: number): void {
-    gameHour += dtSeconds * CYCLE_SPEED;
-    gameHour = gameHour % 24;
-}
-
-/** Compute the full day/night state for the current time. */
-export function getDayNightState(): DayNightState {
+/** Compute the full day/night state for the given hour. */
+export function getDayNightState(gameHour: number): DayNightState {
     const hour = gameHour;
 
     // Determine phase
