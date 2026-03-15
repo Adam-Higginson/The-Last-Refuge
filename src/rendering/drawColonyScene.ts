@@ -157,6 +157,7 @@ export function drawColonyScene(
     drawHorizonFeatures(ctx, w, horizonY, visuals, region.id);
     drawNaturalGround(ctx, w, h, horizonY, visuals, region.id);
     drawTerrainUndulation(ctx, w, h, horizonY, visuals, region.id);
+    drawMidgroundScenery(ctx, w, h, horizonY, visuals, region.id, t);
     drawGroundDressing(ctx, w, h, horizonY, visuals, region.id);
     drawPaths(ctx, w, h, region);
     const slotRects = drawBuildingSlots(ctx, w, h, region, t);
@@ -790,6 +791,126 @@ function drawNonGrassDressing(
     ctx.restore();
 }
 
+// --- Mid-ground scenery — trees and rocks between foreground and buildings ---
+
+function drawMidgroundScenery(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    horizonY: number,
+    _visuals: BiomeVisuals,
+    seed: number,
+    t: number,
+): void {
+    const terrainH = h - horizonY;
+    const dayNight = getDayNightState();
+    const isNight = dayNight.ambientLight < 0.3;
+    const weather = getWeatherInfo();
+    const windLean = weather.windAngle * 8;
+
+    ctx.save();
+
+    // --- 4 mid-sized trees ---
+    const midTrees = [
+        { x: 0.15, y: 0.2 },
+        { x: 0.75, y: 0.18 },
+        { x: 0.35, y: 0.55 },
+        { x: 0.85, y: 0.5 },
+    ];
+
+    for (let i = 0; i < midTrees.length; i++) {
+        const mt = midTrees[i];
+        const ms = seed * 9.3 + i * 21.7;
+        const tx = w * mt.x + Math.sin(ms) * 20;
+        const ty = horizonY + terrainH * mt.y;
+        const treeScale = 0.5 + mt.y * 0.4; // Larger when further from horizon
+        const trunkH = 25 * treeScale;
+        const trunkW = 4 * treeScale;
+        const canopyR = 18 * treeScale;
+
+        const sway = Math.sin(t / 2000 + i * 2.3) * 3 * treeScale + windLean * treeScale;
+
+        // Trunk
+        ctx.globalAlpha = isNight ? 0.3 : 0.5;
+        ctx.fillStyle = isNight ? '#1a1510' : '#3a2a18';
+        ctx.beginPath();
+        ctx.moveTo(tx - trunkW, ty);
+        ctx.quadraticCurveTo(tx - trunkW * 0.5 + sway * 0.1, ty - trunkH * 0.5, tx - trunkW * 0.2 + sway * 0.3, ty - trunkH);
+        ctx.lineTo(tx + trunkW * 0.2 + sway * 0.3, ty - trunkH);
+        ctx.quadraticCurveTo(tx + trunkW * 0.5 + sway * 0.1, ty - trunkH * 0.5, tx + trunkW, ty);
+        ctx.closePath();
+        ctx.fill();
+
+        // Canopy — 3 overlapping circles, lighter on top
+        const canopyCx = tx + sway;
+        const canopyCy = ty - trunkH - canopyR * 0.3;
+
+        // Light top
+        ctx.globalAlpha = isNight ? 0.15 : 0.3;
+        ctx.fillStyle = isNight ? '#1a2a18' : '#4a8a38';
+        ctx.beginPath();
+        ctx.arc(canopyCx, canopyCy - canopyR * 0.15, canopyR * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mid body
+        ctx.globalAlpha = isNight ? 0.2 : 0.35;
+        ctx.fillStyle = isNight ? '#0f1a0d' : '#3a7028';
+        ctx.beginPath();
+        ctx.arc(canopyCx - canopyR * 0.2, canopyCy, canopyR * 0.9, 0, Math.PI * 2);
+        ctx.arc(canopyCx + canopyR * 0.25, canopyCy + canopyR * 0.05, canopyR * 0.75, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Shadow underneath
+        ctx.globalAlpha = isNight ? 0.05 : 0.08;
+        ctx.fillStyle = '#1a2a10';
+        ctx.beginPath();
+        ctx.ellipse(tx, ty + 3, canopyR * 0.8, canopyR * 0.25, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // --- 5 mid-ground rocks ---
+    const rocks = [
+        { x: 0.22, y: 0.32, size: 1.2 },
+        { x: 0.6, y: 0.25, size: 0.8 },
+        { x: 0.45, y: 0.45, size: 1.0 },
+        { x: 0.78, y: 0.38, size: 0.7 },
+        { x: 0.12, y: 0.48, size: 0.9 },
+    ];
+
+    for (let i = 0; i < rocks.length; i++) {
+        const rock = rocks[i];
+        const rs = seed * 11.1 + i * 29.3;
+        const rx = w * rock.x + Math.sin(rs) * 15;
+        const ry = horizonY + terrainH * rock.y;
+        const scale = rock.size * (0.5 + rock.y * 0.5);
+        const rw = (6 + Math.abs(Math.sin(rs * 1.5)) * 8) * scale;
+        const rh = rw * (0.45 + Math.sin(rs) * 0.1);
+
+        // Rock body
+        ctx.globalAlpha = isNight ? 0.25 : 0.45;
+        ctx.fillStyle = isNight ? '#2a2a28' : '#6a6258';
+        ctx.beginPath();
+        ctx.ellipse(rx, ry, rw, rh, Math.sin(rs * 0.5) * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Highlight on top
+        ctx.globalAlpha = isNight ? 0.03 : 0.08;
+        ctx.fillStyle = '#aaa89a';
+        ctx.beginPath();
+        ctx.ellipse(rx - rw * 0.15, ry - rh * 0.35, rw * 0.55, rh * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Shadow
+        ctx.globalAlpha = isNight ? 0.03 : 0.06;
+        ctx.fillStyle = '#1a1a10';
+        ctx.beginPath();
+        ctx.ellipse(rx + rw * 0.3, ry + rh * 0.3, rw * 0.7, rh * 0.2, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
 // --- Terrain undulation — gentle hills and rises ---
 
 function drawTerrainUndulation(
@@ -941,29 +1062,41 @@ function drawForegroundTrees(
             ctx.stroke();
         }
 
-        // Canopy — muted green, irregular edges using varied overlapping circles
-        ctx.globalAlpha = isNight ? 0.3 : 0.4;
+        // Canopy — 3 shade zones: light top, mid body, dark underside
         const canopyCx = tx + sway;
         const canopyCy = trunkTopY - canopyW * 0.15;
 
-        // Outer irregular canopy — lighter
-        ctx.fillStyle = isNight ? '#0a1508' : '#2a4a20';
-        for (let c = 0; c < 7; c++) {
-            const cx = canopyCx + Math.sin(ts + c * 1.7) * canopyW * 0.35;
-            const cy = canopyCy + Math.sin(ts + c * 2.3) * canopyW * 0.2;
-            const cr = canopyW * (0.3 + Math.abs(Math.sin(ts + c * 0.9)) * 0.2);
+        // Zone 1: Light top — sun-facing, brightest green
+        ctx.globalAlpha = isNight ? 0.2 : 0.3;
+        ctx.fillStyle = isNight ? '#1a2a18' : '#4a8a3a';
+        for (let c = 0; c < 5; c++) {
+            const cx = canopyCx + Math.sin(ts + c * 1.7) * canopyW * 0.3;
+            const cy = canopyCy - canopyW * 0.08 + Math.sin(ts + c * 2.3) * canopyW * 0.1;
+            const cr = canopyW * (0.25 + Math.abs(Math.sin(ts + c * 0.9)) * 0.15);
             ctx.beginPath();
             ctx.arc(cx, cy, cr, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        // Inner canopy — slightly darker core
+        // Zone 2: Mid body — main canopy mass
+        ctx.globalAlpha = isNight ? 0.25 : 0.35;
+        ctx.fillStyle = isNight ? '#0f1a0d' : '#3a6a2a';
+        for (let c = 0; c < 6; c++) {
+            const cx = canopyCx + Math.sin(ts + c * 2.1) * canopyW * 0.35;
+            const cy = canopyCy + Math.sin(ts + c * 1.5) * canopyW * 0.15;
+            const cr = canopyW * (0.3 + Math.abs(Math.sin(ts + c * 1.3)) * 0.2);
+            ctx.beginPath();
+            ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Zone 3: Dark underside — shadowed lower part
         ctx.globalAlpha = isNight ? 0.15 : 0.2;
-        ctx.fillStyle = isNight ? '#081008' : '#1a3a15';
-        for (let c = 0; c < 3; c++) {
-            const cx = canopyCx + Math.sin(ts + c * 3.1) * canopyW * 0.15;
-            const cy = canopyCy + Math.sin(ts + c * 1.9) * canopyW * 0.1;
-            const cr = canopyW * (0.25 + Math.abs(Math.sin(ts + c * 1.5)) * 0.1);
+        ctx.fillStyle = isNight ? '#080e08' : '#2a4a1a';
+        for (let c = 0; c < 4; c++) {
+            const cx = canopyCx + Math.sin(ts + c * 3.1) * canopyW * 0.25;
+            const cy = canopyCy + canopyW * 0.1 + Math.abs(Math.sin(ts + c * 1.9)) * canopyW * 0.1;
+            const cr = canopyW * (0.2 + Math.abs(Math.sin(ts + c * 1.5)) * 0.12);
             ctx.beginPath();
             ctx.arc(cx, cy, cr, 0, Math.PI * 2);
             ctx.fill();

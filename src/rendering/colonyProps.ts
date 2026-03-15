@@ -95,14 +95,15 @@ export function drawMicroDetails(
 
     ctx.save();
 
-    // Place barrels and signposts near buildings (within 2-3 tile units)
-    for (let i = 0; i < Math.min(occupiedSlots.length, 3); i++) {
-        const slot = occupiedSlots[i];
+    // Place barrels and signposts near non-shelter buildings
+    const nonShelterSlots = occupiedSlots.filter(s => s.slotIndex !== 0);
+    for (let i = 0; i < Math.min(nonShelterSlots.length, 3); i++) {
+        const slot = nonShelterSlots[i];
         const cx = slot.x + slot.width / 2;
         const cy = slot.y + slot.height * 0.6;
         const ds = seed + i * 23.1;
-        const offsetX = 35 + Math.sin(ds * 1.2) * 15;
-        const offsetY = 15 + Math.sin(ds * 1.8) * 8;
+        const offsetX = 50 + Math.sin(ds * 1.2) * 15;
+        const offsetY = 20 + Math.sin(ds * 1.8) * 8;
 
         drawBarrel(ctx, cx + offsetX, cy + offsetY, ds);
 
@@ -111,17 +112,24 @@ export function drawMicroDetails(
         }
     }
 
-    // Campfire ring between first two buildings (or near first building)
-    if (occupiedSlots.length >= 2) {
-        const a = occupiedSlots[0];
-        const b = occupiedSlots[1];
-        const cfx = (a.x + a.width / 2 + b.x + b.width / 2) / 2;
-        const cfy = (a.y + a.height * 0.6 + b.y + b.height * 0.6) / 2 + 20;
-        drawCampfireRing(ctx, cfx, cfy, t, isNight);
-    } else {
+    // Campfire ring — between non-shelter buildings, or offset from shelter
+    if (nonShelterSlots.length >= 1) {
+        const slot = nonShelterSlots[0];
+        const shelter = occupiedSlots.find(s => s.slotIndex === 0);
+        if (shelter) {
+            // Midpoint between shelter and first other building, offset downward
+            const cfx = (shelter.x + shelter.width / 2 + slot.x + slot.width / 2) / 2;
+            const cfy = Math.max(shelter.y, slot.y) + 60;
+            drawCampfireRing(ctx, cfx, cfy, t, isNight);
+        } else {
+            const cfx = slot.x + slot.width / 2 + 50;
+            const cfy = slot.y + slot.height * 0.6 + 30;
+            drawCampfireRing(ctx, cfx, cfy, t, isNight);
+        }
+    } else if (occupiedSlots.length > 0) {
         const slot = occupiedSlots[0];
-        const cfx = slot.x + slot.width / 2 + 40;
-        const cfy = slot.y + slot.height * 0.6 + 20;
+        const cfx = slot.x + slot.width / 2 + 60;
+        const cfy = slot.y + slot.height * 0.6 + 30;
         drawCampfireRing(ctx, cfx, cfy, t, isNight);
     }
 
