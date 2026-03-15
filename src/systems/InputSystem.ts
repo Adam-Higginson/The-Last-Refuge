@@ -80,8 +80,8 @@ export class InputSystem extends System {
             this.mouseX = e.clientX;
             this.mouseY = e.clientY;
 
-            // Handle pan dragging
-            if (this.panButton !== null) {
+            // Handle pan dragging (system map only)
+            if (this.panButton !== null && this.isSystemMode()) {
                 const dx = e.clientX - this.panStartX;
                 const dy = e.clientY - this.panStartY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -104,7 +104,7 @@ export class InputSystem extends System {
         };
 
         this.onMouseDown = (e: MouseEvent): void => {
-            if (e.button === 0) {
+            if (e.button === 0 && this.isSystemMode()) {
                 // Suppress pan if click starts on the minimap
                 const minimapEntity = this.world.getEntityByName('minimap');
                 const minimapComp = minimapEntity?.getComponent(MinimapComponent);
@@ -146,6 +146,8 @@ export class InputSystem extends System {
 
         this.onWheel = (e: WheelEvent): void => {
             e.preventDefault();
+            if (!this.isSystemMode()) return;
+
             const camera = this.getCamera();
             if (!camera) return;
 
@@ -164,8 +166,10 @@ export class InputSystem extends System {
         // --- Touch handlers ---
 
         this.onTouchStart = (e: TouchEvent): void => {
-            if (e.touches.length === 2) {
-                // Pinch start
+            const systemMode = this.isSystemMode();
+
+            if (e.touches.length === 2 && systemMode) {
+                // Pinch start (system map only)
                 e.preventDefault();
                 this.isPinching = true;
                 this.isTouchPanning = false;
@@ -178,22 +182,26 @@ export class InputSystem extends System {
                 const camera = this.getCamera();
                 this.pinchStartZoom = camera?.targetZoomLevel ?? 1;
             } else if (e.touches.length === 1) {
-                // Single touch start — potential pan or tap
-                e.preventDefault();
+                // Single touch start — always track position for coordinates,
+                // but only enable pan in system mode
                 const touch = e.touches[0];
                 this.mouseX = touch.clientX;
                 this.mouseY = touch.clientY;
-                this.touchStartX = touch.clientX;
-                this.touchStartY = touch.clientY;
-                this.lastTouchX = touch.clientX;
-                this.lastTouchY = touch.clientY;
-                this.touchMoved = false;
-                this.isTouchPanning = false;
 
-                // Suppress touch panning if starting on the minimap
-                const mmEntity = this.world.getEntityByName('minimap');
-                const mmComp = mmEntity?.getComponent(MinimapComponent);
-                this.touchOnMinimap = mmComp?.hitTest(touch.clientX, touch.clientY) ?? false;
+                if (systemMode) {
+                    e.preventDefault();
+                    this.touchStartX = touch.clientX;
+                    this.touchStartY = touch.clientY;
+                    this.lastTouchX = touch.clientX;
+                    this.lastTouchY = touch.clientY;
+                    this.touchMoved = false;
+                    this.isTouchPanning = false;
+
+                    // Suppress touch panning if starting on the minimap
+                    const mmEntity = this.world.getEntityByName('minimap');
+                    const mmComp = mmEntity?.getComponent(MinimapComponent);
+                    this.touchOnMinimap = mmComp?.hitTest(touch.clientX, touch.clientY) ?? false;
+                }
             }
         };
 
@@ -209,10 +217,8 @@ export class InputSystem extends System {
                 if (camera && this.pinchStartDist > 0) {
                     const ratio = dist / this.pinchStartDist;
                     const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.pinchStartZoom * ratio));
-                    // Set both zoom and target directly for real-time pinch feel
                     camera.zoomLevel = newZoom;
                     camera.targetZoomLevel = newZoom;
-                    // Trigger recalculation via resize to same size
                     camera.resize(camera.canvasWidth, camera.canvasHeight);
                 }
             } else if (e.touches.length === 1 && !this.isPinching) {
@@ -220,23 +226,26 @@ export class InputSystem extends System {
                 this.mouseX = touch.clientX;
                 this.mouseY = touch.clientY;
 
-                const dx = touch.clientX - this.touchStartX;
-                const dy = touch.clientY - this.touchStartY;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+                // Camera panning only in system mode
+                if (this.isSystemMode()) {
+                    const dx = touch.clientX - this.touchStartX;
+                    const dy = touch.clientY - this.touchStartY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist >= PAN_THRESHOLD && !this.touchOnMinimap) {
-                    this.touchMoved = true;
-                    this.isTouchPanning = true;
+                    if (dist >= PAN_THRESHOLD && !this.touchOnMinimap) {
+                        this.touchMoved = true;
+                        this.isTouchPanning = true;
 
-                    const camera = this.getCamera();
-                    if (camera) {
-                        const worldDx = -(touch.clientX - this.lastTouchX) / camera.scale;
-                        const worldDy = -(touch.clientY - this.lastTouchY) / camera.scale;
-                        camera.pan(worldDx, worldDy);
+                        const camera = this.getCamera();
+                        if (camera) {
+                            const worldDx = -(touch.clientX - this.lastTouchX) / camera.scale;
+                            const worldDy = -(touch.clientY - this.lastTouchY) / camera.scale;
+                            camera.pan(worldDx, worldDy);
+                        }
+
+                        this.lastTouchX = touch.clientX;
+                        this.lastTouchY = touch.clientY;
                     }
-
-                    this.lastTouchX = touch.clientX;
-                    this.lastTouchY = touch.clientY;
                 }
             }
         };
@@ -250,8 +259,9 @@ export class InputSystem extends System {
                 return;
             }
 
-            if (!this.touchMoved) {
-                // Tap — treat as click
+            // Only handle tap-as-click in system mode — planet/colony
+            // views handle their own touch events via their input components.
+            if (!this.touchMoved && this.isSystemMode()) {
                 e.preventDefault();
                 this.pendingClick = true;
                 this.pendingClickIsTouch = true;
@@ -279,6 +289,13 @@ export class InputSystem extends System {
     private getCamera(): CameraComponent | null {
         const cameraEntity = this.world.getEntityByName('camera');
         return cameraEntity?.getComponent(CameraComponent) ?? null;
+    }
+
+    /** Check if the game is currently in system map mode (where camera pan/zoom apply). */
+    private isSystemMode(): boolean {
+        const gameState = this.world.getEntityByName('gameState');
+        const gameMode = gameState?.getComponent(GameModeComponent);
+        return !gameMode || gameMode.mode === 'system';
     }
 
     /** Convert screen coordinates to world coordinates via CameraComponent.

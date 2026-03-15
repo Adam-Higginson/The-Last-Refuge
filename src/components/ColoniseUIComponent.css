@@ -81,25 +81,6 @@
     color: #ffffff;
 }
 
-#colony-view-back {
-    position: fixed;
-    top: 16px;
-    left: 16px;
-    background: rgba(3, 4, 10, 0.7);
-    border: 1px solid rgba(79, 168, 255, 0.3);
-    color: #4fa8ff;
-    font-family: inherit;
-    font-size: 13px;
-    letter-spacing: 1px;
-    padding: 8px 16px;
-    cursor: pointer;
-    z-index: 30;
-}
-
-#colony-view-back:hover {
-    border-color: #4fa8ff;
-    color: #ffffff;
-}
 
 /* --- Colonise Confirmation Modal --- */
 #colonise-modal {

@@ -17,8 +17,9 @@ export function drawSettlementProps(
     region: Region,
     slotRects: ColonySlotRect[],
     t: number,
+    gameHour = 10,
 ): void {
-    const dayNight = getDayNightState();
+    const dayNight = getDayNightState(gameHour);
     const isNight = dayNight.ambientLight < 0.3;
 
     for (const rect of slotRects) {
@@ -84,10 +85,11 @@ export function drawMicroDetails(
     region: Region,
     t: number,
     slotRects?: ColonySlotRect[],
+    gameHour = 10,
 ): void {
     if (!slotRects || region.buildings.length === 0) return;
 
-    const dayNight = getDayNightState();
+    const dayNight = getDayNightState(gameHour);
     const isNight = dayNight.ambientLight < 0.3;
     const seed = region.id * 31.7;
     const occupiedSlots = slotRects.filter(s => s.occupied);

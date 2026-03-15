@@ -8,7 +8,7 @@ export const TILE_HEIGHT = 60;
 export const GRID_SPACING = 160;
 
 /** Camera zoom scale applied to the entire ground scene. */
-export const COLONY_ZOOM = 2.2;
+export const COLONY_ZOOM = 3.0;
 
 /** Convert grid coordinates to screen coordinates (uses GRID_SPACING for position). */
 export function gridToScreen(

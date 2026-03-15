@@ -2,10 +2,10 @@
 // 3 states: Clear, Overcast, Rain. Smooth transitions.
 // Rain has 3 depth layers, organic clouds, ground puddles, mist, lightning.
 
-import { getGameHour } from './colonyDayNight';
 import type { DayNightState } from './colonyDayNight';
+import type { ColonySceneStateComponent, WeatherStateName } from '../components/ColonySceneStateComponent';
 
-export type WeatherState = 'clear' | 'overcast' | 'rain';
+export type WeatherState = WeatherStateName;
 
 export interface WeatherInfo {
     current: WeatherState;
@@ -24,26 +24,14 @@ const TRANSITION_DURATION = 45;
 const MIN_CHANGE_INTERVAL = 5;
 const MAX_CHANGE_INTERVAL = 15;
 
-let currentWeather: WeatherState = 'clear';
-let previousWeather: WeatherState = 'clear';
-let transitionProgress = 1;
-let nextChangeHour = 8;
-let lastHour = -1;
-
-// Wind gusting
-let windAngle = 0.15; // Base wind angle (radians, slight lean)
-let windTarget = 0.15;
-let windIntensity = 0;
-let nextGustTime = 0;
-
-/** Force cycle to next weather state (debug). */
-export function forceNextWeather(): void {
+/** Force cycle to next weather state (debug). Mutates state component. */
+export function forceNextWeather(state: ColonySceneStateComponent): void {
     const cycle: WeatherState[] = ['clear', 'overcast', 'rain'];
-    const idx = cycle.indexOf(currentWeather);
+    const idx = cycle.indexOf(state.currentWeather);
     const next = cycle[(idx + 1) % cycle.length];
-    previousWeather = currentWeather;
-    currentWeather = next;
-    transitionProgress = 0;
+    state.previousWeather = state.currentWeather;
+    state.currentWeather = next;
+    state.transitionProgress = 0;
 }
 
 function pickNextWeather(currentState: WeatherState, isNight: boolean): WeatherState {
@@ -67,63 +55,70 @@ function pickNextWeather(currentState: WeatherState, isNight: boolean): WeatherS
     return 'rain';
 }
 
-export function advanceWeather(dtSeconds: number, dayNight: DayNightState): void {
-    const hour = getGameHour();
+export function advanceWeather(state: ColonySceneStateComponent, dtSeconds: number, dayNight: DayNightState): void {
+    const hour = state.gameHour;
     const t = performance.now() / 1000;
 
-    if (transitionProgress < 1) {
-        transitionProgress += dtSeconds / TRANSITION_DURATION;
-        if (transitionProgress > 1) transitionProgress = 1;
+    if (state.transitionProgress < 1) {
+        state.transitionProgress += dtSeconds / TRANSITION_DURATION;
+        if (state.transitionProgress > 1) state.transitionProgress = 1;
     }
 
-    if (lastHour >= 0 && hour < lastHour) { /* midnight wrap */ }
-    else if (hour >= nextChangeHour && transitionProgress >= 1) {
+    if (state.lastHour >= 0 && hour < state.lastHour) { /* midnight wrap */ }
+    else if (hour >= state.nextChangeHour && state.transitionProgress >= 1) {
         const isNight = dayNight.phase === 'night';
-        const next = pickNextWeather(currentWeather, isNight);
+        const next = pickNextWeather(state.currentWeather, isNight);
         const finalNext = (next === 'rain' && isNight) ? 'overcast' : next;
-        if (finalNext !== currentWeather) {
-            previousWeather = currentWeather;
-            currentWeather = finalNext;
-            transitionProgress = 0;
+        if (finalNext !== state.currentWeather) {
+            state.previousWeather = state.currentWeather;
+            state.currentWeather = finalNext;
+            state.transitionProgress = 0;
         }
-        nextChangeHour = hour + MIN_CHANGE_INTERVAL + Math.random() * (MAX_CHANGE_INTERVAL - MIN_CHANGE_INTERVAL);
-        if (nextChangeHour >= 24) nextChangeHour -= 24;
+        state.nextChangeHour = hour + MIN_CHANGE_INTERVAL + Math.random() * (MAX_CHANGE_INTERVAL - MIN_CHANGE_INTERVAL);
+        if (state.nextChangeHour >= 24) state.nextChangeHour -= 24;
     }
-    lastHour = hour;
+    state.lastHour = hour;
+
+    // Gust decay (replaces setTimeout)
+    if (state.gustDecayTimer > 0) {
+        state.gustDecayTimer -= dtSeconds;
+        if (state.gustDecayTimer <= 0) {
+            state.gustDecayTimer = 0;
+            state.windTarget = 0.15;
+            state.windIntensity = 0;
+        }
+    }
 
     // Wind gusting
-    if (t > nextGustTime && currentWeather === 'rain') {
-        windTarget = 0.25 + Math.random() * 0.15;
-        windIntensity = 0.7 + Math.random() * 0.3;
-        nextGustTime = t + 8 + Math.random() * 15;
-        // Gust decays after 2-3 seconds
-        setTimeout(() => {
-            windTarget = 0.15;
-            windIntensity = 0;
-        }, 2000 + Math.random() * 1000);
+    if (t > state.nextGustTime && state.currentWeather === 'rain' && state.gustDecayTimer <= 0) {
+        state.windTarget = 0.25 + Math.random() * 0.15;
+        state.windIntensity = 0.7 + Math.random() * 0.3;
+        state.nextGustTime = t + 8 + Math.random() * 15;
+        // Gust decays after 2-3 seconds (frame-based)
+        state.gustDecayTimer = 2 + Math.random();
     }
-    windAngle += (windTarget - windAngle) * Math.min(1, dtSeconds * 3);
+    state.windAngle += (state.windTarget - state.windAngle) * Math.min(1, dtSeconds * 3);
 }
 
-export function getWeatherInfo(): WeatherInfo {
-    const t = transitionProgress;
-    const prevOvercast = previousWeather === 'clear' ? 0 : previousWeather === 'overcast' ? 0.6 : 0.85;
-    const currOvercast = currentWeather === 'clear' ? 0 : currentWeather === 'overcast' ? 0.6 : 0.85;
+export function getWeatherInfo(state: ColonySceneStateComponent): WeatherInfo {
+    const t = state.transitionProgress;
+    const prevOvercast = state.previousWeather === 'clear' ? 0 : state.previousWeather === 'overcast' ? 0.6 : 0.85;
+    const currOvercast = state.currentWeather === 'clear' ? 0 : state.currentWeather === 'overcast' ? 0.6 : 0.85;
     const overcastAmount = prevOvercast + (currOvercast - prevOvercast) * t;
-    const prevRain = previousWeather === 'rain' ? 1 : 0;
-    const currRain = currentWeather === 'rain' ? 1 : 0;
+    const prevRain = state.previousWeather === 'rain' ? 1 : 0;
+    const currRain = state.currentWeather === 'rain' ? 1 : 0;
     const rainIntensity = prevRain + (currRain - prevRain) * t;
     const ambientReduction = overcastAmount * 0.25;
 
     return {
-        current: currentWeather,
-        previous: previousWeather,
+        current: state.currentWeather,
+        previous: state.previousWeather,
         transition: t,
         overcastAmount,
         rainIntensity,
         ambientReduction,
-        windAngle,
-        windIntensity,
+        windAngle: state.windAngle,
+        windIntensity: state.windIntensity,
     };
 }
 
@@ -136,8 +131,9 @@ export function drawWeatherEffects(
     w: number,
     h: number,
     t: number,
+    state: ColonySceneStateComponent,
 ): void {
-    const weather = getWeatherInfo();
+    const weather = getWeatherInfo(state);
 
     if (weather.overcastAmount > 0) {
         drawOvercastSky(ctx, w, h, t, weather);
@@ -146,7 +142,7 @@ export function drawWeatherEffects(
         drawRainLayers(ctx, w, h, t, weather);
         drawGroundPuddles(ctx, w, h, t, weather.rainIntensity);
         drawRainMist(ctx, w, h, weather.rainIntensity);
-        drawLightning(ctx, w, h, t, weather.rainIntensity);
+        drawLightning(ctx, w, h, t, weather.rainIntensity, state);
     }
 }
 
@@ -418,29 +414,27 @@ function drawRainMist(
 
 // --- Lightning ---
 
-let lastLightningTime = 0;
-let lightningAlpha = 0;
-
 function drawLightning(
     ctx: CanvasRenderingContext2D,
     w: number,
     h: number,
     t: number,
     intensity: number,
+    state: ColonySceneStateComponent,
 ): void {
     // Trigger lightning every 30-90 seconds during rain
-    if (t - lastLightningTime > (30000 + Math.random() * 60000) && intensity > 0.5) {
-        lastLightningTime = t;
-        lightningAlpha = 0.3;
+    if (t - state.lastLightningTime > (30000 + Math.random() * 60000) && intensity > 0.5) {
+        state.lastLightningTime = t;
+        state.lightningAlpha = 0.3;
     }
 
-    if (lightningAlpha > 0) {
+    if (state.lightningAlpha > 0) {
         ctx.save();
-        ctx.globalAlpha = lightningAlpha;
+        ctx.globalAlpha = state.lightningAlpha;
         ctx.fillStyle = '#e0e8ff';
         ctx.fillRect(0, 0, w, h);
         ctx.restore();
-        lightningAlpha *= 0.85; // Rapid decay
-        if (lightningAlpha < 0.01) lightningAlpha = 0;
+        state.lightningAlpha *= 0.85; // Rapid decay
+        if (state.lightningAlpha < 0.01) state.lightningAlpha = 0;
     }
 }

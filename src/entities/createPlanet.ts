@@ -16,13 +16,17 @@ import { FogOfWarComponent, getEntityFogZone } from '../components/FogOfWarCompo
 import { PlanetViewInputComponent } from '../components/PlanetViewInputComponent';
 import { ColoniseUIComponent } from '../components/ColoniseUIComponent';
 import { ColonyBuildingComponent } from '../components/ColonyBuildingComponent';
-import { BuildMenuUIComponent } from '../components/BuildMenuUIComponent';
+import { ColonySceneStateComponent } from '../components/ColonySceneStateComponent';
+import { ColonyViewInputComponent } from '../components/ColonyViewInputComponent';
+import { ColonyBuildPickerComponent } from '../components/ColonyBuildPickerComponent';
+import { ColonySidebarUIComponent } from '../components/ColonySidebarUIComponent';
 import { PlanetInfoUIComponent } from '../components/PlanetInfoUIComponent';
 import { drawColonyScene, drawTransitionToColony, drawTransitionFromColony } from '../rendering/drawColonyScene';
 import { generateVoronoi } from '../utils/voronoi';
 import { assignBiomes } from '../data/biomes';
 import { polygonCentroid } from '../utils/geometry';
 import { mulberry32 } from '../utils/prng';
+
 import type { PlanetConfig } from '../data/planets';
 import type { EntityZone } from '../components/FogOfWarComponent';
 import type { World } from '../core/World';
@@ -437,9 +441,6 @@ function drawPlanetSurface(
 ): void {
     const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
 
-    // Planet surface renders in screen space — reset camera transform
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-
     const regionData = entity.getComponent(RegionDataComponent);
     if (!regionData) return;
 
@@ -552,8 +553,6 @@ function drawGasGiantView(
     const planetData = entity.getComponent(PlanetDataComponent);
     if (!planetData) return;
     const config = planetData.config;
-
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     // Dark background
     ctx.fillStyle = '#03040a';
@@ -934,7 +933,10 @@ export function createPlanet(world: World, config: PlanetConfig): Entity {
     if (config.colonisable) {
         entity.addComponent(new ColoniseUIComponent());
         entity.addComponent(new ColonyBuildingComponent());
-        entity.addComponent(new BuildMenuUIComponent());
+        entity.addComponent(new ColonySceneStateComponent());
+        entity.addComponent(new ColonyViewInputComponent());
+        entity.addComponent(new ColonyBuildPickerComponent());
+        entity.addComponent(new ColonySidebarUIComponent());
     }
 
     return entity;
