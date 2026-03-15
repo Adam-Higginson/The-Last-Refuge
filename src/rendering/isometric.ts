@@ -4,8 +4,8 @@
 export const TILE_WIDTH = 320;
 export const TILE_HEIGHT = 160;
 
-/** Grid spacing — how far apart slots are placed. */
-export const GRID_SPACING = 500;
+/** Grid spacing — how far apart slots are placed (tight = intimate colony). */
+export const GRID_SPACING = 350;
 
 /** Convert grid coordinates to screen coordinates (uses GRID_SPACING for position). */
 export function gridToScreen(

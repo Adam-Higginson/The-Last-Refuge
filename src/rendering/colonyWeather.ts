@@ -159,7 +159,7 @@ function drawOvercastSky(
     t: number,
     weather: WeatherInfo,
 ): void {
-    const horizonY = h * 0.2;
+    const horizonY = h * 0.18;
 
     // Sky darkening
     ctx.save();
@@ -321,7 +321,7 @@ function drawGroundPuddles(
     t: number,
     intensity: number,
 ): void {
-    const horizonY = h * 0.2;
+    const horizonY = h * 0.18;
     const groundH = h - horizonY;
 
     // Wet ground sheen
@@ -405,7 +405,7 @@ function drawRainMist(
     h: number,
     intensity: number,
 ): void {
-    const horizonY = h * 0.2;
+    const horizonY = h * 0.18;
     ctx.save();
     ctx.globalAlpha = intensity * 0.15;
     const mistGrad = ctx.createLinearGradient(0, horizonY, 0, horizonY + h * 0.15);
