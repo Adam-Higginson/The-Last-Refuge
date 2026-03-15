@@ -157,8 +157,8 @@ export function drawColonyScene(
     drawHorizonFeatures(ctx, w, horizonY, visuals, region.id);
     drawNaturalGround(ctx, w, h, horizonY, visuals, region.id);
     drawTerrainUndulation(ctx, w, h, horizonY, visuals, region.id);
-    drawMidgroundScenery(ctx, w, h, horizonY, visuals, region.id, t);
     drawGroundDressing(ctx, w, h, horizonY, visuals, region.id);
+    drawMidgroundScenery(ctx, w, h, horizonY, visuals, region.id, t);
     drawPaths(ctx, w, h, region);
     const slotRects = drawBuildingSlots(ctx, w, h, region, t);
     drawBuildingShadows(ctx, region, slotRects, dayNight);
@@ -810,23 +810,34 @@ function drawMidgroundScenery(
 
     ctx.save();
 
-    // --- 4 mid-sized trees ---
+    // --- Ground rise left, dip right ---
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = _visuals.groundLight;
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY + terrainH * 0.25);
+    ctx.quadraticCurveTo(w * 0.25, horizonY + terrainH * 0.18, w * 0.5, horizonY + terrainH * 0.28);
+    ctx.quadraticCurveTo(w * 0.75, horizonY + terrainH * 0.35, w, horizonY + terrainH * 0.32);
+    ctx.lineTo(w, horizonY + terrainH * 0.4);
+    ctx.lineTo(0, horizonY + terrainH * 0.4);
+    ctx.closePath();
+    ctx.fill();
+
+    // --- 3 mid-sized trees — prominently placed ---
     const midTrees = [
-        { x: 0.15, y: 0.2 },
-        { x: 0.75, y: 0.18 },
-        { x: 0.35, y: 0.55 },
-        { x: 0.85, y: 0.5 },
+        { x: 0.18, y: 0.25 },
+        { x: 0.72, y: 0.22 },
+        { x: 0.4, y: 0.5 },
     ];
 
     for (let i = 0; i < midTrees.length; i++) {
         const mt = midTrees[i];
         const ms = seed * 9.3 + i * 21.7;
-        const tx = w * mt.x + Math.sin(ms) * 20;
+        const tx = w * mt.x + Math.sin(ms) * 15;
         const ty = horizonY + terrainH * mt.y;
-        const treeScale = 0.5 + mt.y * 0.4; // Larger when further from horizon
-        const trunkH = 25 * treeScale;
-        const trunkW = 4 * treeScale;
-        const canopyR = 18 * treeScale;
+        const treeScale = 0.7 + mt.y * 0.5;
+        const trunkH = 35 * treeScale;
+        const trunkW = 5 * treeScale;
+        const canopyR = 25 * treeScale;
 
         const sway = Math.sin(t / 2000 + i * 2.3) * 3 * treeScale + windLean * treeScale;
 
@@ -845,36 +856,45 @@ function drawMidgroundScenery(
         const canopyCx = tx + sway;
         const canopyCy = ty - trunkH - canopyR * 0.3;
 
-        // Light top
-        ctx.globalAlpha = isNight ? 0.15 : 0.3;
-        ctx.fillStyle = isNight ? '#1a2a18' : '#4a8a38';
+        // Canopy — sunlit top, mid body, darker base
+        // Sunlit top
+        ctx.globalAlpha = isNight ? 0.2 : 0.45;
+        ctx.fillStyle = isNight ? '#1a2a18' : '#5a9a42';
         ctx.beginPath();
-        ctx.arc(canopyCx, canopyCy - canopyR * 0.15, canopyR * 0.8, 0, Math.PI * 2);
+        ctx.arc(canopyCx + canopyR * 0.1, canopyCy - canopyR * 0.2, canopyR * 0.7, 0, Math.PI * 2);
         ctx.fill();
 
-        // Mid body
-        ctx.globalAlpha = isNight ? 0.2 : 0.35;
+        // Mid body — main mass
+        ctx.globalAlpha = isNight ? 0.25 : 0.5;
         ctx.fillStyle = isNight ? '#0f1a0d' : '#3a7028';
         ctx.beginPath();
-        ctx.arc(canopyCx - canopyR * 0.2, canopyCy, canopyR * 0.9, 0, Math.PI * 2);
-        ctx.arc(canopyCx + canopyR * 0.25, canopyCy + canopyR * 0.05, canopyR * 0.75, 0, Math.PI * 2);
+        ctx.arc(canopyCx - canopyR * 0.15, canopyCy, canopyR * 0.9, 0, Math.PI * 2);
+        ctx.arc(canopyCx + canopyR * 0.2, canopyCy + canopyR * 0.05, canopyR * 0.8, 0, Math.PI * 2);
         ctx.fill();
 
-        // Shadow underneath
-        ctx.globalAlpha = isNight ? 0.05 : 0.08;
+        // Darker underside
+        ctx.globalAlpha = isNight ? 0.15 : 0.3;
+        ctx.fillStyle = isNight ? '#081008' : '#2a5018';
+        ctx.beginPath();
+        ctx.arc(canopyCx, canopyCy + canopyR * 0.2, canopyR * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ground shadow beneath tree
+        ctx.globalAlpha = isNight ? 0.04 : 0.1;
         ctx.fillStyle = '#1a2a10';
         ctx.beginPath();
-        ctx.ellipse(tx, ty + 3, canopyR * 0.8, canopyR * 0.25, 0, 0, Math.PI * 2);
+        ctx.ellipse(tx, ty + 4, canopyR * 1.0, canopyR * 0.3, 0, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // --- 5 mid-ground rocks ---
+    // --- 6 mid-ground rocks — varied sizes ---
     const rocks = [
-        { x: 0.22, y: 0.32, size: 1.2 },
-        { x: 0.6, y: 0.25, size: 0.8 },
-        { x: 0.45, y: 0.45, size: 1.0 },
-        { x: 0.78, y: 0.38, size: 0.7 },
-        { x: 0.12, y: 0.48, size: 0.9 },
+        { x: 0.2, y: 0.3, size: 1.4 },
+        { x: 0.55, y: 0.2, size: 1.0 },
+        { x: 0.42, y: 0.42, size: 1.3 },
+        { x: 0.82, y: 0.35, size: 0.9 },
+        { x: 0.1, y: 0.5, size: 1.1 },
+        { x: 0.65, y: 0.48, size: 0.8 },
     ];
 
     for (let i = 0; i < rocks.length; i++) {
@@ -882,12 +902,12 @@ function drawMidgroundScenery(
         const rs = seed * 11.1 + i * 29.3;
         const rx = w * rock.x + Math.sin(rs) * 15;
         const ry = horizonY + terrainH * rock.y;
-        const scale = rock.size * (0.5 + rock.y * 0.5);
-        const rw = (6 + Math.abs(Math.sin(rs * 1.5)) * 8) * scale;
+        const scale = rock.size * (0.6 + rock.y * 0.5);
+        const rw = (8 + Math.abs(Math.sin(rs * 1.5)) * 10) * scale;
         const rh = rw * (0.45 + Math.sin(rs) * 0.1);
 
         // Rock body
-        ctx.globalAlpha = isNight ? 0.25 : 0.45;
+        ctx.globalAlpha = isNight ? 0.3 : 0.6;
         ctx.fillStyle = isNight ? '#2a2a28' : '#6a6258';
         ctx.beginPath();
         ctx.ellipse(rx, ry, rw, rh, Math.sin(rs * 0.5) * 0.2, 0, Math.PI * 2);
@@ -1066,9 +1086,9 @@ function drawForegroundTrees(
         const canopyCx = tx + sway;
         const canopyCy = trunkTopY - canopyW * 0.15;
 
-        // Zone 1: Light top — sun-facing, brightest green
-        ctx.globalAlpha = isNight ? 0.2 : 0.3;
-        ctx.fillStyle = isNight ? '#1a2a18' : '#4a8a3a';
+        // Zone 1: Sunlit top — brightest green, clearly lighter
+        ctx.globalAlpha = isNight ? 0.2 : 0.4;
+        ctx.fillStyle = isNight ? '#1a2a18' : '#5a9a48';
         for (let c = 0; c < 5; c++) {
             const cx = canopyCx + Math.sin(ts + c * 1.7) * canopyW * 0.3;
             const cy = canopyCy - canopyW * 0.08 + Math.sin(ts + c * 2.3) * canopyW * 0.1;
