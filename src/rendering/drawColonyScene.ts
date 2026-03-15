@@ -883,65 +883,106 @@ function drawForegroundTrees(
 
     ctx.save();
 
-    // 3 large foreground trees, partially cropped by screen edges
+    // 3 foreground trees — left edge, right edge, and near-left
     const trees = [
-        { x: -20, side: 'left' as const },
-        { x: w + 20, side: 'right' as const },
-        { x: w * 0.08, side: 'left' as const },
+        { x: w * 0.03, trunkVisible: true },
+        { x: w * 0.92, trunkVisible: true },
+        { x: w * -0.02, trunkVisible: true },
     ];
 
     for (let i = 0; i < trees.length; i++) {
         const tree = trees[i];
         const ts = seed * 5.1 + i * 17.3;
-        const tx = tree.x + Math.sin(ts) * 15;
-        const treeH = h * 0.55 + Math.abs(Math.sin(ts * 1.3)) * h * 0.1;
-        const trunkW = 12 + Math.abs(Math.sin(ts * 2.1)) * 6;
-        const canopyW = 50 + Math.abs(Math.sin(ts * 1.7)) * 25;
+        const tx = tree.x + Math.sin(ts) * 10;
+        const treeH = h * 0.5 + Math.abs(Math.sin(ts * 1.3)) * h * 0.08;
+        const trunkW = 8 + Math.abs(Math.sin(ts * 2.1)) * 5;
+        const canopyW = 40 + Math.abs(Math.sin(ts * 1.7)) * 20;
 
-        // Visible sway — foreground trees sway more
-        const sway = Math.sin(t / 1500 + i * 2.1) * 5 + windLean * 1.5;
+        const sway = Math.sin(t / 1500 + i * 2.1) * 6 + windLean * 1.5;
 
-        // Trunk base at bottom of screen
-        const trunkBaseY = h + 10;
-        const trunkTopY = h - treeH * 0.6;
+        const trunkBaseY = h + 5;
+        const trunkTopY = h - treeH * 0.55;
 
-        // Trunk — very dark, partially off-screen
-        ctx.globalAlpha = isNight ? 0.5 : 0.7;
-        ctx.fillStyle = isNight ? '#0a0a08' : '#2a2018';
+        // Trunk — warm brown, tapers upward
+        ctx.globalAlpha = isNight ? 0.4 : 0.6;
+        ctx.fillStyle = isNight ? '#1a1510' : '#3a2a18';
         ctx.beginPath();
         ctx.moveTo(tx - trunkW, trunkBaseY);
-        ctx.quadraticCurveTo(tx - trunkW * 0.8 + sway * 0.2, trunkTopY + treeH * 0.3, tx - trunkW * 0.3 + sway * 0.5, trunkTopY);
-        ctx.lineTo(tx + trunkW * 0.3 + sway * 0.5, trunkTopY);
-        ctx.quadraticCurveTo(tx + trunkW * 0.8 + sway * 0.2, trunkTopY + treeH * 0.3, tx + trunkW, trunkBaseY);
+        ctx.quadraticCurveTo(tx - trunkW * 0.6 + sway * 0.15, trunkTopY + treeH * 0.25, tx - trunkW * 0.2 + sway * 0.4, trunkTopY);
+        ctx.lineTo(tx + trunkW * 0.2 + sway * 0.4, trunkTopY);
+        ctx.quadraticCurveTo(tx + trunkW * 0.6 + sway * 0.15, trunkTopY + treeH * 0.25, tx + trunkW, trunkBaseY);
         ctx.closePath();
         ctx.fill();
 
-        // Canopy — large, dark, overlapping silhouette
-        ctx.globalAlpha = isNight ? 0.4 : 0.55;
-        ctx.fillStyle = isNight ? '#050805' : '#1a2a12';
+        // Bark texture — subtle lines
+        ctx.strokeStyle = isNight ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.06)';
+        ctx.lineWidth = 0.5;
+        for (let b = 0; b < 4; b++) {
+            const bx = tx + (b - 1.5) * trunkW * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(bx, trunkBaseY - 10);
+            ctx.lineTo(bx + sway * 0.1, trunkTopY + 20);
+            ctx.stroke();
+        }
 
-        // Multiple overlapping circles for organic canopy
+        // Grass around trunk base — rooted feel
+        ctx.globalAlpha = isNight ? 0.2 : 0.4;
+        ctx.strokeStyle = isNight ? '#1a2a12' : '#3a6a28';
+        ctx.lineWidth = 1;
+        ctx.lineCap = 'round';
+        for (let g = 0; g < 8; g++) {
+            const gx = tx + (g - 3.5) * 5;
+            const gy = trunkBaseY - 3;
+            const gh = 6 + Math.abs(Math.sin(ts + g * 1.3)) * 6;
+            const gl = Math.sin(ts + g * 0.7) * 2 + sway * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(gx, gy);
+            ctx.quadraticCurveTo(gx + gl * 0.4, gy - gh * 0.6, gx + gl, gy - gh);
+            ctx.stroke();
+        }
+
+        // Canopy — muted green, irregular edges using varied overlapping circles
+        ctx.globalAlpha = isNight ? 0.3 : 0.4;
         const canopyCx = tx + sway;
-        const canopyCy = trunkTopY - canopyW * 0.2;
-        for (let c = 0; c < 5; c++) {
-            const cx = canopyCx + Math.sin(ts + c * 1.7) * canopyW * 0.3;
-            const cy = canopyCy + Math.sin(ts + c * 2.3) * canopyW * 0.15;
-            const cr = canopyW * (0.4 + Math.abs(Math.sin(ts + c * 0.9)) * 0.25);
+        const canopyCy = trunkTopY - canopyW * 0.15;
+
+        // Outer irregular canopy — lighter
+        ctx.fillStyle = isNight ? '#0a1508' : '#2a4a20';
+        for (let c = 0; c < 7; c++) {
+            const cx = canopyCx + Math.sin(ts + c * 1.7) * canopyW * 0.35;
+            const cy = canopyCy + Math.sin(ts + c * 2.3) * canopyW * 0.2;
+            const cr = canopyW * (0.3 + Math.abs(Math.sin(ts + c * 0.9)) * 0.2);
             ctx.beginPath();
             ctx.arc(cx, cy, cr, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        // Dappled light patches on ground beneath tree
+        // Inner canopy — slightly darker core
+        ctx.globalAlpha = isNight ? 0.15 : 0.2;
+        ctx.fillStyle = isNight ? '#081008' : '#1a3a15';
+        for (let c = 0; c < 3; c++) {
+            const cx = canopyCx + Math.sin(ts + c * 3.1) * canopyW * 0.15;
+            const cy = canopyCy + Math.sin(ts + c * 1.9) * canopyW * 0.1;
+            const cr = canopyW * (0.25 + Math.abs(Math.sin(ts + c * 1.5)) * 0.1);
+            ctx.beginPath();
+            ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Dappled light on ground beneath
         if (!isNight) {
-            ctx.globalAlpha = 0.04;
-            ctx.fillStyle = '#aacc88';
-            for (let d = 0; d < 4; d++) {
-                const dx = tx + Math.sin(ts + d * 3.1) * 25;
-                const dy = h - 20 + Math.sin(ts + d * 2.7) * 15;
-                const dr = 8 + Math.sin(ts + d) * 5;
+            ctx.globalAlpha = 0.05;
+            ctx.fillStyle = '#aac880';
+            for (let d = 0; d < 5; d++) {
+                const dx = tx + Math.sin(ts + d * 3.1) * 30;
+                const dy = h - 15 + Math.sin(ts + d * 2.7) * 10;
+                const dr = 10 + Math.sin(ts + d) * 6;
+                const dGrad = ctx.createRadialGradient(dx, dy, 0, dx, dy, dr);
+                dGrad.addColorStop(0, 'rgba(180, 210, 140, 0.3)');
+                dGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = dGrad;
                 ctx.beginPath();
-                ctx.ellipse(dx, dy, dr, dr * 0.4, 0, 0, Math.PI * 2);
+                ctx.ellipse(dx, dy, dr, dr * 0.35, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
