@@ -146,6 +146,20 @@ Use Claude Preview to manually test the game in a headless browser during develo
 - `npm run check` — Lint + type-check + tests (run before committing)
 - `npm run preview` — Preview production build
 
+## Web Browsing & QA (gstack)
+
+Use the `/browse` skill from gstack for all web browsing. Never use `mcp__claude-in-chrome__*` tools.
+
+Available gstack skills:
+- `/plan-ceo-review` — CEO-level plan review
+- `/plan-eng-review` — Engineering plan review
+- `/review` — Code review
+- `/ship` — Ship checklist
+- `/browse` — Headless browser for web browsing, QA testing, and site dogfooding
+- `/qa` — QA testing
+- `/setup-browser-cookies` — Configure browser cookies
+- `/retro` — Retrospective
+
 ## Game Bible
 
 This project includes a game design bible for The Last Refuge. Read this file at the start of every session and follow the update instructions inside it:
