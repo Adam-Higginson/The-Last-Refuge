@@ -1512,6 +1512,7 @@ function drawCrewOnSurface(
             id: e.id,
             role: c?.role ?? 'Civilian',
             isLeader: c?.isLeader ?? false,
+            name: c?.fullName ?? 'Unknown',
         };
     });
 
