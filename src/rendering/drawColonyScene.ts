@@ -209,6 +209,7 @@ export function drawColonyScene(
     // === Layer 3: Overlays and foreground (1x scale) ===
     drawAmbientParticles(ctx, w, h, visuals, t);
     drawForegroundTrees(ctx, w, h, visuals, region.id, t);
+    drawForegroundGrass(ctx, w, h, region.id, t);
     drawAmbientOverlay(ctx, w, h, dayNight);
 
     // Weather effects drawn AFTER ambient overlay so rain is visible on dark nights
@@ -726,46 +727,7 @@ function drawGroundDressing(
 
     }
 
-    // --- Foreground grass — dense, tall, varied, like standing in long grass ---
-    const fgGreens = ['#2a5a1a', '#1a4a12', '#1a5a18', '#2a6a20'];
-    const fgCount = 80;
-    ctx.lineCap = 'round';
-
-    for (let i = 0; i < fgCount; i++) {
-        const ds = seed * 11.3 + i * 9.7;
-        // Irregular spacing across bottom edge
-        const dx = (i / fgCount) * w + Math.sin(ds * 1.3) * 12 + Math.sin(ds * 3.7) * 6;
-        // Varied Y — some clumps sit higher, some right at edge
-        const dy = h - Math.abs(Math.sin(ds * 1.7)) * 10 + 5;
-        const scale = 1.0 + Math.abs(Math.sin(ds * 2.1)) * 0.6;
-
-        const sway = Math.sin(t / 1400 + dx * 0.005 + i * 0.4) * (3.5 + rainBoost) + windLean;
-        const gustFg = (gustActive && Math.abs(dx - gustX) < 120) ? 7 : 0;
-        const totalSway = sway + gustFg;
-
-        const bladeCount = 4 + Math.floor(Math.abs(Math.sin(ds * 3.1)) * 4);
-        const colourIdx = Math.floor(Math.abs(Math.sin(ds * 4.3)) * fgGreens.length);
-
-        ctx.strokeStyle = fgGreens[colourIdx];
-        ctx.globalAlpha = 0.6 + Math.abs(Math.sin(ds * 1.1)) * 0.3;
-        ctx.lineWidth = (1.0 + Math.abs(Math.sin(ds * 2.7)) * 0.5) * scale;
-
-        for (let j = 0; j < bladeCount; j++) {
-            const gx = dx + (j - bladeCount / 2) * 2.8 * scale;
-            // Varied heights — some tall, some short
-            const heightMod = 0.7 + Math.abs(Math.sin(ds + j * 1.9)) * 0.6;
-            const bladeH = (14 + Math.abs(Math.sin(ds + j * 1.5)) * 12) * scale * heightMod;
-            const bladeLean = totalSway + Math.sin(ds + j * 0.9) * 3;
-
-            ctx.beginPath();
-            ctx.moveTo(gx, dy);
-            ctx.quadraticCurveTo(
-                gx + bladeLean * 0.3, dy - bladeH * 0.5,
-                gx + bladeLean * 0.7, dy - bladeH,
-            );
-            ctx.stroke();
-        }
-    }
+    // (Foreground grass moved to Layer 3 — drawForegroundGrass)
 
     ctx.restore();
 }
@@ -1070,6 +1032,59 @@ function drawTerrainUndulation(
     ctx.restore();
 }
 
+// --- Foreground grass (1x scale, bottom edge) ---
+
+function drawForegroundGrass(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    seed: number,
+    t: number,
+): void {
+    const weather = getWeatherInfo();
+    const windLean = weather.windAngle * 12;
+    const rainBoost = weather.rainIntensity * 3;
+
+    const fgGreens = ['#2a5a1a', '#1a4a12', '#1a5a18', '#2a6a20'];
+    const fgCount = 80;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+
+    for (let i = 0; i < fgCount; i++) {
+        const ds = seed * 11.3 + i * 9.7;
+        const dx = (i / fgCount) * w + Math.sin(ds * 1.3) * 12 + Math.sin(ds * 3.7) * 6;
+        const dy = h - Math.abs(Math.sin(ds * 1.7)) * 8 + 3;
+        const scale = 1.0 + Math.abs(Math.sin(ds * 2.1)) * 0.6;
+
+        const sway = Math.sin(t / 1400 + dx * 0.005 + i * 0.4) * (3.5 + rainBoost) + windLean;
+
+        const bladeCount = 4 + Math.floor(Math.abs(Math.sin(ds * 3.1)) * 4);
+        const colourIdx = Math.floor(Math.abs(Math.sin(ds * 4.3)) * fgGreens.length);
+
+        ctx.strokeStyle = fgGreens[colourIdx];
+        ctx.globalAlpha = 0.6 + Math.abs(Math.sin(ds * 1.1)) * 0.3;
+        ctx.lineWidth = (1.0 + Math.abs(Math.sin(ds * 2.7)) * 0.5) * scale;
+
+        for (let j = 0; j < bladeCount; j++) {
+            const gx = dx + (j - bladeCount / 2) * 2.8 * scale;
+            const heightMod = 0.7 + Math.abs(Math.sin(ds + j * 1.9)) * 0.6;
+            const bladeH = (14 + Math.abs(Math.sin(ds + j * 1.5)) * 12) * scale * heightMod;
+            const bladeLean = sway + Math.sin(ds + j * 0.9) * 3;
+
+            ctx.beginPath();
+            ctx.moveTo(gx, dy);
+            ctx.quadraticCurveTo(
+                gx + bladeLean * 0.3, dy - bladeH * 0.5,
+                gx + bladeLean * 0.7, dy - bladeH,
+            );
+            ctx.stroke();
+        }
+    }
+
+    ctx.restore();
+}
+
 // --- Foreground trees — frame the scene ---
 
 function drawForegroundTrees(
@@ -1106,8 +1121,8 @@ function drawForegroundTrees(
 
         const sway = Math.sin(t / 1500 + i * 2.1) * 6 + windLean * 1.5;
 
-        const trunkBaseY = h * 0.8;
-        const trunkTopY = trunkBaseY - treeH * 0.55;
+        const trunkBaseY = h * 0.92;
+        const trunkTopY = trunkBaseY - treeH * 0.6;
 
         // Trunk — warm brown, tapers upward
         ctx.globalAlpha = isNight ? 0.4 : 0.6;
@@ -1278,22 +1293,21 @@ function drawBuildingShadows(
 ): void {
     if (dayNight.phase === 'night') return; // No sharp shadows at night
 
-    const shadowAlpha = 0.08 + dayNight.ambientLight * 0.12;
-    const shadowOffsetX = Math.cos(dayNight.shadowAngle) * 20 * dayNight.shadowLength;
-    const shadowOffsetY = Math.sin(dayNight.shadowAngle) * 8 * dayNight.shadowLength;
-    const shadowScale = 0.5 + dayNight.shadowLength * 0.5;
+    const shadowAlpha = 0.05 + dayNight.ambientLight * 0.06;
+    const shadowOffsetX = Math.cos(dayNight.shadowAngle) * 10 * dayNight.shadowLength;
+    const shadowOffsetY = Math.sin(dayNight.shadowAngle) * 4 * dayNight.shadowLength;
 
     ctx.save();
-    ctx.globalAlpha = shadowAlpha;
     ctx.fillStyle = 'rgba(0, 0, 0, 1)';
 
     for (const rect of slotRects) {
         if (!rect.occupied) continue;
 
+        ctx.globalAlpha = shadowAlpha;
         const sx = rect.x + rect.width / 2 + shadowOffsetX;
         const sy = rect.y + rect.height * 0.5 + shadowOffsetY;
-        const shadowW = TILE_WIDTH * 0.4 * shadowScale;
-        const shadowH = TILE_HEIGHT * 0.25 * shadowScale;
+        const shadowW = TILE_WIDTH * 0.25;
+        const shadowH = TILE_HEIGHT * 0.15;
 
         ctx.beginPath();
         ctx.ellipse(sx, sy + 10, shadowW, shadowH, dayNight.shadowAngle * 0.1, 0, Math.PI * 2);
