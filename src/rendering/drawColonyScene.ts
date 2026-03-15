@@ -20,6 +20,7 @@ import {
     getSlotGridPositions,
     TILE_WIDTH,
     TILE_HEIGHT,
+    COLONY_ZOOM,
 } from './isometric';
 import type { Region } from '../components/RegionDataComponent';
 import type { BiomeName } from '../data/biomes';
@@ -137,7 +138,7 @@ export function drawColonyScene(
     const h = canvas.height;
     const t = performance.now();
     const visuals = getVisuals(region.biome);
-    const horizonY = h * 0.18;
+    const horizonY = h * 0.25;
 
     // Compute frame delta and advance systems
     const now = performance.now();
@@ -152,9 +153,19 @@ export function drawColonyScene(
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
+    // Sky renders at 1x (no zoom)
     drawSky(ctx, w, h, horizonY, visuals, t, dayNight, weather);
     drawStars(ctx, w, horizonY, dayNight);
     drawHorizonFeatures(ctx, w, horizonY, visuals, region.id);
+
+    // Ground-level content zoomed in — scale around colony centre
+    const groundCentreX = w / 2;
+    const groundCentreY = horizonY + (h - horizonY) * 0.38;
+    ctx.save();
+    ctx.translate(groundCentreX, groundCentreY);
+    ctx.scale(COLONY_ZOOM, COLONY_ZOOM);
+    ctx.translate(-groundCentreX, -groundCentreY);
+
     drawNaturalGround(ctx, w, h, horizonY, visuals, region.id);
     drawTerrainUndulation(ctx, w, h, horizonY, visuals, region.id);
     drawGroundDressing(ctx, w, h, horizonY, visuals, region.id);
@@ -166,6 +177,9 @@ export function drawColonyScene(
     drawSettlementProps(ctx, region, slotRects, t);
     drawCrewOnSurface(ctx, entity, region, slotRects, t, dtSeconds);
     drawParticles(ctx, dtSeconds);
+
+    ctx.restore(); // Back to 1x for overlays
+
     drawAmbientParticles(ctx, w, h, visuals, t);
     drawForegroundTrees(ctx, w, h, visuals, region.id, t);
     drawAmbientOverlay(ctx, w, h, dayNight);
@@ -1154,9 +1168,9 @@ function drawPaths(
 ): void {
     if (region.buildings.length < 1) return;
 
-    const horizonY = h * 0.18;
+    const horizonY = h * 0.25;
     const centreX = w / 2;
-    const centreY = horizonY + (h - horizonY) * 0.38;
+    const centreY = horizonY + (h - horizonY) * 0.35;
     const gridPositions = getSlotGridPositions(region.buildingSlots);
 
     const occupiedIndices = region.buildings.map(b => b.slotIndex);
@@ -1357,9 +1371,9 @@ function drawBuildingSlots(
     const totalSlots = region.buildingSlots;
     if (totalSlots === 0) return slotRects;
 
-    const horizonY = h * 0.18;
+    const horizonY = h * 0.25;
     const centreX = w / 2;
-    const centreY = horizonY + (h - horizonY) * 0.38;
+    const centreY = horizonY + (h - horizonY) * 0.35;
 
     const gridPositions = getSlotGridPositions(totalSlots);
 
