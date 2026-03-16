@@ -65,6 +65,28 @@ function drawMinimap(
         ctx.globalAlpha = 1.0;
     }
 
+    // --- Extiris (red blip when in active/blip zone) ---
+    const extiris = world.getEntityByName('extiris');
+    const extirisTransform = extiris?.getComponent(TransformComponent);
+    if (extirisTransform) {
+        const vis = fog?.getVisibilityAtWorld(extirisTransform.x, extirisTransform.y) ?? TileVisibility.Hidden;
+        if (vis !== TileVisibility.Hidden) {
+            const extirisPos = minimap.worldToMinimap(extirisTransform.x, extirisTransform.y);
+            ctx.globalAlpha = vis === TileVisibility.Active ? 0.9 : 0.4;
+            ctx.fillStyle = '#cc2222';
+            ctx.beginPath();
+            ctx.arc(extirisPos.x, extirisPos.y, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Faint glow
+            ctx.fillStyle = 'rgba(200, 30, 30, 0.2)';
+            ctx.beginPath();
+            ctx.arc(extirisPos.x, extirisPos.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
     // --- Ship ---
     const ship = world.getEntityByName('arkSalvage');
     const shipTransform = ship?.getComponent(TransformComponent);
