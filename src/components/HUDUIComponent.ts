@@ -8,6 +8,7 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { DateUIComponent } from './DateUIComponent';
+import { RelationshipGraphComponent } from './RelationshipGraphComponent';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { TurnBlockEvent, TurnUnblockEvent } from '../core/GameEvents';
 
@@ -17,10 +18,13 @@ export class HUDUIComponent extends Component {
     private dateEl: HTMLElement | null = null;
     private endTurnBtn: HTMLButtonElement | null = null;
 
+    private socialBtn: HTMLButtonElement | null = null;
+
     private blockers = new Set<string>();
     private turnBlockHandler: EventHandler | null = null;
     private turnUnblockHandler: EventHandler | null = null;
     private onEndTurnClick: (() => void) | null = null;
+    private onSocialClick: (() => void) | null = null;
 
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
@@ -32,11 +36,22 @@ export class HUDUIComponent extends Component {
         this.container.innerHTML = `
             <span id="hud-date">JAN 01, 2700</span>
             <span id="hud-build" style="font-size:10px; opacity:0.4; margin-left:auto; margin-right:8px;">BUILD ${__BUILD_TIME__}</span>
+            <button id="hud-social-btn" class="hud-btn" type="button">SOCIAL</button>
             <button id="hud-end-turn" class="hud-btn" type="button">END TURN</button>
         `;
 
         this.dateEl = document.getElementById('hud-date');
         this.endTurnBtn = document.getElementById('hud-end-turn') as HTMLButtonElement | null;
+
+        // SOCIAL button click — opens relationship graph
+        this.socialBtn = document.getElementById('hud-social-btn') as HTMLButtonElement | null;
+        this.onSocialClick = (): void => {
+            const graph = this.entity.getComponent(RelationshipGraphComponent);
+            if (graph && !graph.isOpen) {
+                graph.open();
+            }
+        };
+        this.socialBtn?.addEventListener('click', this.onSocialClick);
 
         // END TURN button click
         this.onEndTurnClick = (): void => {
@@ -84,6 +99,9 @@ export class HUDUIComponent extends Component {
     destroy(): void {
         if (this.endTurnBtn && this.onEndTurnClick) {
             this.endTurnBtn.removeEventListener('click', this.onEndTurnClick);
+        }
+        if (this.socialBtn && this.onSocialClick) {
+            this.socialBtn.removeEventListener('click', this.onSocialClick);
         }
         if (this.eventQueue && this.turnBlockHandler) {
             this.eventQueue.off(GameEvents.TURN_BLOCK, this.turnBlockHandler);

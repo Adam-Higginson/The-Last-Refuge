@@ -12,6 +12,7 @@ import { MovementComponent } from './MovementComponent';
 import { TransformComponent } from './TransformComponent';
 import { CameraComponent } from './CameraComponent';
 import { TransferScreenComponent } from './TransferScreenComponent';
+import { RelationshipGraphComponent } from './RelationshipGraphComponent';
 import { getCrewCounts } from '../utils/crewUtils';
 import type { World } from '../core/World';
 
@@ -99,6 +100,7 @@ export class ShipInfoUIComponent extends Component {
                 </div>
                 <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px">
                     <button class="hud-btn" id="ship-crew-roster-btn" type="button">CREW ROSTER</button>
+                    <button class="hud-btn" id="ship-relationships-btn" type="button">RELATIONSHIPS</button>
                     <button class="hud-btn" id="ship-centre-btn" type="button">CENTRE ON SHIP</button>
                 </div>
             </div>
@@ -134,6 +136,17 @@ export class ShipInfoUIComponent extends Component {
             const transferScreen = hud?.getComponent(TransferScreenComponent);
             if (transferScreen && !transferScreen.isOpen) {
                 transferScreen.open();
+            }
+        });
+
+        // RELATIONSHIPS button — opens relationship graph
+        const relBtn = document.getElementById('ship-relationships-btn');
+        relBtn?.addEventListener('click', () => {
+            const world = ServiceLocator.get<World>('world');
+            const hud = world.getEntityByName('hud');
+            const graph = hud?.getComponent(RelationshipGraphComponent);
+            if (graph && !graph.isOpen) {
+                graph.open();
             }
         });
 

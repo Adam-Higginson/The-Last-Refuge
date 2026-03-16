@@ -67,6 +67,12 @@
     font-size: 12px;
 }
 
+.crew-relationship-row .rel-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .crew-relationship-row .rel-name {
     color: #4fa8ff;
     cursor: pointer;
@@ -81,12 +87,43 @@
     font-size: 11px;
     opacity: 0.5;
     text-transform: uppercase;
-    margin-left: 6px;
+}
+
+.crew-relationship-row .rel-level-value {
+    font-size: 11px;
+    margin-left: auto;
+}
+
+.crew-relationship-row .rel-level-bar {
+    height: 4px;
+    background: rgba(192, 200, 216, 0.1);
+    margin-top: 4px;
+}
+
+.crew-relationship-row .rel-level-fill {
+    height: 100%;
+    transition: width 0.15s ease-out;
 }
 
 .crew-relationship-row .rel-desc {
     font-size: 11px;
     opacity: 0.5;
-    margin-top: 2px;
+    margin-top: 4px;
     line-height: 1.5;
+}
+
+.crew-relationship-row .rel-graph-link {
+    font-size: 10px;
+    color: #4fa8ff;
+    opacity: 0.6;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+    display: inline-block;
+}
+
+.crew-relationship-row .rel-graph-link:hover {
+    opacity: 1;
+    text-decoration: underline;
 }

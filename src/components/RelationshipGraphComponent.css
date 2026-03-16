@@ -1,0 +1,328 @@
+/* RelationshipGraphComponent.css — Full-screen SVG relationship graph overlay */
+
+#relationship-graph-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(6, 10, 18, 0.96);
+    z-index: 2000;
+    display: none;
+    flex-direction: column;
+    font-family: 'Share Tech Mono', monospace;
+    color: #c0c8d8;
+}
+
+#relationship-graph-screen.open {
+    display: flex;
+}
+
+/* ─── Header ─────────────────────────────────────────────────── */
+
+.graph-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(79, 168, 255, 0.15);
+    flex-shrink: 0;
+}
+
+.graph-title {
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #ffffff;
+}
+
+.graph-close-btn {
+    background: none;
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    color: #4fa8ff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    padding: 4px 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.graph-close-btn:hover {
+    background: rgba(79, 168, 255, 0.1);
+    color: #ffffff;
+}
+
+/* ─── Controls bar ───────────────────────────────────────────── */
+
+.graph-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    border-bottom: 1px solid rgba(79, 168, 255, 0.1);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.graph-filter-btn {
+    background: none;
+    border: 1px solid rgba(79, 168, 255, 0.2);
+    color: rgba(192, 200, 216, 0.6);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.15s;
+}
+
+.graph-filter-btn:hover {
+    border-color: rgba(79, 168, 255, 0.4);
+    color: #c0c8d8;
+}
+
+.graph-filter-btn.active {
+    background: rgba(79, 168, 255, 0.15);
+    border-color: #4fa8ff;
+    color: #ffffff;
+}
+
+.graph-search {
+    background: rgba(20, 30, 50, 0.8);
+    border: 1px solid rgba(79, 168, 255, 0.2);
+    color: #c0c8d8;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 3px 8px;
+    width: 160px;
+    outline: none;
+}
+
+.graph-search::placeholder {
+    color: rgba(192, 200, 216, 0.3);
+}
+
+.graph-search:focus {
+    border-color: #4fa8ff;
+}
+
+.graph-toggle-edges {
+    margin-left: auto;
+}
+
+/* ─── SVG area ───────────────────────────────────────────────── */
+
+.graph-svg-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.graph-svg {
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+}
+
+.graph-svg:active {
+    cursor: grabbing;
+}
+
+/* Role cluster backgrounds */
+.graph-cluster {
+    fill-opacity: 0.06;
+    stroke-opacity: 0.12;
+    stroke-width: 1;
+}
+
+/* Edges */
+.graph-edge {
+    stroke-linecap: round;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.graph-edge.visible {
+    opacity: 0.6;
+}
+
+.graph-edge.highlight {
+    opacity: 1;
+}
+
+.graph-edge.dimmed {
+    opacity: 0.08;
+}
+
+/* Nodes */
+.graph-node {
+    cursor: pointer;
+    transition: opacity 0.2s, filter 0.2s;
+}
+
+.graph-node.dimmed {
+    opacity: 0.2;
+}
+
+.graph-node.highlight {
+    filter: drop-shadow(0 0 6px rgba(79, 168, 255, 0.6));
+}
+
+.graph-node-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    fill: rgba(192, 200, 216, 0.7);
+    text-anchor: middle;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.graph-node-label.dimmed {
+    opacity: 0.15;
+}
+
+/* ─── Mini crew card (tooltip) ────────────────────────────────── */
+
+.graph-card {
+    position: absolute;
+    background: rgba(12, 18, 32, 0.95);
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    padding: 12px;
+    min-width: 200px;
+    max-width: 280px;
+    pointer-events: auto;
+    z-index: 10;
+}
+
+.graph-card-name {
+    font-size: 13px;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.graph-card-meta {
+    font-size: 11px;
+    opacity: 0.6;
+    margin-bottom: 8px;
+}
+
+.graph-card-traits {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.graph-card-trait {
+    font-size: 10px;
+    padding: 1px 6px;
+    border: 1px solid rgba(79, 168, 255, 0.2);
+    color: #4fa8ff;
+    text-transform: uppercase;
+}
+
+.graph-card-morale {
+    font-size: 10px;
+    opacity: 0.5;
+    margin-bottom: 6px;
+}
+
+.graph-card-rels {
+    font-size: 10px;
+    opacity: 0.5;
+    line-height: 1.6;
+}
+
+.graph-card-detail-btn {
+    margin-top: 8px;
+    background: none;
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    color: #4fa8ff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 2px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.graph-card-detail-btn:hover {
+    background: rgba(79, 168, 255, 0.1);
+    color: #ffffff;
+}
+
+/* ─── Edge popover ────────────────────────────────────────────── */
+
+.graph-edge-popover {
+    position: absolute;
+    background: rgba(12, 18, 32, 0.95);
+    border: 1px solid rgba(79, 168, 255, 0.2);
+    padding: 10px;
+    min-width: 220px;
+    max-width: 300px;
+    pointer-events: auto;
+    z-index: 10;
+}
+
+.graph-edge-popover-title {
+    font-size: 11px;
+    color: #ffffff;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.graph-edge-popover-perspective {
+    font-size: 10px;
+    opacity: 0.6;
+    line-height: 1.6;
+    margin-bottom: 4px;
+}
+
+.graph-edge-popover-perspective strong {
+    color: #4fa8ff;
+    opacity: 1;
+}
+
+/* ─── Legend ───────────────────────────────────────────────────── */
+
+.graph-legend {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(12, 18, 32, 0.85);
+    border: 1px solid rgba(79, 168, 255, 0.15);
+    padding: 10px;
+    font-size: 10px;
+    pointer-events: none;
+}
+
+.graph-legend-title {
+    font-size: 11px;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.graph-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+    opacity: 0.7;
+}
+
+.graph-legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.graph-legend-line {
+    width: 20px;
+    height: 2px;
+    flex-shrink: 0;
+}

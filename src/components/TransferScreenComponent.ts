@@ -17,6 +17,7 @@ import {
     getLocationLabel,
     checkShipMinimums,
 } from '../utils/crewUtils';
+import { getRelationshipColour } from '../utils/colourUtils';
 import {
     getColonyLeader,
     getShipCaptain,
@@ -399,13 +400,15 @@ export class TransferScreenComponent extends Component {
             `;
         }
 
-        const relationshipRows = c.relationships.map(r =>
-            `<div class="detail-relationship" data-rel-target="${r.targetId}">
+        const relationshipRows = c.relationships.map(r => {
+            const levelColour = getRelationshipColour(r.level);
+            return `<div class="detail-relationship" data-rel-target="${r.targetId}">
                 <span class="detail-rel-name">${r.targetName}</span>
                 <span class="detail-rel-type">${r.type}</span>
+                <span style="font-size:10px; color:${levelColour}; margin-left:4px;">${r.level}</span>
                 <div class="detail-rel-desc">${r.description}</div>
-            </div>`,
-        ).join('');
+            </div>`;
+        }).join('');
 
         return `
             <div class="crew-detail-panel">

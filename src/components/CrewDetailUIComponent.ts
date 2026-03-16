@@ -9,6 +9,8 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { CrewMemberComponent } from './CrewMemberComponent';
 import { ShipInfoUIComponent } from './ShipInfoUIComponent';
+import { RelationshipGraphComponent } from './RelationshipGraphComponent';
+import { getRelationshipColour } from '../utils/colourUtils';
 import type { World } from '../core/World';
 
 export class CrewDetailUIComponent extends Component {
@@ -32,6 +34,21 @@ export class CrewDetailUIComponent extends Component {
                 if (shipInfo) {
                     shipInfo.activeView = 'manifest';
                     shipInfo.selectedCrewEntityId = null;
+                }
+                return;
+            }
+
+            // "View in Graph" link click
+            const graphLink = target.closest('.rel-graph-link') as HTMLElement | null;
+            if (graphLink) {
+                const focusId = graphLink.dataset.focusId;
+                if (focusId) {
+                    const world = ServiceLocator.get<World>('world');
+                    const hud = world.getEntityByName('hud');
+                    const graph = hud?.getComponent(RelationshipGraphComponent);
+                    if (graph) {
+                        graph.open(parseInt(focusId, 10));
+                    }
                 }
                 return;
             }
@@ -95,13 +112,21 @@ export class CrewDetailUIComponent extends Component {
         const moraleWidth = crew.morale; // morale is 0-100 scale
 
         const relationshipsHTML = crew.relationships.length > 0
-            ? crew.relationships.map(rel =>
-                `<div class="crew-relationship-row">
-                    <span class="rel-name" data-entity-id="${rel.targetId}">${rel.targetName}</span>
-                    <span class="rel-type">${rel.type}</span>
+            ? crew.relationships.map(rel => {
+                const levelColour = getRelationshipColour(rel.level);
+                return `<div class="crew-relationship-row">
+                    <div class="rel-header">
+                        <span class="rel-name" data-entity-id="${rel.targetId}">${rel.targetName}</span>
+                        <span class="rel-type">${rel.type}</span>
+                        <span class="rel-level-value" style="color:${levelColour}">${rel.level}</span>
+                    </div>
+                    <div class="rel-level-bar">
+                        <div class="rel-level-fill" style="width:${rel.level}%; background:${levelColour};"></div>
+                    </div>
                     <div class="rel-desc">${rel.description}</div>
-                </div>`
-            ).join('')
+                    <span class="rel-graph-link" data-focus-id="${entityId}">View in Graph</span>
+                </div>`;
+            }).join('')
             : '<div style="opacity:0.4; font-size:11px;">No known relationships.</div>';
 
         this.section.innerHTML = `
