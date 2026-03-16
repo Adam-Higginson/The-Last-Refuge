@@ -52,10 +52,12 @@ function boot(): void {
     const aiService = new AIService();
     ServiceLocator.register('aiService', aiService);
 
-    // Load API key from localStorage if previously saved
+    // Load API key: localStorage override > build-time env > no key (deterministic)
     try {
         const savedKey = localStorage.getItem('extiris-api-key');
-        if (savedKey) aiService.configure({ apiKey: savedKey });
+        const buildKey = __EXTIRIS_API_KEY__;
+        const apiKey = savedKey || buildKey;
+        if (apiKey) aiService.configure({ apiKey });
     } catch {
         // localStorage not available
     }
