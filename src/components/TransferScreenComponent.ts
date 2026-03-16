@@ -17,16 +17,14 @@ import {
     getLocationLabel,
     checkShipMinimums,
 } from '../utils/crewUtils';
+import { RelationshipGraphComponent } from './RelationshipGraphComponent';
+import { buildCrewDetail, wireDetailEvents } from '../utils/detailPanelBuilder';
 import {
     getColonyLeader,
     getShipCaptain,
-    appointLeader,
-    appointCaptain,
     removeLeader,
     removeCaptain,
 } from '../utils/leaderUtils';
-import { getLeaderBonusLines } from '../data/leaderBonuses';
-import { FOOD_PER_PERSON } from '../data/resources';
 import type { CrewLocation, CrewRole } from './CrewMemberComponent';
 import type { EventQueue } from '../core/EventQueue';
 import type { World } from '../core/World';
@@ -143,7 +141,7 @@ export class TransferScreenComponent extends Component {
         let html = `
             <div class="location-card ${isViewingShip ? 'active' : ''} ${hasSelection && !isViewingShip ? 'transfer-target' : ''}"
                  data-loc="ship">
-                <div class="location-name">ESV-7 (SHIP)</div>
+                <div class="location-name">ESV-7 (SHIP)${counts.ship > 0 ? '<button class="location-social-btn" data-social-loc="ship" type="button">SOCIAL</button>' : ''}</div>
                 <div class="location-meta">${counts.ship} crew — ${captainInfo}</div>
                 <div class="location-roles">
                     <span class="role-badge ${!minimums.engineersOk ? 'warning' : ''}">ENG ${shipRoles.Engineer}</span>
@@ -169,7 +167,7 @@ export class TransferScreenComponent extends Component {
             html += `
                 <div class="location-card ${isViewing ? 'active' : ''} ${hasSelection && !isViewing ? 'transfer-target' : ''}"
                      data-loc="colony" data-planet="${colony.planetEntityId}" data-region="${colony.regionId}">
-                    <div class="location-name">${colony.label}</div>
+                    <div class="location-name">${colony.label}${colony.count > 0 ? `<button class="location-social-btn" data-social-loc="colony" data-social-planet="${colony.planetEntityId}" data-social-region="${colony.regionId}" type="button">SOCIAL</button>` : ''}</div>
                     <div class="location-meta">${colony.count} crew — ${leaderInfo}</div>
                     <div class="location-roles">
                         ${Object.entries(colonyRoles)
@@ -255,68 +253,49 @@ export class TransferScreenComponent extends Component {
             this.rebuild();
         });
 
-        // Appoint as leader/captain button
-        this.container.querySelector('#detail-appoint-btn')?.addEventListener('click', () => {
-            if (this.detailCrewId === null) return;
-            const crewEntity = world.getEntity(this.detailCrewId);
-            const crew = crewEntity?.getComponent(CrewMemberComponent);
-            if (!crew) return;
-
-            const isShip = crew.location.type === 'ship';
-            const roleLabel = isShip ? 'Captain' : 'Colony Leader';
-            const newBonuses = getLeaderBonusLines(crew.role, crew.traits);
-
-            // Build confirmation message
-            const msgLines: string[] = [];
-            msgLines.push(`APPOINT ${crew.fullName.toUpperCase()} AS ${roleLabel.toUpperCase()}?`);
-            msgLines.push('');
-
-            // Check for existing leader/captain being replaced
-            let currentHolder: CrewMemberComponent | null = null;
-            if (isShip) {
-                const cap = getShipCaptain(world);
-                currentHolder = cap?.getComponent(CrewMemberComponent) ?? null;
-            } else if (crew.location.type === 'colony') {
-                const lead = getColonyLeader(world, crew.location.planetEntityId, crew.location.regionId);
-                currentHolder = lead?.getComponent(CrewMemberComponent) ?? null;
-            }
-
-            if (currentHolder) {
-                msgLines.push(`Replaces: ${currentHolder.fullName}`);
-                msgLines.push('');
-                const oldBonuses = getLeaderBonusLines(currentHolder.role, currentHolder.traits);
-                for (const b of oldBonuses) {
-                    msgLines.push(`  ✗ Loses: ${b.text}`);
-                }
-                msgLines.push('');
-            }
-
-            for (const b of newBonuses) {
-                msgLines.push(`  ✓ Gains: ${b.text}`);
-            }
-
-            const proceed = confirm(msgLines.join('\n'));
-            if (!proceed) return;
-
-            const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
-
-            if (isShip) {
-                appointCaptain(world, this.detailCrewId);
-                eventQueue.emit({ type: GameEvents.CAPTAIN_APPOINTED });
-            } else {
-                appointLeader(world, this.detailCrewId);
-                eventQueue.emit({ type: GameEvents.LEADER_APPOINTED });
-            }
-            this.rebuild();
-        });
-
-        // Relationship clicks — navigate to that person's detail
-        for (const rel of this.container.querySelectorAll('.detail-relationship')) {
-            rel.addEventListener('click', () => {
-                const targetId = Number((rel as HTMLElement).dataset.relTarget);
-                if (targetId) {
+        // Wire shared detail panel events (appoint, relationship navigation, view in graph)
+        const detailPanel = this.container.querySelector('.crew-detail-panel') as HTMLElement | null;
+        if (detailPanel) {
+            wireDetailEvents(detailPanel, world, {
+                onNavigate: (targetId: number) => {
                     this.detailCrewId = targetId;
                     this.rebuild();
+                },
+                onAppoint: () => {
+                    this.rebuild();
+                },
+                onViewInGraph: (eid: number) => {
+                    const hudEntities = world.getEntitiesWithComponent(RelationshipGraphComponent);
+                    const graph = hudEntities[0]?.getComponent(RelationshipGraphComponent);
+                    if (graph) {
+                        this.close();
+                        graph.open(eid);
+                    }
+                },
+            });
+        }
+
+        // SOCIAL button clicks — open relationship graph filtered by location
+        for (const btn of this.container.querySelectorAll('.location-social-btn')) {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const el = btn as HTMLElement;
+                const locType = el.dataset.socialLoc;
+
+                let location: CrewLocation;
+                if (locType === 'ship') {
+                    location = { type: 'ship' };
+                } else {
+                    const planetId = Number(el.dataset.socialPlanet);
+                    const regionId = Number(el.dataset.socialRegion);
+                    location = { type: 'colony', planetEntityId: planetId, regionId };
+                }
+
+                // Find the graph component on the HUD entity
+                const hudEntities = world.getEntitiesWithComponent(RelationshipGraphComponent);
+                const graph = hudEntities[0]?.getComponent(RelationshipGraphComponent);
+                if (graph) {
+                    graph.open(undefined, location);
                 }
             });
         }
@@ -355,87 +334,10 @@ export class TransferScreenComponent extends Component {
     private buildDetailPanel(world: World): string {
         if (this.detailCrewId === null) return '';
 
-        const entity = world.getEntity(this.detailCrewId);
-        const c = entity?.getComponent(CrewMemberComponent);
-        if (!c || !entity) return '';
-
-        const moraleClass = c.morale >= 60 ? 'morale-high' : c.morale >= 30 ? 'morale-mid' : 'morale-low';
-        const moraleWidth = Math.max(0, Math.min(100, c.morale));
-        const locationLabel = getLocationLabel(world, c.location);
-
-        // Contributions — what this person costs/provides
-        const contributions = [
-            `-${FOOD_PER_PERSON} food/turn`,
-        ];
-
-        // Leader/captain bonuses
-        const bonusLines = getLeaderBonusLines(c.role, c.traits);
-        let leaderSection: string;
-
-        const renderBonusLines = (prefix: string): string =>
-            bonusLines.map(line => {
-                const cls = line.sentiment === 'negative' ? 'negative' : line.sentiment === 'positive' ? 'active' : 'potential';
-                return `<div class="detail-bonus ${cls}">${prefix} ${line.text}</div>`;
-            }).join('');
-
-        if (c.isLeader) {
-            leaderSection = `
-                <div class="detail-section-title">LEADER BONUSES (ACTIVE)</div>
-                <div class="detail-bonus-list">${renderBonusLines('✓')}</div>
-            `;
-        } else if (c.isCaptain) {
-            leaderSection = `
-                <div class="detail-section-title">CAPTAIN BONUSES (ACTIVE)</div>
-                <div class="detail-bonus-list">${renderBonusLines('✓')}</div>
-            `;
-        } else {
-            const appointLabel = c.location.type === 'ship' ? 'CAPTAIN' : 'LEADER';
-            leaderSection = `
-                <div class="detail-section-title">IF APPOINTED AS ${appointLabel}</div>
-                <div class="detail-bonus-list">${renderBonusLines('→')}</div>
-                <button class="hud-btn" id="detail-appoint-btn" type="button" style="margin-top:8px">
-                    APPOINT AS ${appointLabel}
-                </button>
-            `;
-        }
-
-        const relationshipRows = c.relationships.map(r =>
-            `<div class="detail-relationship" data-rel-target="${r.targetId}">
-                <span class="detail-rel-name">${r.targetName}</span>
-                <span class="detail-rel-type">${r.type}</span>
-                <div class="detail-rel-desc">${r.description}</div>
-            </div>`,
-        ).join('');
-
         return `
             <div class="crew-detail-panel">
-                <button class="hud-btn" id="detail-close" type="button">← BACK</button>
-                <div class="detail-name">
-                    ${c.fullName}
-                    ${c.isLeader ? '<span class="badge badge--leader">LEADER</span>' : ''}
-                    ${c.isCaptain ? '<span class="badge badge--captain">CAPTAIN</span>' : ''}
-                </div>
-                <div class="detail-meta">${c.role} — AGE ${c.age}</div>
-                <div class="detail-location">ASSIGNED: ${locationLabel}</div>
-                <hr class="divider">
-                <div class="detail-section-title">MORALE</div>
-                <div class="detail-morale-bar">
-                    <div class="detail-morale-fill ${moraleClass}" style="width:${moraleWidth}%"></div>
-                </div>
-                <div class="detail-morale-value">${c.morale}/100</div>
-                <div class="detail-section-title">TRAITS</div>
-                <div class="detail-traits">
-                    ${c.traits.map(t => `<span class="detail-trait">${t}</span>`).join('')}
-                </div>
-                <div class="detail-section-title">CONTRIBUTIONS</div>
-                <div class="detail-bonus-list">
-                    ${contributions.map(d => `<div class="detail-bonus negative">${d}</div>`).join('')}
-                </div>
-                ${leaderSection}
-                ${c.relationships.length > 0 ? `
-                    <div class="detail-section-title">RELATIONSHIPS</div>
-                    <div class="detail-relationships">${relationshipRows}</div>
-                ` : ''}
+                <button class="hud-btn" id="detail-close" type="button">\u2190 BACK</button>
+                ${buildCrewDetail(world, this.detailCrewId, { showAppoint: true, showViewInGraph: true })}
             </div>
         `;
     }

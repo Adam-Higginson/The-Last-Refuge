@@ -20,7 +20,7 @@ function addCrew(
 ): void {
     const entity = world.createEntity(name);
     const crew = entity.addComponent(
-        new CrewMemberComponent(name, 30, role, 50, ['Quiet', 'Hopeful']),
+        new CrewMemberComponent(name, 30, role, 50, ['Quiet', 'Hopeful'], 'Test backstory'),
     );
     if (location !== 'ship') {
         crew.location = { type: 'colony', ...location };

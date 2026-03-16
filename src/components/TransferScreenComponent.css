@@ -94,6 +94,27 @@
     margin-bottom: 6px;
 }
 
+/* SOCIAL button on location cards */
+.location-social-btn {
+    float: right;
+    background: none;
+    border: 1px solid rgba(79, 168, 255, 0.25);
+    color: rgba(79, 168, 255, 0.7);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    padding: 1px 6px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.15s;
+}
+
+.location-social-btn:hover {
+    border-color: #4fa8ff;
+    color: #ffffff;
+    background: rgba(79, 168, 255, 0.1);
+}
+
 .location-meta {
     font-size: 11px;
     opacity: 0.5;
@@ -445,6 +466,28 @@
     opacity: 0.4;
     margin-top: 4px;
     line-height: 1.5;
+}
+
+/* --- Backstory --- */
+.detail-backstory {
+    font-size: 11px;
+    font-style: italic;
+    opacity: 0.6;
+    line-height: 1.6;
+    margin-top: 4px;
+}
+
+/* --- Cross-location badge --- */
+.detail-rel-location {
+    font-size: 9px;
+    color: rgba(79, 168, 255, 0.6);
+    margin-left: 4px;
+}
+
+/* --- View in Graph button --- */
+.detail-view-in-graph-btn {
+    width: 100%;
+    text-align: center;
 }
 
 /* --- Mobile --- */

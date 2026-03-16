@@ -3,10 +3,13 @@
 
 import { Component } from '../core/Component';
 
+export type RelationshipType = 'Close Bond' | 'Romantic' | 'Mentor/Protege' | 'Rival' | 'Estranged';
+
 export interface Relationship {
     targetId: number;        // entity ID of the other human
     targetName: string;
-    type: 'Close Bond' | 'Romantic' | 'Mentor/Protege' | 'Rival' | 'Estranged';
+    type: RelationshipType;
+    level: number;           // 0 = hatred, 100 = love — intensity of the relationship
     description: string;
 }
 
@@ -27,6 +30,7 @@ export class CrewMemberComponent extends Component {
     role: CrewRole;
     morale: number;
     traits: [Trait, Trait];
+    backstory: string;
     relationships: Relationship[];
     location: CrewLocation;
     isLeader: boolean;
@@ -38,6 +42,7 @@ export class CrewMemberComponent extends Component {
         role: CrewRole,
         morale: number,
         traits: [Trait, Trait],
+        backstory: string,
     ) {
         super();
         this.fullName = fullName;
@@ -45,6 +50,7 @@ export class CrewMemberComponent extends Component {
         this.role = role;
         this.morale = morale;
         this.traits = traits;
+        this.backstory = backstory;
         this.relationships = [];
         this.location = { type: 'ship' };
         this.isLeader = false;

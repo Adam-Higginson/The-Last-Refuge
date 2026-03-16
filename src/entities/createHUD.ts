@@ -6,8 +6,7 @@ import { HUDUIComponent } from '../components/HUDUIComponent';
 import { DateUIComponent } from '../components/DateUIComponent';
 import { ResourceBarUIComponent } from '../components/ResourceBarUIComponent';
 import { TransferScreenComponent } from '../components/TransferScreenComponent';
-import { ExtirisDetectionUIComponent } from '../components/ExtirisDetectionUIComponent';
-import { AISettingsUIComponent } from '../components/AISettingsUIComponent';
+import { RelationshipGraphComponent } from '../components/RelationshipGraphComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -17,7 +16,6 @@ export function createHUD(world: World): Entity {
     entity.addComponent(new HUDUIComponent());
     entity.addComponent(new ResourceBarUIComponent());
     entity.addComponent(new TransferScreenComponent());
-    entity.addComponent(new ExtirisDetectionUIComponent());
-    entity.addComponent(new AISettingsUIComponent());
+    entity.addComponent(new RelationshipGraphComponent());
     return entity;
 }

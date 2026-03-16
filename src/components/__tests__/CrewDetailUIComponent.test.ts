@@ -158,7 +158,7 @@ describe('CrewDetailUIComponent', () => {
     ): number {
         const entity = world.createEntity(name.toLowerCase().replace(/\s/g, ''));
         entity.addComponent(new CrewMemberComponent(
-            name, age, role, morale, ['Stubborn', 'Empathetic'],
+            name, age, role, morale, ['Stubborn', 'Empathetic'], 'Test backstory',
         ));
         return entity.id;
     }
@@ -320,6 +320,7 @@ describe('CrewDetailUIComponent', () => {
                 targetId: yaelId,
                 targetName: 'Dr. Yael Chen',
                 type: 'Close Bond',
+                level: 95,
                 description: 'Yael is her mother',
             });
         }
@@ -359,6 +360,7 @@ describe('CrewDetailUIComponent', () => {
                 targetId: yaelId,
                 targetName: 'Dr. Yael Chen',
                 type: 'Close Bond',
+                level: 95,
                 description: 'Yael is her mother',
             });
         }
