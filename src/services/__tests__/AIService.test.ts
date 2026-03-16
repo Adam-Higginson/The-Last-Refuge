@@ -87,7 +87,7 @@ describe('AIService', () => {
                 memory: {
                     lastSeenPlayerPos: { x: 3000, y: 3000, turnsSinceLastSeen: 5 },
                     visitedPositions: [],
-                    knownPlanets: [{ name: 'newTerra', x: 1500, y: 0 }],
+                    knownPlanets: [{ name: 'newTerra', x: 1500, y: 0, turnsSinceLastVisit: null }],
                     previousReasoning: '',
                 },
             });
@@ -102,8 +102,8 @@ describe('AIService', () => {
                     lastSeenPlayerPos: null,
                     visitedPositions: [],
                     knownPlanets: [
-                        { name: 'farPlanet', x: 4000, y: 4000 },
-                        { name: 'nearPlanet', x: 1200, y: 1200 },
+                        { name: 'farPlanet', x: 4000, y: 4000, turnsSinceLastVisit: null },
+                        { name: 'nearPlanet', x: 1200, y: 1200, turnsSinceLastVisit: null },
                     ],
                     previousReasoning: '',
                 },

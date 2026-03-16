@@ -23,7 +23,7 @@ type AIState = 'idle' | 'thinking';
 export interface ExtirisMemory {
     lastSeenPlayerPos: { x: number; y: number; turn: number } | null;
     visitedPositions: Array<{ x: number; y: number; turn: number }>;
-    knownPlanets: Array<{ name: string; x: number; y: number }>;
+    knownPlanets: Array<{ name: string; x: number; y: number; lastVisitedTurn: number | null }>;
     reasoning: string;
 }
 
@@ -162,16 +162,25 @@ export class ExtirisAIComponent extends Component {
 
         const transform = this.entity.getComponent(TransformComponent);
         if (transform) {
-            // Record current turn for visited positions
             const currentTurn = this.getCurrentTurn();
+
+            // Record visited position
             this.memory.visitedPositions.push({
                 x: transform.x,
                 y: transform.y,
                 turn: currentTurn,
             });
-            // Cap at 10 entries
             if (this.memory.visitedPositions.length > 10) {
                 this.memory.visitedPositions.shift();
+            }
+
+            // Mark nearby planets as visited
+            for (const planet of this.memory.knownPlanets) {
+                const dx = transform.x - planet.x;
+                const dy = transform.y - planet.y;
+                if (dx * dx + dy * dy < 200 * 200) {
+                    planet.lastVisitedTurn = currentTurn;
+                }
             }
         }
 
@@ -254,13 +263,18 @@ export class ExtirisAIComponent extends Component {
 
             // Track known planets
             if (type === 'planet') {
-                const alreadyKnown = this.memory.knownPlanets.some(p => p.name === entity.name);
-                if (!alreadyKnown) {
+                const known = this.memory.knownPlanets.find(p => p.name === entity.name);
+                if (!known) {
                     this.memory.knownPlanets.push({
                         name: entity.name,
                         x: entityTransform.x,
                         y: entityTransform.y,
+                        lastVisitedTurn: null,
                     });
+                } else {
+                    // Update position (planets orbit)
+                    known.x = entityTransform.x;
+                    known.y = entityTransform.y;
                 }
             }
         }
@@ -283,7 +297,14 @@ export class ExtirisAIComponent extends Component {
                     }
                     : null,
                 visitedPositions: this.memory.visitedPositions.map(p => ({ x: p.x, y: p.y })),
-                knownPlanets: this.memory.knownPlanets,
+                knownPlanets: this.memory.knownPlanets.map(p => ({
+                    name: p.name,
+                    x: p.x,
+                    y: p.y,
+                    turnsSinceLastVisit: p.lastVisitedTurn !== null
+                        ? currentTurn - p.lastVisitedTurn
+                        : null,
+                })),
                 previousReasoning: this.memory.reasoning,
             },
             worldBounds: { min: -5000, max: 5000 },

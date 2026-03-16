@@ -15,7 +15,7 @@ export interface ExtirisStatePayload {
     memory: {
         lastSeenPlayerPos: { x: number; y: number; turnsSinceLastSeen: number } | null;
         visitedPositions: Array<{ x: number; y: number }>;
-        knownPlanets: Array<{ name: string; x: number; y: number }>;
+        knownPlanets: Array<{ name: string; x: number; y: number; turnsSinceLastVisit: number | null }>;
         previousReasoning: string;
     };
     worldBounds: { min: number; max: number };
@@ -65,14 +65,24 @@ export class AIService {
         signal?: AbortSignal,
     ): Promise<ExtirisAIResponse> {
         if (this.useDeterministic) {
+            if (isDebugEnabled()) {
+                console.log('[Extiris AI] Mode: DETERMINISTIC (no API key)');
+            }
             return this.deterministicMove(payload);
         }
 
         try {
-            return await this.llmMove(payload, signal);
+            if (isDebugEnabled()) {
+                console.log(`[Extiris AI] Mode: LLM (${this.model})`);
+            }
+            const response = await this.llmMove(payload, signal);
+            if (isDebugEnabled()) {
+                console.log('[Extiris AI] LLM response received');
+            }
+            return response;
         } catch (err) {
             if (isDebugEnabled()) {
-                console.warn('[Extiris AI] LLM call failed, using deterministic fallback:', err);
+                console.warn('[Extiris AI] LLM call failed, falling back to DETERMINISTIC:', err);
             }
             return this.deterministicMove(payload);
         }
@@ -135,7 +145,8 @@ Rules:
 - Move up to ${payload.self.movementBudget} world units per turn from your current position
 - If you see the player ship, pursue it directly
 - If you last saw the player, search that area
-- If no leads, patrol toward unvisited planets
+- If no leads, patrol toward planets you haven't visited recently (high turnsSinceLastVisit or null)
+- Prefer unvisited planets (turnsSinceLastVisit=null), but revisit old ones after 8+ turns
 - Stay within world bounds (${payload.worldBounds.min} to ${payload.worldBounds.max})
 
 Respond with ONLY valid JSON: {"action":"move","target":{"x":N,"y":N},"reasoning":"brief note"}`;
@@ -184,20 +195,20 @@ Respond with ONLY valid JSON: {"action":"move","target":{"x":N,"y":N},"reasoning
             );
         }
 
-        // Priority 3: Patrol toward nearest unvisited planet
-        const visitedSet = new Set(
-            memory.visitedPositions.map(p => `${Math.round(p.x)},${Math.round(p.y)}`),
-        );
-        const unvisitedPlanets = memory.knownPlanets.filter(
-            p => !visitedSet.has(`${Math.round(p.x)},${Math.round(p.y)}`),
+        // Priority 3: Patrol toward least-recently-visited planet
+        // Prefer never-visited (null), then oldest visit (highest turnsSinceLastVisit)
+        const REVISIT_THRESHOLD = 8;
+        const patrolCandidates = memory.knownPlanets.filter(
+            p => p.turnsSinceLastVisit === null || p.turnsSinceLastVisit >= REVISIT_THRESHOLD,
         );
 
         // Also consider visible planets not yet in knownPlanets
+        const knownNames = new Set(memory.knownPlanets.map(p => p.name));
         const visiblePlanets = visibleEntities
             .filter(e => e.type === 'planet')
-            .filter(e => !visitedSet.has(`${Math.round(e.x)},${Math.round(e.y)}`));
+            .filter(e => !knownNames.has(e.name));
 
-        const allTargets = [...unvisitedPlanets, ...visiblePlanets];
+        const allTargets = [...patrolCandidates, ...visiblePlanets];
         if (allTargets.length > 0) {
             // Pick closest unvisited planet
             let closest = allTargets[0];
