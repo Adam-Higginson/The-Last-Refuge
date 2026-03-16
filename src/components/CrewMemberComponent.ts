@@ -3,10 +3,13 @@
 
 import { Component } from '../core/Component';
 
+export type RelationshipType = 'Close Bond' | 'Romantic' | 'Mentor/Protege' | 'Rival' | 'Estranged';
+
 export interface Relationship {
     targetId: number;        // entity ID of the other human
     targetName: string;
-    type: 'Close Bond' | 'Romantic' | 'Mentor/Protege' | 'Rival' | 'Estranged';
+    type: RelationshipType;
+    level: number;           // 0 = hatred, 100 = love — intensity of the relationship
     description: string;
 }
 
