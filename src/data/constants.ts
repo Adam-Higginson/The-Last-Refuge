@@ -20,3 +20,15 @@ export const SHIP_MIN_ENGINEERS = 3;
 
 /** Minimum crew to found a new colony (excluding leader). */
 export const COLONY_MIN_CREW = 5;
+
+/** Extiris sensor radius — what it can "see" (world units). */
+export const EXTIRIS_SENSOR_RADIUS = 1500;
+
+/** Extiris movement budget per turn (world units). Faster than player's 800. */
+export const EXTIRIS_MOVEMENT_BUDGET = 1000;
+
+/** Extiris movement animation speed (world units/sec). */
+export const EXTIRIS_MOVEMENT_SPEED = 400;
+
+/** Extiris spawn distance from origin (world units). */
+export const EXTIRIS_SPAWN_RADIUS = 4500;
