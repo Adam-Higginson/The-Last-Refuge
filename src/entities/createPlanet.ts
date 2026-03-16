@@ -21,6 +21,7 @@ import { ColonySimulationComponent } from '../components/ColonySimulationCompone
 import { ColonyViewInputComponent } from '../components/ColonyViewInputComponent';
 import { ColonyBuildPickerComponent } from '../components/ColonyBuildPickerComponent';
 import { ColonySidebarUIComponent } from '../components/ColonySidebarUIComponent';
+import { ColonyCrewDetailComponent } from '../components/ColonyCrewDetailComponent';
 import { PlanetInfoUIComponent } from '../components/PlanetInfoUIComponent';
 import { drawColonyScene, drawTransitionToColony, drawTransitionFromColony } from '../rendering/drawColonyScene';
 import { generateVoronoi } from '../utils/voronoi';
@@ -939,6 +940,7 @@ export function createPlanet(world: World, config: PlanetConfig): Entity {
         entity.addComponent(new ColonyViewInputComponent());
         entity.addComponent(new ColonyBuildPickerComponent());
         entity.addComponent(new ColonySidebarUIComponent());
+        entity.addComponent(new ColonyCrewDetailComponent());
     }
 
     return entity;
