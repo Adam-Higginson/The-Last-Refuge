@@ -10,6 +10,7 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { TransformComponent } from './TransformComponent';
+import { animateMovement } from '../utils/animateMovement';
 import type { RightClickEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
@@ -31,6 +32,9 @@ export class MovementComponent extends Component {
     private eventQueue: EventQueue | null = null;
     private rightClickHandler: EventHandler | null = null;
     private turnEndHandler: EventHandler | null = null;
+    private aiPhaseStartHandler: EventHandler | null = null;
+    private aiPhaseEndHandler: EventHandler | null = null;
+    private aiPhaseActive = false;
 
     constructor(budgetMax: number, speed = 200) {
         super();
@@ -61,11 +65,23 @@ export class MovementComponent extends Component {
             this.turnOriginY = null;
         };
 
+        this.aiPhaseStartHandler = (): void => {
+            this.aiPhaseActive = true;
+        };
+        this.aiPhaseEndHandler = (): void => {
+            this.aiPhaseActive = false;
+        };
+
         this.eventQueue.on(GameEvents.RIGHT_CLICK, this.rightClickHandler);
         this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
+        this.eventQueue.on(GameEvents.AI_PHASE_START, this.aiPhaseStartHandler);
+        this.eventQueue.on(GameEvents.AI_PHASE_END, this.aiPhaseEndHandler);
     }
 
     private handleRightClick(targetX: number, targetY: number): void {
+        // Suppress input during AI phase
+        if (this.aiPhaseActive) return;
+
         const selectable = this.entity.getComponent(SelectableComponent);
         const transform = this.entity.getComponent(TransformComponent);
         if (!selectable || !transform) return;
@@ -130,15 +146,18 @@ export class MovementComponent extends Component {
 
         // Animate movement toward target
         if (this.moving && this.targetX !== null && this.targetY !== null) {
-            const dx = this.targetX - transform.x;
-            const dy = this.targetY - transform.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const step = this.speed * dt;
+            const result = animateMovement({
+                x: transform.x,
+                y: transform.y,
+                targetX: this.targetX,
+                targetY: this.targetY,
+                speed: this.speed,
+            }, dt);
 
-            if (dist < 1 || step >= dist) {
-                // Snap to target
-                transform.x = this.targetX;
-                transform.y = this.targetY;
+            transform.x = result.x;
+            transform.y = result.y;
+
+            if (result.arrived) {
                 this.moving = false;
                 this.targetX = null;
                 this.targetY = null;
@@ -151,11 +170,6 @@ export class MovementComponent extends Component {
                     type: GameEvents.TURN_UNBLOCK,
                     key: 'movement',
                 });
-            } else {
-                // Move toward target
-                const ratio = step / dist;
-                transform.x += dx * ratio;
-                transform.y += dy * ratio;
             }
         }
 
@@ -169,6 +183,12 @@ export class MovementComponent extends Component {
         }
         if (this.eventQueue && this.turnEndHandler) {
             this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
+        }
+        if (this.eventQueue && this.aiPhaseStartHandler) {
+            this.eventQueue.off(GameEvents.AI_PHASE_START, this.aiPhaseStartHandler);
+        }
+        if (this.eventQueue && this.aiPhaseEndHandler) {
+            this.eventQueue.off(GameEvents.AI_PHASE_END, this.aiPhaseEndHandler);
         }
     }
 }

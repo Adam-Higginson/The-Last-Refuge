@@ -21,11 +21,22 @@ const REVEALED_PUNCH_ALPHA = 0.45;
 /** Overlap in pixels added to each revealed cell rect to prevent grid seam artifacts. */
 const CELL_OVERLAP = 1;
 
+function isFogDisabled(): boolean {
+    try {
+        return localStorage.getItem('debug-no-fog') === 'true';
+    } catch {
+        return false;
+    }
+}
+
 function drawFogOverlay(
     ctx: CanvasRenderingContext2D,
     fogCanvas: HTMLCanvasElement,
     fogCtx: CanvasRenderingContext2D,
 ): void {
+    // Debug cheat: skip fog rendering entirely
+    if (isFogDisabled()) return;
+
     const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
     const world = ServiceLocator.get<World>('world');
 

@@ -22,8 +22,10 @@ import { createFogOverlay } from './entities/createFogOverlay';
 import { createMinimap } from './entities/createMinimap';
 import { createHUD } from './entities/createHUD';
 import { createCrew } from './entities/createCrew';
+import { createExtiris } from './entities/createExtiris';
 import { CameraComponent } from './components/CameraComponent';
 import { TransformComponent } from './components/TransformComponent';
+import { AIService } from './services/AIService';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -46,6 +48,18 @@ function boot(): void {
     const world = new World();
     ServiceLocator.register('world', world);
 
+    // Register AI service (configure API key later via settings UI)
+    const aiService = new AIService();
+    ServiceLocator.register('aiService', aiService);
+
+    // Load API key from localStorage if previously saved
+    try {
+        const savedKey = localStorage.getItem('extiris-api-key');
+        if (savedKey) aiService.configure({ apiKey: savedKey });
+    } catch {
+        // localStorage not available
+    }
+
     // Add systems in explicit update order
     world.addSystem(new InputSystem());
     world.addSystem(new TurnSystem());
@@ -64,6 +78,7 @@ function boot(): void {
     createFogOverlay(world);
     createMinimap(world);
     createCrew(world);
+    createExtiris(world);
     createHUD(world);
 
     // Centre camera on the ship's starting position
