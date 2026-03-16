@@ -36,6 +36,7 @@ const ACTIVITY_COLOURS: Record<ColonistActivity, string> = {
 
 export class ColonyCrewDetailComponent extends Component {
     private panel: HTMLElement | null = null;
+    private sidebarInfo: HTMLElement | null = null;
     private detailEl: HTMLElement | null = null;
     private lastRenderedEntityId: number | null = null;
     private lastRenderedActivity: ColonistActivity | null = null;
@@ -66,20 +67,23 @@ export class ColonyCrewDetailComponent extends Component {
     update(_dt: number): void {
         if (!this.detailEl) return;
 
+        // Lazily find the sidebar info wrapper (created by ColonySidebarUIComponent)
+        if (!this.sidebarInfo) {
+            this.sidebarInfo = document.getElementById('colony-sidebar-info');
+        }
+
         // Only active in colony mode
         const world = ServiceLocator.get<World>('world');
         const gameState = world.getEntityByName('gameState');
         const gameMode = gameState?.getComponent(GameModeComponent);
         if (!gameMode || gameMode.mode !== 'colony') {
-            this.detailEl.style.display = 'none';
-            this.lastRenderedEntityId = null;
+            this.hideDetail();
             return;
         }
 
         const state = this.entity.getComponent(ColonySceneStateComponent);
         if (!state || state.selectedColonistId === null) {
-            this.detailEl.style.display = 'none';
-            this.lastRenderedEntityId = null;
+            this.hideDetail();
             return;
         }
 
@@ -97,6 +101,14 @@ export class ColonyCrewDetailComponent extends Component {
         this.lastRenderedEntityId = entityId;
         this.lastRenderedActivity = currentActivity;
         this.detailEl.style.display = 'block';
+        // Hide the normal sidebar info while crew detail is showing
+        if (this.sidebarInfo) this.sidebarInfo.style.display = 'none';
+    }
+
+    private hideDetail(): void {
+        if (this.detailEl) this.detailEl.style.display = 'none';
+        if (this.sidebarInfo) this.sidebarInfo.style.display = '';
+        this.lastRenderedEntityId = null;
     }
 
     private renderDetail(entityId: number, activity: ColonistActivity): void {
