@@ -310,6 +310,102 @@ describe('ColonistManager', () => {
         });
     });
 
+    describe('group socializing enforcement', () => {
+        it('colonist does not socialize alone when no others are scheduled', () => {
+            // Single colonist — Scientist socializes 20:00-23:00, nobody else present
+            const crew = [
+                { id: 1, role: 'Scientist' as const, isLeader: false, name: 'Loner' },
+            ];
+            initColonists(sim as Parameters<typeof initColonists>[0], crew);
+            const colonist = sim.colonistStates.get(1);
+            if (!colonist) return;
+
+            colonist.emergeDelay = 0;
+            colonist.activity = 'working'; // will want to transition to socializing
+
+            const buildings: BuildingInstance[] = [
+                { typeId: 'shelter', slotIndex: 0, state: 'active', turnsRemaining: 0, modifierIds: [] },
+            ];
+
+            // Hour 21 — Scientist schedule says socializing, but no one else exists
+            updateColonists(
+                sim as Parameters<typeof updateColonists>[0],
+                0.1, 21, 'clear', eq, buildings as BuildingInstance[],
+            );
+
+            // Should stay idle, not socialize
+            expect(colonist.activity).toBe('idle');
+        });
+
+        it('colonist socializes when at least one other is already socializing', () => {
+            const crew = [
+                { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Follower' },
+                { id: 2, role: 'Civilian' as const, isLeader: false, name: 'Already There' },
+            ];
+            initColonists(sim as Parameters<typeof initColonists>[0], crew);
+            const c1 = sim.colonistStates.get(1);
+            const c2 = sim.colonistStates.get(2);
+            if (!c1 || !c2) return;
+
+            c1.emergeDelay = 0;
+            c1.activity = 'working'; // wants to transition to socializing
+
+            c2.emergeDelay = 0;
+            c2.activity = 'socializing'; // already at the campfire
+
+            // Place c1 at the campfire cell so pathfinding trivially succeeds
+            if (sim.campfireCell) {
+                c1.gridX = sim.campfireCell.gridX;
+                c1.gridY = sim.campfireCell.gridY;
+            }
+
+            const buildings: BuildingInstance[] = [
+                { typeId: 'shelter', slotIndex: 0, state: 'active', turnsRemaining: 0, modifierIds: [] },
+            ];
+
+            // Hour 18 — Civilian schedule says socializing
+            updateColonists(
+                sim as Parameters<typeof updateColonists>[0],
+                0.1, 18, 'clear', eq, buildings as BuildingInstance[],
+            );
+
+            // c1 should transition (walking or socializing) — NOT blocked as idle
+            expect(['walking', 'socializing']).toContain(c1.activity);
+        });
+
+        it('first-mover allowed when another colonist is also scheduled to socialize', () => {
+            const crew = [
+                { id: 1, role: 'Civilian' as const, isLeader: false, name: 'First' },
+                { id: 2, role: 'Civilian' as const, isLeader: false, name: 'Second' },
+            ];
+            initColonists(sim as Parameters<typeof initColonists>[0], crew);
+            const c1 = sim.colonistStates.get(1);
+            const c2 = sim.colonistStates.get(2);
+            if (!c1 || !c2) return;
+
+            c1.emergeDelay = 0;
+            c1.activity = 'working'; // wants to transition
+
+            c2.emergeDelay = 0;
+            c2.activity = 'working'; // also wants to transition — both scheduled
+
+            const buildings: BuildingInstance[] = [
+                { typeId: 'shelter', slotIndex: 0, state: 'active', turnsRemaining: 0, modifierIds: [] },
+            ];
+
+            // Hour 18 — both Civilians are scheduled to socialize
+            updateColonists(
+                sim as Parameters<typeof updateColonists>[0],
+                0.1, 18, 'clear', eq, buildings as BuildingInstance[],
+            );
+
+            // At least one should have started moving (first-mover rule)
+            const activities: string[] = [c1.activity, c2.activity];
+            const movingOrSocializing = activities.filter(a => a === 'walking' || a === 'socializing');
+            expect(movingOrSocializing.length).toBeGreaterThanOrEqual(1);
+        });
+    });
+
     it('emits events on state transitions', () => {
         const crew = [
             { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Test' },

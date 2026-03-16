@@ -206,6 +206,35 @@ function emitArrived(
     });
 }
 
+/** Count other colonists already socializing or walking toward socializing. */
+function countOthersSocializing(
+    sim: ColonySimulationComponent, excludeId: number, gameHour: number,
+): number {
+    let count = 0;
+    for (const [id, c] of sim.colonistStates) {
+        if (id === excludeId) continue;
+        if (c.activity === 'socializing') {
+            count++;
+        } else if (c.activity === 'walking') {
+            const sched = getScheduleBlock(c.role, gameHour, c.entityId);
+            if (sched.activity === 'socializing') count++;
+        }
+    }
+    return count;
+}
+
+/** Check if any other colonist is scheduled to socialize at this hour. */
+function anyOtherScheduledToSocialize(
+    sim: ColonySimulationComponent, excludeId: number, gameHour: number,
+): boolean {
+    for (const [id, c] of sim.colonistStates) {
+        if (id === excludeId) continue;
+        const sched = getScheduleBlock(c.role, gameHour, c.entityId);
+        if (sched.activity === 'socializing') return true;
+    }
+    return false;
+}
+
 /** Update all colonist state machines. */
 export function updateColonists(
     sim: ColonySimulationComponent,
@@ -240,6 +269,26 @@ export function updateColonists(
 
         // Check if schedule demands a different activity
         if (colonist.activity !== 'walking' && colonist.activity !== schedule.activity) {
+            // Enforce group socializing: don't socialize alone
+            if (schedule.activity === 'socializing') {
+                const othersSocializing = countOthersSocializing(sim, colonist.entityId, gameHour);
+                if (othersSocializing === 0) {
+                    // No one else is socializing — check if anyone else is scheduled to
+                    const othersScheduled = anyOtherScheduledToSocialize(sim, colonist.entityId, gameHour);
+                    if (!othersScheduled) {
+                        // Nobody else will socialize — stay idle
+                        if (colonist.activity !== 'idle') {
+                            const oldActivity = colonist.activity;
+                            colonist.activity = 'idle';
+                            emitActivityChanged(eventQueue, colonist.entityId, oldActivity, 'idle', colonist.gridX, colonist.gridY);
+                        }
+                        continue;
+                    }
+                    // else: first-mover — another colonist is scheduled, proceed
+                }
+                // else: someone is already socializing, proceed
+            }
+
             const oldActivity = colonist.activity;
             const target = resolveLocation(sim, schedule.location, colonist.role, buildings, colonist.entityId);
 
