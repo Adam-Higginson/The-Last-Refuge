@@ -1413,21 +1413,21 @@ function drawBuildingSlots(
             }
             ctx.globalAlpha = 1.0;
         } else {
-            // Empty slot — draw faded diamond outline with +
+            // Empty slot — draw diamond outline with +
             const isHovered = state.hoveredSlotIndex === i;
             ctx.save();
-            ctx.globalAlpha = isHovered ? 0.35 : 0.15;
+            ctx.globalAlpha = isHovered ? 0.5 : 0.25;
             drawIsometricTile(
                 ctx, screenPos.x, screenPos.y,
-                isHovered ? 'rgba(79, 168, 255, 0.15)' : 'rgba(255,255,255,0.1)',
-                isHovered ? '#4fa8ff' : '#c0c8d8',
+                isHovered ? 'rgba(79, 168, 255, 0.2)' : 'rgba(255,255,255,0.15)',
+                isHovered ? '#4fa8ff' : 'rgba(200, 210, 220, 0.6)',
             );
 
             // Plus marker
-            ctx.globalAlpha = isHovered ? 0.6 : 0.3;
+            ctx.globalAlpha = isHovered ? 0.7 : 0.4;
             ctx.fillStyle = isHovered ? '#4fa8ff' : '#c0c8d8';
-            ctx.fillRect(screenPos.x - 8, screenPos.y - 1.5, 16, 3);
-            ctx.fillRect(screenPos.x - 1.5, screenPos.y - 8, 3, 16);
+            ctx.fillRect(screenPos.x - 10, screenPos.y - 1.5, 20, 3);
+            ctx.fillRect(screenPos.x - 1.5, screenPos.y - 10, 3, 20);
 
             // Hover label
             if (isHovered) {

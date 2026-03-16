@@ -79,6 +79,9 @@ export function drawColonistFigures(
     }
 }
 
+/** Colonist figure scale — larger for visibility on isometric grid. */
+const FIGURE_SCALE = 1.8;
+
 /** Draw a single colonist figure at screen coordinates. */
 function drawFigure(
     ctx: CanvasRenderingContext2D,
@@ -88,79 +91,81 @@ function drawFigure(
     t: number,
     isWalking: boolean,
 ): void {
+    const s = FIGURE_SCALE;
+
     // Idle bob when stationary
-    const bob = isWalking ? 0 : Math.sin(t / 600 + colonist.walkPhase) * 1;
+    const bob = isWalking ? 0 : Math.sin(t / 600 + colonist.walkPhase) * 1 * s;
 
     // Walk animation — legs alternate
-    const legSwing = isWalking ? Math.sin(colonist.walkPhase) * 2.5 : 0;
+    const legSwing = isWalking ? Math.sin(colonist.walkPhase) * 2.5 * s : 0;
 
     ctx.save();
 
     // Shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
     ctx.beginPath();
-    ctx.ellipse(x, y + 1, 3, 1, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + 1 * s, 3 * s, 1 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Legs — skin-toned
     ctx.strokeStyle = colonist.skinTone;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.2 * s;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(x - 1, y - 3 + bob);
-    ctx.lineTo(x - 1 - legSwing * 0.5, y);
+    ctx.moveTo(x - 1 * s, y - 3 * s + bob);
+    ctx.lineTo(x - 1 * s - legSwing * 0.5, y);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(x + 1, y - 3 + bob);
-    ctx.lineTo(x + 1 + legSwing * 0.5, y);
+    ctx.moveTo(x + 1 * s, y - 3 * s + bob);
+    ctx.lineTo(x + 1 * s + legSwing * 0.5, y);
     ctx.stroke();
 
     // Body — role-coloured clothing
     ctx.fillStyle = colonist.colour;
     ctx.beginPath();
-    ctx.ellipse(x, y - 5 + bob, 2.5, 3.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y - 5 * s + bob, 2.5 * s, 3.5 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Arms — skin-toned with swing
-    const armSwing = isWalking ? Math.sin(colonist.walkPhase + Math.PI) * 2 : 0;
+    const armSwing = isWalking ? Math.sin(colonist.walkPhase + Math.PI) * 2 * s : 0;
     ctx.strokeStyle = colonist.skinTone;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1 * s;
     ctx.beginPath();
-    ctx.moveTo(x - 2, y - 6 + bob);
-    ctx.lineTo(x - 3.5 - armSwing * 0.3, y - 3 + bob);
+    ctx.moveTo(x - 2 * s, y - 6 * s + bob);
+    ctx.lineTo(x - 3.5 * s - armSwing * 0.3, y - 3 * s + bob);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(x + 2, y - 6 + bob);
-    ctx.lineTo(x + 3.5 + armSwing * 0.3, y - 3 + bob);
+    ctx.moveTo(x + 2 * s, y - 6 * s + bob);
+    ctx.lineTo(x + 3.5 * s + armSwing * 0.3, y - 3 * s + bob);
     ctx.stroke();
 
     // Head — skin tone
     ctx.fillStyle = colonist.skinTone;
     ctx.beginPath();
-    ctx.arc(x, y - 9.5 + bob, 2.2, 0, Math.PI * 2);
+    ctx.arc(x, y - 9.5 * s + bob, 2.2 * s, 0, Math.PI * 2);
     ctx.fill();
 
     // Hair
     ctx.fillStyle = colonist.hairColour;
     ctx.beginPath();
-    ctx.arc(x, y - 10 + bob, 2, Math.PI * 0.85, Math.PI * 0.15, true);
+    ctx.arc(x, y - 10 * s + bob, 2 * s, Math.PI * 0.85, Math.PI * 0.15, true);
     ctx.fill();
 
     // Name label
     ctx.globalAlpha = 0.6;
     ctx.fillStyle = '#ffffff';
-    ctx.font = '5px "Share Tech Mono", "Courier New", monospace';
+    ctx.font = `${Math.round(5 * s)}px "Share Tech Mono", "Courier New", monospace`;
     ctx.textAlign = 'center';
     const firstName = colonist.name.split(' ')[0];
-    ctx.fillText(firstName, x, y - 14 + bob);
+    ctx.fillText(firstName, x, y - 14 * s + bob);
     ctx.globalAlpha = 1;
 
     // Leader star
     if (colonist.isLeader) {
         ctx.fillStyle = '#d4a020';
-        ctx.font = '6px "Share Tech Mono"';
+        ctx.font = `${Math.round(6 * s)}px "Share Tech Mono"`;
         ctx.textAlign = 'center';
-        ctx.fillText('\u2605', x, y - 17 + bob);
+        ctx.fillText('\u2605', x, y - 17 * s + bob);
     }
 
     ctx.restore();

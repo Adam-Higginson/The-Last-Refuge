@@ -249,6 +249,21 @@ export function generatePathNetwork(grid: ColonyGrid): PathNetworkResult {
     const segments: PathSegment[] = [];
 
     if (doors.length < 2) {
+        // With only 1 building, create a short path from its door toward grid centre
+        if (doors.length === 1) {
+            const door = doors[0];
+            const campfire = findCampfireCell(grid);
+            if (campfire) {
+                const pathCells = routePath(grid, door.gridX, door.gridY, campfire.gridX, campfire.gridY);
+                for (const cell of pathCells) {
+                    const existing = grid.getCell(cell.gridX, cell.gridY);
+                    if (existing && existing.type === 'empty') {
+                        grid.cells[cell.gridY][cell.gridX] = { type: 'path' };
+                    }
+                }
+                segments.push({ cells: pathCells });
+            }
+        }
         return {
             segments,
             campfireCell: findCampfireCell(grid),
