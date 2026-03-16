@@ -68,6 +68,13 @@ describe('CREW_MANIFEST', () => {
         expect(captains).toHaveLength(1);
         expect(captains[0].name).toBe('Commander Soren Vael');
     });
+
+    it('every crew member has a non-empty backstory', () => {
+        for (const c of CREW_MANIFEST) {
+            expect(typeof c.backstory).toBe('string');
+            expect(c.backstory.length).toBeGreaterThan(0);
+        }
+    });
 });
 
 describe('RELATIONSHIP_MANIFEST', () => {

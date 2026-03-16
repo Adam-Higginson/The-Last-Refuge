@@ -63,7 +63,7 @@ describe('ResourceComponent', () => {
         for (let i = 0; i < 10; i++) {
             const crew = world.createEntity(`crew${i}`);
             crew.addComponent(new CrewMemberComponent(
-                `Person ${i}`, 30, 'Civilian', 50, ['Quiet', 'Hopeful'],
+                `Person ${i}`, 30, 'Civilian', 50, ['Quiet', 'Hopeful'], 'Test backstory',
             ));
         }
 
@@ -117,7 +117,7 @@ describe('ResourceComponent', () => {
         for (let i = 0; i < 10; i++) {
             const crew = world.createEntity(`crew${i}`);
             crew.addComponent(new CrewMemberComponent(
-                `Person ${i}`, 30, 'Civilian', 50, ['Quiet', 'Hopeful'],
+                `Person ${i}`, 30, 'Civilian', 50, ['Quiet', 'Hopeful'], 'Test backstory',
             ));
         }
 

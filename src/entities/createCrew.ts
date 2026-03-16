@@ -50,7 +50,7 @@ export function createCrew(world: World): Entity[] {
         const entityName = def.name.toLowerCase().replace(/[\s.]/g, '');
         const entity = world.createEntity(entityName);
         entity.addComponent(new CrewMemberComponent(
-            def.name, def.age, def.role, def.morale, def.traits,
+            def.name, def.age, def.role, def.morale, def.traits, def.backstory,
         ));
 
         if (def.isCaptain) {

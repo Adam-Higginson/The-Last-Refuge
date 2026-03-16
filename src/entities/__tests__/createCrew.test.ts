@@ -252,6 +252,15 @@ describe('createCrew', () => {
         expect(leaders).toHaveLength(0);
     });
 
+    // --- Backstory ---
+
+    it('every crew member has a populated backstory', () => {
+        createCrew(world);
+        for (const c of getAllCrew()) {
+            expect(c.backstory.length).toBeGreaterThan(0);
+        }
+    });
+
     // --- Determinism ---
 
     it('produces identical output across multiple calls', () => {

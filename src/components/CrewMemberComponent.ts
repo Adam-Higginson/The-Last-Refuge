@@ -30,6 +30,7 @@ export class CrewMemberComponent extends Component {
     role: CrewRole;
     morale: number;
     traits: [Trait, Trait];
+    backstory: string;
     relationships: Relationship[];
     location: CrewLocation;
     isLeader: boolean;
@@ -41,6 +42,7 @@ export class CrewMemberComponent extends Component {
         role: CrewRole,
         morale: number,
         traits: [Trait, Trait],
+        backstory: string,
     ) {
         super();
         this.fullName = fullName;
@@ -48,6 +50,7 @@ export class CrewMemberComponent extends Component {
         this.role = role;
         this.morale = morale;
         this.traits = traits;
+        this.backstory = backstory;
         this.relationships = [];
         this.location = { type: 'ship' };
         this.isLeader = false;

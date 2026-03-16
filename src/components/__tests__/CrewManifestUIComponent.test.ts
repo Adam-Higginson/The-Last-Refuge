@@ -151,7 +151,7 @@ describe('CrewManifestUIComponent', () => {
     ): number {
         const entity = world.createEntity(name.toLowerCase().replace(/\s/g, ''));
         entity.addComponent(new CrewMemberComponent(
-            name, age, role, morale, ['Stubborn', 'Empathetic'],
+            name, age, role, morale, ['Stubborn', 'Empathetic'], 'Test backstory',
         ));
         return entity.id;
     }
