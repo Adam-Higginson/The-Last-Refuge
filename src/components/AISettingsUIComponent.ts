@@ -17,9 +17,9 @@ export class AISettingsUIComponent extends Component {
         this.gearBtn.innerHTML = '&#9881;'; // gear emoji
         this.gearBtn.title = 'AI Settings';
         this.gearBtn.style.cssText = `
-            position: fixed; top: 8px; right: 8px; z-index: 200;
-            background: rgba(20, 20, 30, 0.8); border: 1px solid rgba(192, 200, 216, 0.3);
-            color: #c0c8d8; font-size: 20px; width: 36px; height: 36px;
+            position: fixed; top: 4px; right: 6px; z-index: 200;
+            background: rgba(3, 4, 10, 0.75); border: none;
+            color: rgba(192, 200, 216, 0.6); font-size: 18px; width: 32px; height: 32px;
             cursor: pointer; border-radius: 4px;
             display: flex; align-items: center; justify-content: center;
         `;

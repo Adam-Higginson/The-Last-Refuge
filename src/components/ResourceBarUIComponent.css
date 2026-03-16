@@ -6,12 +6,19 @@
     display: flex;
     justify-content: center;
     gap: 24px;
-    padding: 8px 16px;
+    padding: 8px 42px 8px 16px;
     background: rgba(3, 4, 10, 0.75);
     border-bottom: 1px solid rgba(79, 168, 255, 0.15);
     font-size: 13px;
     z-index: 10;
     pointer-events: auto;
+}
+
+@media (max-width: 480px) {
+    #hud-resource-bar {
+        gap: 12px;
+        font-size: 11px;
+    }
 }
 
 .resource-item {
