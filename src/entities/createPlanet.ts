@@ -17,6 +17,7 @@ import { PlanetViewInputComponent } from '../components/PlanetViewInputComponent
 import { ColoniseUIComponent } from '../components/ColoniseUIComponent';
 import { ColonyBuildingComponent } from '../components/ColonyBuildingComponent';
 import { ColonySceneStateComponent } from '../components/ColonySceneStateComponent';
+import { ColonySimulationComponent } from '../components/ColonySimulationComponent';
 import { ColonyViewInputComponent } from '../components/ColonyViewInputComponent';
 import { ColonyBuildPickerComponent } from '../components/ColonyBuildPickerComponent';
 import { ColonySidebarUIComponent } from '../components/ColonySidebarUIComponent';
@@ -934,6 +935,7 @@ export function createPlanet(world: World, config: PlanetConfig): Entity {
         entity.addComponent(new ColoniseUIComponent());
         entity.addComponent(new ColonyBuildingComponent());
         entity.addComponent(new ColonySceneStateComponent());
+        entity.addComponent(new ColonySimulationComponent());
         entity.addComponent(new ColonyViewInputComponent());
         entity.addComponent(new ColonyBuildPickerComponent());
         entity.addComponent(new ColonySidebarUIComponent());

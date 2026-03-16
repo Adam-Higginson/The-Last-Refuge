@@ -1,32 +1,30 @@
 // drawColonyScene.ts — Isometric colony scene renderer.
 // Draws biome-specific sky, isometric terrain grid, buildings, colonists.
 
-import { ServiceLocator } from '../core/ServiceLocator';
-
 import { RegionDataComponent } from '../components/RegionDataComponent';
-import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import { ColonySceneStateComponent } from '../components/ColonySceneStateComponent';
+import { ColonySimulationComponent } from '../components/ColonySimulationComponent';
 import { getBuildingType } from '../data/buildings';
-import { getCrewAtColony } from '../utils/crewUtils';
 import { drawBuilding } from './colonyBuildingSprites';
 import { drawSettlementProps, drawMicroDetails } from './colonyProps';
 import { drawParticles } from './colonyParticles';
-import { drawCrewSprites } from './colonyCrewSprites';
-import { advanceClock, getDayNightState, setGameHour } from './colonyDayNight';
-import { advanceWeather, drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
+import { getDayNightState, setGameHour } from './colonyDayNight';
+import { drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
+import { drawGridTiles, drawPathTiles, drawColonistFigures, drawBuildingGlow, drawDebugOverlay } from './colonyGridRenderer';
+import { getVisibleColonists } from '../colony/ColonistManager';
+import { getBuildingFootprint } from '../colony/ColonyGrid';
 import type { WeatherInfo } from './colonyWeather';
 import type { DayNightState } from './colonyDayNight';
 import {
     gridToScreen,
     drawIsometricTile,
-    getSlotGridPositions,
+    getGridCentre,
     TILE_WIDTH,
     TILE_HEIGHT,
 } from './isometric';
 import type { Region } from '../components/RegionDataComponent';
 import type { BiomeName } from '../data/biomes';
 import type { Entity } from '../core/Entity';
-import type { World } from '../core/World';
 
 /** Slot rectangle for hit-testing. */
 export interface ColonySlotRect {
@@ -136,15 +134,12 @@ export function drawColonyScene(
     const visuals = getVisuals(region.biome);
     const horizonY = vt.horizonY;
 
-    // Compute frame delta and advance systems
+    // Compute frame delta (clock/weather now advance in ColonySceneStateComponent.update)
     const now = performance.now();
     const dtSeconds = state.lastFrameTime > 0 ? (now - state.lastFrameTime) / 1000 : 0;
     state.lastFrameTime = now;
 
-    advanceClock(state, dtSeconds);
     const dayNight = getDayNightState(state.gameHour);
-    advanceWeather(state, Math.min(dtSeconds, 0.1), dayNight);
-
     const weather = getWeatherInfo(state);
 
     // === Layer 1: Sky, horizon, background (1x scale, fills screen) ===
@@ -191,13 +186,37 @@ export function drawColonyScene(
     drawTerrainUndulation(ctx, w, h, horizonY, visuals, region.id);
     drawGroundDressing(ctx, w, h, horizonY, visuals, region.id, state);
     drawMidgroundScenery(ctx, w, h, horizonY, visuals, region.id, t, state);
-    drawPaths(ctx, w, h, region);
-    const slotRects = drawBuildingSlots(ctx, w, h, region, t, state);
+
+    // Colony simulation rendering — grid-based paths, buildings, colonists
+    const sim = entity.getComponent(ColonySimulationComponent);
+    if (sim && !sim.isActive) {
+        sim.initForRegion(region.id);
+    }
+
+    const gridCentre = getGridCentre(groundCentreX, groundCentreY);
+    if (sim) {
+        drawPathTiles(ctx, sim.grid, gridCentre.centreX, gridCentre.centreY);
+        drawGridTiles(ctx, sim.grid, gridCentre.centreX, gridCentre.centreY);
+    }
+
+    const slotRects = drawBuildingSlots(ctx, w, h, region, t, state, sim, gridCentre);
     drawBuildingShadows(ctx, region, slotRects, dayNight);
     drawMicroDetails(ctx, w, h, region, t, slotRects, state.gameHour);
     drawSettlementProps(ctx, region, slotRects, t, state.gameHour);
-    drawCrewOnSurface(ctx, entity, region, slotRects, t, dtSeconds, state, dayNight);
+
+    // Draw colonists from simulation
+    if (sim) {
+        const colonists = getVisibleColonists(sim);
+        drawBuildingGlow(ctx, colonists, slotRects);
+        drawColonistFigures(ctx, colonists, gridCentre.centreX, gridCentre.centreY, t);
+    }
+
     drawParticles(ctx, dtSeconds, state);
+
+    // Debug overlay
+    if (sim && sim.debugGridVisible) {
+        drawDebugOverlay(ctx, sim.grid, gridCentre.centreX, gridCentre.centreY);
+    }
 
     ctx.restore(); // Back to 1x
 
@@ -1194,58 +1213,7 @@ function drawForegroundTrees(
 
 // --- Paths between buildings ---
 
-function drawPaths(
-    ctx: CanvasRenderingContext2D,
-    w: number,
-    h: number,
-    region: Region,
-): void {
-    if (region.buildings.length < 1) return;
-
-    const horizonY = h * 0.25;
-    const centreX = w / 2;
-    const centreY = horizonY + (h - horizonY) * 0.35;
-    const gridPositions = getSlotGridPositions(region.buildingSlots);
-
-    const occupiedIndices = region.buildings.map(b => b.slotIndex);
-    if (occupiedIndices.length === 0) return;
-
-    ctx.save();
-
-    for (let i = 0; i < occupiedIndices.length; i++) {
-        for (let j = i + 1; j < occupiedIndices.length; j++) {
-            const a = gridPositions[occupiedIndices[i]];
-            const b = gridPositions[occupiedIndices[j]];
-            if (!a || !b) continue;
-
-            const posA = gridToScreen(a.gridX, a.gridY, centreX, centreY);
-            const posB = gridToScreen(b.gridX, b.gridY, centreX, centreY);
-            const ay = posA.y + TILE_HEIGHT * 0.3;
-            const by = posB.y + TILE_HEIGHT * 0.3;
-
-            ctx.globalAlpha = 0.35;
-            ctx.strokeStyle = '#6a5a3a';
-            ctx.lineWidth = 10;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(posA.x, ay);
-            const midX = (posA.x + posB.x) / 2 + (posA.y - posB.y) * 0.1;
-            const midY = (ay + by) / 2;
-            ctx.quadraticCurveTo(midX, midY, posB.x, by);
-            ctx.stroke();
-
-            ctx.globalAlpha = 0.15;
-            ctx.strokeStyle = '#8a7a5a';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(posA.x, ay);
-            ctx.quadraticCurveTo(midX, midY, posB.x, by);
-            ctx.stroke();
-        }
-    }
-
-    ctx.restore();
-}
+// drawPaths removed — replaced by grid-based path tiles in colonyGridRenderer.ts
 
 // --- Building shadows ---
 
@@ -1381,27 +1349,43 @@ function drawAmbientParticles(
 
 function drawBuildingSlots(
     ctx: CanvasRenderingContext2D,
-    w: number,
-    h: number,
+    _w: number,
+    _h: number,
     region: Region,
     t: number,
     state: ColonySceneStateComponent,
+    sim: ColonySimulationComponent | null,
+    gridCentre: { centreX: number; centreY: number },
 ): ColonySlotRect[] {
     const slotRects: ColonySlotRect[] = [];
     const totalSlots = region.buildingSlots;
     if (totalSlots === 0) return slotRects;
 
-    const horizonY = h * 0.25;
-    const centreX = w / 2;
-    const centreY = horizonY + (h - horizonY) * 0.35;
+    const centreX = gridCentre.centreX;
+    const centreY = gridCentre.centreY;
 
-    const gridPositions = getSlotGridPositions(totalSlots);
-
-    for (let i = 0; i < gridPositions.length; i++) {
-        const gridPos = gridPositions[i];
-        const screenPos = gridToScreen(gridPos.gridX, gridPos.gridY, centreX, centreY);
-
+    for (let i = 0; i < totalSlots; i++) {
         const building = region.buildings.find(b => b.slotIndex === i);
+
+        // Get grid position from simulation grid or fallback
+        let screenPos: { x: number; y: number };
+        if (sim) {
+            const buildingCenter = sim.grid.getBuildingCenter(i);
+            if (buildingCenter) {
+                screenPos = gridToScreen(buildingCenter.gridX, buildingCenter.gridY, centreX, centreY);
+            } else {
+                const pos = sim.grid.getBuildingPosition(i);
+                if (pos) {
+                    const footprint = building ? getBuildingFootprint(building.typeId) : { w: 2, h: 2 };
+                    screenPos = gridToScreen(pos.gx + footprint.w / 2, pos.gy + footprint.h / 2, centreX, centreY);
+                } else {
+                    continue;
+                }
+            }
+        } else {
+            continue;
+        }
+
         const rect: ColonySlotRect = {
             slotIndex: i,
             x: screenPos.x - TILE_WIDTH / 2,
@@ -1460,35 +1444,7 @@ function drawBuildingSlots(
     return slotRects;
 }
 
-// --- Colonists ---
-
-/** Gather crew data and draw walking sprite figures. */
-function drawCrewOnSurface(
-    ctx: CanvasRenderingContext2D,
-    entity: Entity,
-    region: Region,
-    slotRects: ColonySlotRect[],
-    t: number,
-    dtSeconds: number,
-    state: ColonySceneStateComponent,
-    dayNight: DayNightState,
-): void {
-    const world = ServiceLocator.get<World>('world');
-    const crew = getCrewAtColony(world, entity.id, region.id);
-    if (crew.length === 0) return;
-
-    const crewData = crew.map(e => {
-        const c = e.getComponent(CrewMemberComponent);
-        return {
-            id: e.id,
-            role: c?.role ?? 'Civilian',
-            isLeader: c?.isLeader ?? false,
-            name: c?.fullName ?? 'Unknown',
-        };
-    });
-
-    drawCrewSprites(ctx, crewData, slotRects, t, dtSeconds, state, dayNight);
-}
+// drawCrewOnSurface removed — replaced by ColonistManager + colonyGridRenderer.ts
 
 // --- Colony label ---
 

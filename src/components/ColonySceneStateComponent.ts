@@ -6,6 +6,8 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { COLONY_ZOOM } from '../rendering/isometric';
+import { advanceClock, getDayNightState } from '../rendering/colonyDayNight';
+import { advanceWeather } from '../rendering/colonyWeather';
 import type { ColonySlotRect } from '../rendering/drawColonyScene';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { CanvasResizeEvent } from '../core/GameEvents';
@@ -102,6 +104,13 @@ export class ColonySceneStateComponent extends Component {
             this.lastFrameTime = 0;
         };
         this.eventQueue.on(GameEvents.CANVAS_RESIZE, this.resizeHandler);
+    }
+
+    update(dt: number): void {
+        // Advance day/night clock and weather every tick
+        advanceClock(this, dt);
+        const dayNight = getDayNightState(this.gameHour);
+        advanceWeather(this, Math.min(dt, 0.1), dayNight);
     }
 
     destroy(): void {
