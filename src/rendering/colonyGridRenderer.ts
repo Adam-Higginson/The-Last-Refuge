@@ -64,19 +64,31 @@ export function drawPathTiles(
     ctx.restore();
 }
 
-/** Draw colonist figures. Reads ColonistVisualState[], calls drawFigure() with positional params. */
+/** Colonist screen position — cached for input hit-testing. */
+export interface ColonistScreenPos {
+    entityId: number;
+    screenX: number;
+    screenY: number;
+}
+
+/** Draw colonist figures. Returns screen positions for hit-testing. */
 export function drawColonistFigures(
     ctx: CanvasRenderingContext2D,
     colonists: ColonistVisualState[],
     centreX: number,
     centreY: number,
     t: number,
-): void {
+    selectedColonistId: number | null = null,
+): ColonistScreenPos[] {
+    const positions: ColonistScreenPos[] = [];
     for (const colonist of colonists) {
         const screen = gridToScreen(colonist.gridX, colonist.gridY, centreX, centreY);
         const isWalking = colonist.activity === 'walking' || colonist.activity === 'patrolling';
-        drawFigure(ctx, screen.x, screen.y, colonist, t, isWalking);
+        const isSelected = colonist.entityId === selectedColonistId;
+        drawFigure(ctx, screen.x, screen.y, colonist, t, isWalking, isSelected);
+        positions.push({ entityId: colonist.entityId, screenX: screen.x, screenY: screen.y });
     }
+    return positions;
 }
 
 /** Colonist figure scale — larger for visibility on isometric grid. */
@@ -90,6 +102,7 @@ function drawFigure(
     colonist: ColonistVisualState,
     t: number,
     isWalking: boolean,
+    isSelected: boolean = false,
 ): void {
     const s = FIGURE_SCALE;
 
@@ -100,6 +113,15 @@ function drawFigure(
     const legSwing = isWalking ? Math.sin(colonist.walkPhase) * 2.5 * s : 0;
 
     ctx.save();
+
+    // Selection highlight ring — drawn beneath shadow
+    if (isSelected) {
+        const pulseAlpha = 0.3 + 0.2 * Math.sin(t / 400);
+        ctx.fillStyle = `rgba(100, 200, 255, ${pulseAlpha.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.ellipse(x, y + 1 * s, 5 * s, 2 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
     // Shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
@@ -166,6 +188,105 @@ function drawFigure(
         ctx.font = `${Math.round(6 * s)}px "Share Tech Mono"`;
         ctx.textAlign = 'center';
         ctx.fillText('\u2605', x, y - 17 * s + bob);
+    }
+
+    // Activity icon — above name/star, intermittent display
+    drawActivityIcon(ctx, x, y - (colonist.isLeader ? 20 : 17) * s + bob, colonist, t, s);
+
+    ctx.restore();
+}
+
+/** Draw an activity icon above the colonist figure. */
+function drawActivityIcon(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    colonist: ColonistVisualState,
+    t: number,
+    s: number,
+): void {
+    const { activity } = colonist;
+
+    // No icon for idle or walking
+    if (activity === 'idle' || activity === 'walking') return;
+
+    // Intermittent display — staggered per colonist
+    const gate = Math.sin(t / 1500 + colonist.walkPhase);
+    if (gate <= 0.3) return;
+
+    const iconY = y - 4 * s;
+
+    ctx.save();
+    ctx.globalAlpha = 0.8;
+
+    if (activity === 'socializing') {
+        // Speech bubble with "..."
+        const bw = 8 * s;
+        const bh = 5 * s;
+        const bx = x - bw / 2;
+        const by = iconY - bh;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.beginPath();
+        ctx.moveTo(bx + 1.5 * s, by);
+        ctx.lineTo(bx + bw - 1.5 * s, by);
+        ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + 1.5 * s);
+        ctx.lineTo(bx + bw, by + bh - 1.5 * s);
+        ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - 1.5 * s, by + bh);
+        ctx.lineTo(bx + 3 * s, by + bh);
+        ctx.lineTo(bx + 1.5 * s, by + bh + 1.5 * s);
+        ctx.lineTo(bx + 2 * s, by + bh);
+        ctx.lineTo(bx + 1.5 * s, by + bh);
+        ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - 1.5 * s);
+        ctx.lineTo(bx, by + 1.5 * s);
+        ctx.quadraticCurveTo(bx, by, bx + 1.5 * s, by);
+        ctx.fill();
+
+        ctx.fillStyle = '#333333';
+        ctx.font = `bold ${Math.round(4 * s)}px "Share Tech Mono"`;
+        ctx.textAlign = 'center';
+        ctx.fillText('...', x, iconY - 1 * s);
+    } else if (activity === 'eating') {
+        // Plate circle with fork
+        ctx.fillStyle = '#d4b896';
+        ctx.beginPath();
+        ctx.arc(x, iconY - 2 * s, 2.5 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#888888';
+        ctx.lineWidth = 0.8 * s;
+        ctx.beginPath();
+        ctx.moveTo(x + 1.5 * s, iconY - 4.5 * s);
+        ctx.lineTo(x + 1.5 * s, iconY - 0.5 * s);
+        ctx.stroke();
+    } else if (activity === 'working') {
+        // Wrench — two strokes in L-shape
+        ctx.strokeStyle = '#aaaaaa';
+        ctx.lineWidth = 1 * s;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x - 1.5 * s, iconY - 5 * s);
+        ctx.lineTo(x + 1 * s, iconY - 1.5 * s);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + 1 * s, iconY - 1.5 * s);
+        ctx.lineTo(x + 2.5 * s, iconY - 3 * s);
+        ctx.stroke();
+    } else if (activity === 'patrolling') {
+        // Shield diamond
+        ctx.strokeStyle = '#4fa8ff';
+        ctx.lineWidth = 0.8 * s;
+        ctx.beginPath();
+        ctx.moveTo(x, iconY - 5 * s);
+        ctx.lineTo(x + 2.5 * s, iconY - 2.5 * s);
+        ctx.lineTo(x, iconY);
+        ctx.lineTo(x - 2.5 * s, iconY - 2.5 * s);
+        ctx.closePath();
+        ctx.stroke();
+    } else if (activity === 'resting') {
+        // Zzz text
+        ctx.fillStyle = 'rgba(200, 200, 255, 0.7)';
+        ctx.font = `${Math.round(4 * s)}px "Share Tech Mono"`;
+        ctx.textAlign = 'center';
+        ctx.fillText('Zzz', x, iconY - 1 * s);
     }
 
     ctx.restore();

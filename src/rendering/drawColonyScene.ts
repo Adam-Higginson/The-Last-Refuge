@@ -208,7 +208,11 @@ export function drawColonyScene(
     if (sim) {
         const colonists = getVisibleColonists(sim);
         drawBuildingGlow(ctx, colonists, slotRects);
-        drawColonistFigures(ctx, colonists, gridCentre.centreX, gridCentre.centreY, t);
+        const colonistPositions = drawColonistFigures(
+            ctx, colonists, gridCentre.centreX, gridCentre.centreY, t,
+            state.selectedColonistId,
+        );
+        state.lastColonistPositions = colonistPositions;
     }
 
     drawParticles(ctx, dtSeconds, state);
@@ -1225,9 +1229,9 @@ function drawBuildingShadows(
 ): void {
     if (dayNight.phase === 'night') return;
 
-    const shadowAlpha = 0.05 + dayNight.ambientLight * 0.06;
-    const shadowOffsetX = Math.cos(dayNight.shadowAngle) * 10 * dayNight.shadowLength;
-    const shadowOffsetY = Math.sin(dayNight.shadowAngle) * 4 * dayNight.shadowLength;
+    const shadowAlpha = 0.15 + dayNight.ambientLight * 0.1;
+    const shadowOffsetX = Math.cos(dayNight.shadowAngle) * 4 * dayNight.shadowLength;
+    const shadowOffsetY = Math.sin(dayNight.shadowAngle) * 2 * dayNight.shadowLength;
 
     ctx.save();
     ctx.fillStyle = 'rgba(0, 0, 0, 1)';
@@ -1238,8 +1242,8 @@ function drawBuildingShadows(
         ctx.globalAlpha = shadowAlpha;
         const sx = rect.x + rect.width / 2 + shadowOffsetX;
         const sy = rect.y + rect.height * 0.5 + shadowOffsetY;
-        const shadowW = TILE_WIDTH * 0.25;
-        const shadowH = TILE_HEIGHT * 0.15;
+        const shadowW = TILE_WIDTH * 0.45;
+        const shadowH = TILE_HEIGHT * 0.3;
 
         ctx.beginPath();
         ctx.ellipse(sx, sy + 10, shadowW, shadowH, dayNight.shadowAngle * 0.1, 0, Math.PI * 2);
