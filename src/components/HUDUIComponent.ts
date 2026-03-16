@@ -16,11 +16,14 @@ export class HUDUIComponent extends Component {
     private container: HTMLElement | null = null;
     private dateEl: HTMLElement | null = null;
     private endTurnBtn: HTMLButtonElement | null = null;
+    private aiHuntingEl: HTMLElement | null = null;
 
     private blockers = new Set<string>();
     private turnBlockHandler: EventHandler | null = null;
     private turnUnblockHandler: EventHandler | null = null;
     private onEndTurnClick: (() => void) | null = null;
+    private aiPhaseStartHandler: EventHandler | null = null;
+    private aiPhaseEndHandler: EventHandler | null = null;
 
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
@@ -57,6 +60,30 @@ export class HUDUIComponent extends Component {
         this.eventQueue.on(GameEvents.TURN_BLOCK, this.turnBlockHandler);
         this.eventQueue.on(GameEvents.TURN_UNBLOCK, this.turnUnblockHandler);
 
+        // "Extiris is hunting..." indicator (guard for test environments without full DOM)
+        if (typeof document.createElement === 'function') {
+            this.aiHuntingEl = document.createElement('div');
+            this.aiHuntingEl.id = 'hud-ai-hunting';
+            this.aiHuntingEl.textContent = 'The Extiris is hunting...';
+            this.aiHuntingEl.style.cssText = `
+                position: fixed; top: 48px; left: 50%; transform: translateX(-50%);
+                color: #cc3333; font-family: monospace; font-size: 14px;
+                letter-spacing: 2px; text-transform: uppercase;
+                opacity: 0; transition: opacity 0.3s ease;
+                pointer-events: none; text-shadow: 0 0 8px rgba(200,30,30,0.5);
+            `;
+            document.body.appendChild(this.aiHuntingEl);
+        }
+
+        this.aiPhaseStartHandler = (): void => {
+            if (this.aiHuntingEl) this.aiHuntingEl.style.opacity = '1';
+        };
+        this.aiPhaseEndHandler = (): void => {
+            if (this.aiHuntingEl) this.aiHuntingEl.style.opacity = '0';
+        };
+        this.eventQueue.on(GameEvents.AI_PHASE_START, this.aiPhaseStartHandler);
+        this.eventQueue.on(GameEvents.AI_PHASE_END, this.aiPhaseEndHandler);
+
         // Show the HUD
         this.container.classList.add('visible');
     }
@@ -90,6 +117,15 @@ export class HUDUIComponent extends Component {
         }
         if (this.eventQueue && this.turnUnblockHandler) {
             this.eventQueue.off(GameEvents.TURN_UNBLOCK, this.turnUnblockHandler);
+        }
+        if (this.eventQueue && this.aiPhaseStartHandler) {
+            this.eventQueue.off(GameEvents.AI_PHASE_START, this.aiPhaseStartHandler);
+        }
+        if (this.eventQueue && this.aiPhaseEndHandler) {
+            this.eventQueue.off(GameEvents.AI_PHASE_END, this.aiPhaseEndHandler);
+        }
+        if (this.aiHuntingEl) {
+            this.aiHuntingEl.remove();
         }
     }
 }

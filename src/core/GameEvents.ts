@@ -62,6 +62,14 @@ export const GameEvents = {
     COLONIST_ACTIVITY_CHANGED: 'colonist:activity_changed',
     /** A colonist arrived at their destination. */
     COLONIST_ARRIVED: 'colonist:arrived',
+    /** Extiris AI has begun thinking (for UI indicator). */
+    AI_PHASE_START: 'ai:phase:start',
+    /** Extiris AI has finished its move. */
+    AI_PHASE_END: 'ai:phase:end',
+    /** Extiris movement animation completed. */
+    EXTIRIS_MOVE_COMPLETE: 'extiris:move:complete',
+    /** Extiris detected the player ship within sensor radius. */
+    EXTIRIS_DETECTED_PLAYER: 'extiris:detected:player',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -219,4 +227,21 @@ export interface ColonistArrivedEvent extends GameEvent {
     gridX: number;
     gridY: number;
     buildingSlot?: number;
+}
+
+export interface AIPhaseStartEvent extends GameEvent {
+    type: typeof GameEvents.AI_PHASE_START;
+}
+
+export interface AIPhaseEndEvent extends GameEvent {
+    type: typeof GameEvents.AI_PHASE_END;
+}
+
+export interface ExtirisMoveCompleteEvent extends GameEvent {
+    type: typeof GameEvents.EXTIRIS_MOVE_COMPLETE;
+    entityId: number;
+}
+
+export interface ExtirisDetectedPlayerEvent extends GameEvent {
+    type: typeof GameEvents.EXTIRIS_DETECTED_PLAYER;
 }
