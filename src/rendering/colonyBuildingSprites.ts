@@ -89,19 +89,12 @@ function drawConstructionScaffolding(ctx: CanvasRenderingContext2D, x: number, y
 // --- Shelter: dome hab-module ---
 function drawShelter(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
     // Base
-    drawIsometricBox(ctx, x, y, 20, '#8a8a9a', '#6a6a7a', '#7a7a8a');
+    drawIsometricBox(ctx, x, y, 20, '#a0a0b0', '#6a6a7a', '#505060');
 
     // Dome
     ctx.fillStyle = '#9a9aaa';
     ctx.beginPath();
     ctx.ellipse(x, y - 28, HW * 0.5, 18, 0, Math.PI, 0);
-    ctx.fill();
-
-    // Windows
-    ctx.fillStyle = 'rgba(150, 200, 255, 0.5)';
-    ctx.beginPath();
-    ctx.arc(x - 12, y - 26, 4, 0, Math.PI * 2);
-    ctx.arc(x + 12, y - 26, 4, 0, Math.PI * 2);
     ctx.fill();
 
     // Door
@@ -112,7 +105,7 @@ function drawShelter(ctx: CanvasRenderingContext2D, x: number, y: number, _t: nu
 // --- Farm: crop fields ---
 function drawFarm(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, _dn: DayNightState): void {
     // Tilled soil base (flat isometric tile)
-    drawIsometricBox(ctx, x, y, 4, '#5a7a3a', '#4a6a2a', '#4a6a2a');
+    drawIsometricBox(ctx, x, y, 4, '#70944a', '#4a6a2a', '#3a5420');
 
     // Crop rows with sway
     const sway = Math.sin(t / 1500) * 2;
@@ -169,7 +162,7 @@ function drawSolarArray(ctx: CanvasRenderingContext2D, x: number, y: number, t: 
 
 // --- Storage Depot: blocky warehouse ---
 function drawStorageDepot(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
-    drawIsometricBox(ctx, x, y, 28, '#5a5a6a', '#4a4a5a', '#4a4a58');
+    drawIsometricBox(ctx, x, y, 28, '#707080', '#4a4a5a', '#38384a');
 
     // Horizontal seam lines on left face
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
@@ -195,7 +188,7 @@ function drawStorageDepot(ctx: CanvasRenderingContext2D, x: number, y: number, _
 
 // --- Workshop: industrial with chimney and smoke ---
 function drawWorkshop(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, dn: DayNightState): void {
-    drawIsometricBox(ctx, x, y, 24, '#6a5a4a', '#5a4a3a', '#5a4838');
+    drawIsometricBox(ctx, x, y, 24, '#806a5a', '#5a4a3a', '#44362a');
 
     // Chimney
     ctx.fillStyle = '#4a3a2a';
@@ -229,7 +222,7 @@ function drawWorkshop(ctx: CanvasRenderingContext2D, x: number, y: number, t: nu
 
 // --- Med Bay: white with red cross ---
 function drawMedBay(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
-    drawIsometricBox(ctx, x, y, 22, '#d8d8e0', '#b8b8c0', '#c0c0c8');
+    drawIsometricBox(ctx, x, y, 22, '#e8e8f0', '#b8b8c0', '#9898a8');
 
     // Red cross on top face
     ctx.fillStyle = '#cc3333';
@@ -239,7 +232,7 @@ function drawMedBay(ctx: CanvasRenderingContext2D, x: number, y: number, _t: num
 
 // --- Barracks: fortified ---
 function drawBarracks(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
-    drawIsometricBox(ctx, x, y, 20, '#5a6a5a', '#4a5a4a', '#4a5848');
+    drawIsometricBox(ctx, x, y, 20, '#6a7e6a', '#4a5a4a', '#384838');
 
     // Crenellations on top
     const crenH = 6;
@@ -257,7 +250,7 @@ function drawBarracks(ctx: CanvasRenderingContext2D, x: number, y: number, _t: n
 // --- Hydroponics Bay: greenhouse dome ---
 function drawHydroponicsBay(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
     // Base
-    drawIsometricBox(ctx, x, y, 8, '#6a7a6a', '#5a6a5a', '#5a6858');
+    drawIsometricBox(ctx, x, y, 8, '#7a8e7a', '#5a6a5a', '#485848');
 
     // Glass dome
     ctx.fillStyle = 'rgba(100, 220, 130, 0.2)';

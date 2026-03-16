@@ -58,6 +58,10 @@ export const GameEvents = {
     COLONY_VIEW_ENTER: 'view:colony:enter',
     /** Request transition back to planet surface from colony view. */
     COLONY_VIEW_EXIT: 'view:colony:exit',
+    /** A colonist changed activity (state machine transition). */
+    COLONIST_ACTIVITY_CHANGED: 'colonist:activity_changed',
+    /** A colonist arrived at their destination. */
+    COLONIST_ARRIVED: 'colonist:arrived',
     /** Extiris AI has begun thinking (for UI indicator). */
     AI_PHASE_START: 'ai:phase:start',
     /** Extiris AI has finished its move. */
@@ -206,6 +210,23 @@ export interface ColonyViewEnterEvent extends GameEvent {
 
 export interface ColonyViewExitEvent extends GameEvent {
     type: typeof GameEvents.COLONY_VIEW_EXIT;
+}
+
+export interface ColonistActivityChangedEvent extends GameEvent {
+    type: typeof GameEvents.COLONIST_ACTIVITY_CHANGED;
+    entityId: number;
+    from: string;
+    to: string;
+    gridX: number;
+    gridY: number;
+}
+
+export interface ColonistArrivedEvent extends GameEvent {
+    type: typeof GameEvents.COLONIST_ARRIVED;
+    entityId: number;
+    gridX: number;
+    gridY: number;
+    buildingSlot?: number;
 }
 
 export interface AIPhaseStartEvent extends GameEvent {
