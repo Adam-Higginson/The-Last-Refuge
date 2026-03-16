@@ -208,6 +208,11 @@ export class FogOfWarComponent extends Component {
  * Returns 'active' if no fog or world service exists (graceful degradation).
  */
 export function getEntityFogZone(wx: number, wy: number): EntityZone {
+    // Debug cheat: treat everything as active (fully visible)
+    try {
+        if (localStorage.getItem('debug-no-fog') === 'true') return 'active';
+    } catch { /* ignore */ }
+
     let world: World;
     try {
         world = ServiceLocator.get<World>('world');

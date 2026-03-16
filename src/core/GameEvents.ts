@@ -58,6 +58,14 @@ export const GameEvents = {
     COLONY_VIEW_ENTER: 'view:colony:enter',
     /** Request transition back to planet surface from colony view. */
     COLONY_VIEW_EXIT: 'view:colony:exit',
+    /** Extiris AI has begun thinking (for UI indicator). */
+    AI_PHASE_START: 'ai:phase:start',
+    /** Extiris AI has finished its move. */
+    AI_PHASE_END: 'ai:phase:end',
+    /** Extiris movement animation completed. */
+    EXTIRIS_MOVE_COMPLETE: 'extiris:move:complete',
+    /** Extiris detected the player ship within sensor radius. */
+    EXTIRIS_DETECTED_PLAYER: 'extiris:detected:player',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -198,4 +206,21 @@ export interface ColonyViewEnterEvent extends GameEvent {
 
 export interface ColonyViewExitEvent extends GameEvent {
     type: typeof GameEvents.COLONY_VIEW_EXIT;
+}
+
+export interface AIPhaseStartEvent extends GameEvent {
+    type: typeof GameEvents.AI_PHASE_START;
+}
+
+export interface AIPhaseEndEvent extends GameEvent {
+    type: typeof GameEvents.AI_PHASE_END;
+}
+
+export interface ExtirisMoveCompleteEvent extends GameEvent {
+    type: typeof GameEvents.EXTIRIS_MOVE_COMPLETE;
+    entityId: number;
+}
+
+export interface ExtirisDetectedPlayerEvent extends GameEvent {
+    type: typeof GameEvents.EXTIRIS_DETECTED_PLAYER;
 }
