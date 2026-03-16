@@ -41,33 +41,35 @@ export class ColonySidebarUIComponent extends Component {
         this.panel = document.getElementById('colony-sidebar');
         if (!this.panel) return;
 
-        // Build static DOM once
+        // Build static DOM once — wrapped in a container so crew detail can toggle it
         this.panel.innerHTML = `
-            <div class="colony-sidebar-name" data-ref="name"></div>
-            <div class="colony-sidebar-biome" data-ref="biome"></div>
-            <hr class="colony-sidebar-divider">
-            <div class="colony-sidebar-stat">
-                <span class="colony-sidebar-stat-label">Population</span>
-                <span class="colony-sidebar-stat-value" data-ref="pop"></span>
+            <div id="colony-sidebar-info">
+                <div class="colony-sidebar-name" data-ref="name"></div>
+                <div class="colony-sidebar-biome" data-ref="biome"></div>
+                <hr class="colony-sidebar-divider">
+                <div class="colony-sidebar-stat">
+                    <span class="colony-sidebar-stat-label">Population</span>
+                    <span class="colony-sidebar-stat-value" data-ref="pop"></span>
+                </div>
+                <div class="colony-sidebar-stat">
+                    <span class="colony-sidebar-stat-label">Food</span>
+                    <span data-ref="food"></span>
+                </div>
+                <div class="colony-sidebar-stat">
+                    <span class="colony-sidebar-stat-label">Energy</span>
+                    <span data-ref="energy"></span>
+                </div>
+                <div class="colony-sidebar-stat">
+                    <span class="colony-sidebar-stat-label">Materials</span>
+                    <span data-ref="mat"></span>
+                </div>
+                <hr class="colony-sidebar-divider">
+                <div class="colony-sidebar-section-title" data-ref="buildings-title">Buildings</div>
+                <div data-ref="buildings-list"></div>
+                <hr class="colony-sidebar-divider">
+                <button class="colony-sidebar-btn" id="colony-sidebar-roster">CREW ROSTER</button>
+                <button class="colony-sidebar-btn colony-sidebar-btn--back" id="colony-sidebar-back">&#8592; PLANET SURFACE</button>
             </div>
-            <div class="colony-sidebar-stat">
-                <span class="colony-sidebar-stat-label">Food</span>
-                <span data-ref="food"></span>
-            </div>
-            <div class="colony-sidebar-stat">
-                <span class="colony-sidebar-stat-label">Energy</span>
-                <span data-ref="energy"></span>
-            </div>
-            <div class="colony-sidebar-stat">
-                <span class="colony-sidebar-stat-label">Materials</span>
-                <span data-ref="mat"></span>
-            </div>
-            <hr class="colony-sidebar-divider">
-            <div class="colony-sidebar-section-title" data-ref="buildings-title">Buildings</div>
-            <div data-ref="buildings-list"></div>
-            <hr class="colony-sidebar-divider">
-            <button class="colony-sidebar-btn" id="colony-sidebar-roster">CREW ROSTER</button>
-            <button class="colony-sidebar-btn colony-sidebar-btn--back" id="colony-sidebar-back">&#8592; PLANET SURFACE</button>
         `;
 
         this.nameEl = this.panel.querySelector('[data-ref="name"]');

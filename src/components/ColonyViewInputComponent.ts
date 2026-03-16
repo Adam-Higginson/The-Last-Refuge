@@ -73,6 +73,11 @@ export class ColonyViewInputComponent extends Component {
                     e.preventDefault();
                     const state = this.entity.getComponent(ColonySceneStateComponent);
                     if (state) {
+                        // If a colonist is selected, deselect first
+                        if (state.selectedColonistId !== null) {
+                            state.selectedColonistId = null;
+                            return;
+                        }
                         state.selectedSlotIndex = null;
                         state.hoveredSlotIndex = null;
                     }
@@ -119,6 +124,25 @@ export class ColonyViewInputComponent extends Component {
         const state = this.entity.getComponent(ColonySceneStateComponent);
         if (!state) return;
 
+        // Inverse-transform mouse coords for colonist hit-testing
+        const vt = state.viewTransform;
+        const zoomedX = (this.mouseX - vt.groundCentreX) / vt.zoom + vt.groundCentreX;
+        const zoomedY = (this.mouseY - vt.groundCentreY) / vt.zoom + vt.groundCentreY;
+
+        // Test colonists first (foreground priority)
+        const HIT_RADIUS = 12;
+        for (const pos of state.lastColonistPositions) {
+            const dx = zoomedX - pos.screenX;
+            const dy = zoomedY - pos.screenY;
+            if (dx * dx + dy * dy <= HIT_RADIUS * HIT_RADIUS) {
+                state.selectedColonistId = pos.entityId;
+                state.selectedSlotIndex = null;
+                return;
+            }
+        }
+
+        // No colonist hit — clear colonist selection, test building slots
+        state.selectedColonistId = null;
         if (state.hoveredSlotIndex !== null) {
             state.selectedSlotIndex = state.hoveredSlotIndex;
         } else {

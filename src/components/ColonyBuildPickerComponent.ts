@@ -10,9 +10,10 @@ import { GameModeComponent } from './GameModeComponent';
 import { RegionDataComponent } from './RegionDataComponent';
 import { ColonySceneStateComponent } from './ColonySceneStateComponent';
 import { ColonyBuildingComponent } from './ColonyBuildingComponent';
+import { ColonySimulationComponent } from './ColonySimulationComponent';
 import { ResourceComponent } from './ResourceComponent';
 import { spawnDustBurst } from '../rendering/colonyParticles';
-import { gridToScreen, getSlotGridPositions } from '../rendering/isometric';
+import { gridToScreen, getGridCentre } from '../rendering/isometric';
 import { getAvailableBuildings, getBuildingType } from '../data/buildings';
 import { getColonyLocations } from '../utils/crewUtils';
 import type { BuildingId } from '../data/buildings';
@@ -197,22 +198,18 @@ export class ColonyBuildPickerComponent extends Component {
                 if (regionData && state) {
                     const region = regionData.regions.find(r => r.id === regionId);
                     if (region) {
-                        const canvas = ServiceLocator.get<HTMLCanvasElement>('canvas');
-                        const cw = canvas.width;
-                        const ch = canvas.height;
-                        const horizonY = ch * 0.35;
-                        const centreX = cw / 2;
-                        const centreY = horizonY + (ch - horizonY) * 0.35;
-                        const gridPos = getSlotGridPositions(region.buildingSlots);
+                        const vt = state.viewTransform;
+                        const gridCentre = getGridCentre(vt.groundCentreX, vt.groundCentreY);
+
+                        // Use ColonySimulationComponent grid if available
+                        const sim = this.entity.getComponent(ColonySimulationComponent);
                         const newBuilding = region.buildings[region.buildings.length - 1];
-                        if (newBuilding && gridPos[newBuilding.slotIndex]) {
-                            const pos = gridToScreen(
-                                gridPos[newBuilding.slotIndex].gridX,
-                                gridPos[newBuilding.slotIndex].gridY,
-                                centreX,
-                                centreY,
-                            );
-                            spawnDustBurst(state, pos.x, pos.y + 15);
+                        if (newBuilding && sim) {
+                            const center = sim.grid.getBuildingCenter(newBuilding.slotIndex);
+                            if (center) {
+                                const pos = gridToScreen(center.gridX, center.gridY, gridCentre.centreX, gridCentre.centreY);
+                                spawnDustBurst(state, pos.x, pos.y + 15);
+                            }
                         }
                     }
                 }

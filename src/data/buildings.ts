@@ -31,6 +31,8 @@ export interface BuildingType {
     workers: WorkerRequirement | null;
     effects: BuildingEffect[];
     description: string;
+    gridWidth: number;
+    gridHeight: number;
 }
 
 export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
@@ -46,6 +48,8 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
             { type: 'housing', amount: 10 },
         ],
         description: 'Houses 10 colonists. Required for population.',
+        gridWidth: 2,
+        gridHeight: 2,
     },
     farm: {
         id: 'farm',
@@ -59,6 +63,8 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
             { type: 'production', resource: 'food', amount: 8 },
         ],
         description: 'Produces 8 Food/turn. Requires 2 Civilians.',
+        gridWidth: 3,
+        gridHeight: 3,
     },
     solar_array: {
         id: 'solar_array',
@@ -72,6 +78,8 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
             { type: 'production', resource: 'energy', amount: 10 },
         ],
         description: 'Produces 10 Energy/turn. Requires 1 Engineer.',
+        gridWidth: 2,
+        gridHeight: 2,
     },
     storage_depot: {
         id: 'storage_depot',
@@ -87,6 +95,8 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
             { type: 'storage_cap', resource: 'energy', amount: 100 },
         ],
         description: '+100 to all resource storage caps.',
+        gridWidth: 2,
+        gridHeight: 2,
     },
     workshop: {
         id: 'workshop',
@@ -100,6 +110,8 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
             { type: 'production', resource: 'materials', amount: 6 },
         ],
         description: 'Produces 6 Materials/turn. Requires 2 Engineers.',
+        gridWidth: 3,
+        gridHeight: 3,
     },
     med_bay: {
         id: 'med_bay',
@@ -113,6 +125,8 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
             { type: 'morale', amount: 15 },
         ],
         description: '+15 colony morale. Requires 1 Medic.',
+        gridWidth: 2,
+        gridHeight: 2,
     },
     barracks: {
         id: 'barracks',
@@ -126,6 +140,8 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
             { type: 'military_housing', amount: 5 },
         ],
         description: 'Houses 5 Soldiers. Enables garrison.',
+        gridWidth: 3,
+        gridHeight: 3,
     },
     hydroponics_bay: {
         id: 'hydroponics_bay',
@@ -139,6 +155,8 @@ export const BUILDING_TYPES: Record<BuildingId, BuildingType> = {
             { type: 'production', resource: 'food', amount: 12 },
         ],
         description: 'Produces 12 Food/turn. Energy-hungry. Requires 1 Engineer.',
+        gridWidth: 3,
+        gridHeight: 3,
     },
 };
 

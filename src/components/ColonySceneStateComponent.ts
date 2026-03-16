@@ -6,7 +6,10 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { COLONY_ZOOM } from '../rendering/isometric';
+import { advanceClock, getDayNightState } from '../rendering/colonyDayNight';
+import { advanceWeather } from '../rendering/colonyWeather';
 import type { ColonySlotRect } from '../rendering/drawColonyScene';
+import type { ColonistScreenPos } from '../rendering/colonyGridRenderer';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { CanvasResizeEvent } from '../core/GameEvents';
 
@@ -92,8 +95,10 @@ export class ColonySceneStateComponent extends Component {
             this.viewTransform = computeViewTransform(width, height);
             // Clear stale state — renderer recomputes on next frame
             this.lastSlotRects = [];
+            this.lastColonistPositions = [];
             this.hoveredSlotIndex = null;
             this.selectedSlotIndex = null;
+            this.selectedColonistId = null;
             // Crew sprites have absolute positions from old layout — clear them
             // so they reinitialise at correct positions on next render
             this.crewSprites.clear();
@@ -102,6 +107,13 @@ export class ColonySceneStateComponent extends Component {
             this.lastFrameTime = 0;
         };
         this.eventQueue.on(GameEvents.CANVAS_RESIZE, this.resizeHandler);
+    }
+
+    update(dt: number): void {
+        // Advance day/night clock and weather every tick
+        advanceClock(this, dt);
+        const dayNight = getDayNightState(this.gameHour);
+        advanceWeather(this, Math.min(dt, 0.1), dayNight);
     }
 
     destroy(): void {
@@ -145,9 +157,13 @@ export class ColonySceneStateComponent extends Component {
     // Slot rects for input hit-testing
     lastSlotRects: ColonySlotRect[] = [];
 
+    // Colonist screen positions for input hit-testing
+    lastColonistPositions: ColonistScreenPos[] = [];
+
     // Input state
     hoveredSlotIndex: number | null = null;
     selectedSlotIndex: number | null = null;
+    selectedColonistId: number | null = null;
 
     // Wind gust decay timeout (frame-based, seconds remaining)
     gustDecayTimer = 0;
