@@ -22,18 +22,30 @@ export class TurnSystem extends System {
     /** Active blocker keys — turn cannot advance while this set is non-empty */
     readonly blockers: ReadonlySet<string> = new Set<string>();
 
+    /** Timestamps when each blocker was added (for stale blocker detection) */
+    private blockerTimestamps = new Map<string, number>();
+
+    /** Maximum time (ms) a blocker can be active before auto-removal */
+    private static readonly BLOCKER_TIMEOUT_MS = 30_000;
+
     init(world: World): void {
         super.init(world);
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
 
         this.turnBlockHandler = (event): void => {
             const { key } = event as TurnBlockEvent;
-            if (key) (this.blockers as Set<string>).add(key);
+            if (key) {
+                (this.blockers as Set<string>).add(key);
+                this.blockerTimestamps.set(key, Date.now());
+            }
         };
 
         this.turnUnblockHandler = (event): void => {
             const { key } = event as TurnUnblockEvent;
-            if (key) (this.blockers as Set<string>).delete(key);
+            if (key) {
+                (this.blockers as Set<string>).delete(key);
+                this.blockerTimestamps.delete(key);
+            }
         };
 
         this.turnAdvanceHandler = (): void => {
@@ -49,7 +61,15 @@ export class TurnSystem extends System {
     }
 
     update(_dt: number): void {
-        // No per-tick logic — turn advancement is event-driven
+        // Auto-remove stale blockers that have been active too long
+        const now = Date.now();
+        for (const [key, timestamp] of this.blockerTimestamps) {
+            if (now - timestamp > TurnSystem.BLOCKER_TIMEOUT_MS) {
+                console.warn(`Auto-removed stale blocker: ${key}`);
+                (this.blockers as Set<string>).delete(key);
+                this.blockerTimestamps.delete(key);
+            }
+        }
     }
 
     destroy(): void {
