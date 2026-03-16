@@ -122,6 +122,12 @@ export function getColonyLabel(world: World, planetEntityId: number, regionId: n
     return `${planetName.toUpperCase()} — REGION ${regionId}`;
 }
 
+/** Get all crew entities at a given location (dispatcher). */
+export function getCrewAtLocation(world: World, location: CrewLocation): Entity[] {
+    if (location.type === 'ship') return getCrewAtShip(world);
+    return getCrewAtColony(world, location.planetEntityId, location.regionId);
+}
+
 /** Get a human-readable label for any crew location. */
 export function getLocationLabel(world: World, location: CrewLocation): string {
     if (location.type === 'ship') return 'ESV-7 (SHIP)';

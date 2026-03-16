@@ -53,6 +53,41 @@
     color: #ffffff;
 }
 
+/* ─── Location tabs ──────────────────────────────────────────── */
+
+.graph-location-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 6px 20px;
+    border-bottom: 1px solid rgba(79, 168, 255, 0.1);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.graph-loc-tab {
+    background: none;
+    border: 1px solid rgba(79, 168, 255, 0.2);
+    color: rgba(192, 200, 216, 0.6);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.15s;
+}
+
+.graph-loc-tab:hover {
+    border-color: rgba(79, 168, 255, 0.4);
+    color: #c0c8d8;
+}
+
+.graph-loc-tab.active {
+    background: rgba(79, 168, 255, 0.15);
+    border-color: #4fa8ff;
+    color: #ffffff;
+}
+
 /* ─── Controls bar ───────────────────────────────────────────── */
 
 .graph-controls {
@@ -110,6 +145,14 @@
 
 .graph-toggle-edges {
     margin-left: auto;
+}
+
+/* ─── Graph body — flex row for SVG + detail ─────────────────── */
+
+.graph-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
 }
 
 /* ─── SVG area ───────────────────────────────────────────────── */
@@ -181,6 +224,30 @@
 
 .graph-node-label.dimmed {
     opacity: 0.15;
+}
+
+/* Ghost nodes (cross-location) */
+.graph-node-ghost { opacity: 0.35; filter: saturate(0.4); }
+.graph-node-ghost .graph-node-label { opacity: 0.25; }
+
+/* External edges (cross-location) */
+.graph-edge-external.visible { opacity: 0.35; }
+.graph-edge-external.highlight { opacity: 0.6; }
+
+/* ─── Graph detail panel (side panel) ────────────────────────── */
+
+.graph-detail-panel {
+    width: 280px;
+    min-width: 280px;
+    border-left: 1px solid rgba(79, 168, 255, 0.2);
+    padding: 16px;
+    overflow-y: auto;
+    animation: graph-slide-in-right 0.2s ease-out;
+}
+
+@keyframes graph-slide-in-right {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
 }
 
 /* ─── Mini crew card (tooltip) ────────────────────────────────── */
@@ -325,4 +392,29 @@
     width: 20px;
     height: 2px;
     flex-shrink: 0;
+}
+
+/* ─── Backstory ──────────────────────────────────────────────── */
+
+.detail-backstory {
+    font-size: 11px;
+    font-style: italic;
+    opacity: 0.6;
+    line-height: 1.6;
+    margin-top: 4px;
+}
+
+/* ─── Cross-location badge on relationships ──────────────────── */
+
+.detail-rel-location {
+    font-size: 9px;
+    color: rgba(79, 168, 255, 0.6);
+    margin-left: 4px;
+}
+
+/* ─── View in Graph button ───────────────────────────────────── */
+
+.detail-view-in-graph-btn {
+    width: 100%;
+    text-align: center;
 }

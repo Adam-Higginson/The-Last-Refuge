@@ -8,8 +8,10 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { CrewMemberComponent } from './CrewMemberComponent';
 import { getRelationshipColour } from '../utils/colourUtils';
+import { getCrewAtLocation, getCrewAtShip, getCrewCounts, getColonyLocations } from '../utils/crewUtils';
+import { buildCrewDetail, wireDetailEvents } from '../utils/detailPanelBuilder';
 import { forceLayout, computeConvexHull, clampViewBox } from '../utils/graphMath';
-import type { RelationshipType, CrewRole } from './CrewMemberComponent';
+import type { RelationshipType, CrewRole, CrewLocation } from './CrewMemberComponent';
 import type { PositionedNode, ViewBoxBounds } from '../utils/graphMath';
 import type { World } from '../core/World';
 
@@ -40,6 +42,7 @@ interface NodeData {
     traits: [string, string];
     connectionCount: number;
     relationships: { targetId: number; targetName: string; type: RelationshipType; level: number; description: string }[];
+    isGhost: boolean;
 }
 
 interface EdgeData {
@@ -51,6 +54,7 @@ interface EdgeData {
     descBA: string;
     nameA: string;
     nameB: string;
+    isExternal: boolean;
 }
 
 export class RelationshipGraphComponent extends Component {
@@ -67,6 +71,8 @@ export class RelationshipGraphComponent extends Component {
 
     private selectedNodeId: number | null = null;
     private focusEntityId: number | null = null;
+    private detailEntityId: number | null = null;
+    private locationFilter: CrewLocation | null = null;
     private showAllEdges = false;
     private activeFilter: RelationshipType | null = null;
     private searchQuery = '';
@@ -104,12 +110,14 @@ export class RelationshipGraphComponent extends Component {
         this.container = document.getElementById('relationship-graph-screen');
     }
 
-    /** Open the graph. Optionally focus on a specific crew member. */
-    open(focusEntityId?: number): void {
+    /** Open the graph. Optionally focus on a specific crew member and/or filter by location. */
+    open(focusEntityId?: number, locationFilter?: CrewLocation): void {
         if (!this.container) return;
         this.isOpen = true;
         this.focusEntityId = focusEntityId ?? null;
         this.selectedNodeId = focusEntityId ?? null;
+        this.detailEntityId = null;
+        this.locationFilter = locationFilter ?? null;
         this.showAllEdges = false;
         this.activeFilter = null;
         this.searchQuery = '';
@@ -157,11 +165,23 @@ export class RelationshipGraphComponent extends Component {
         this.edges = [];
         const edgeSet = new Set<string>();
 
+        // Build primary set if location-filtered
+        const primaryIds = new Set<number>();
+        if (this.locationFilter) {
+            for (const e of getCrewAtLocation(world, this.locationFilter)) {
+                primaryIds.add(e.id);
+            }
+        }
+
+        // First pass: add primary nodes (or all nodes if unfiltered)
+        const nodeMap = new Map<number, NodeData>();
         for (const entity of entities) {
             const crew = entity.getComponent(CrewMemberComponent);
             if (!crew) continue;
 
-            this.nodes.push({
+            if (this.locationFilter && !primaryIds.has(entity.id)) continue;
+
+            const node: NodeData = {
                 entityId: entity.id,
                 name: crew.fullName,
                 role: crew.role,
@@ -175,17 +195,65 @@ export class RelationshipGraphComponent extends Component {
                     level: r.level,
                     description: r.description,
                 })),
-            });
+                isGhost: false,
+            };
+            nodeMap.set(entity.id, node);
+        }
+
+        // Second pass (filtered only): add ghost nodes for cross-location connections
+        if (this.locationFilter) {
+            for (const [id] of nodeMap) {
+                const entity = world.getEntity(id);
+                const crew = entity?.getComponent(CrewMemberComponent);
+                if (!crew) continue;
+
+                for (const rel of crew.relationships) {
+                    if (nodeMap.has(rel.targetId)) continue; // already included
+                    const targetEntity = entities.find(e => e.id === rel.targetId);
+                    const targetCrew = targetEntity?.getComponent(CrewMemberComponent);
+                    if (!targetCrew) continue;
+
+                    nodeMap.set(rel.targetId, {
+                        entityId: rel.targetId,
+                        name: targetCrew.fullName,
+                        role: targetCrew.role,
+                        morale: targetCrew.morale,
+                        traits: [...targetCrew.traits],
+                        connectionCount: targetCrew.relationships.length,
+                        relationships: targetCrew.relationships.map(r => ({
+                            targetId: r.targetId,
+                            targetName: r.targetName,
+                            type: r.type,
+                            level: r.level,
+                            description: r.description,
+                        })),
+                        isGhost: true,
+                    });
+                }
+            }
+        }
+
+        this.nodes = [...nodeMap.values()];
+
+        // Build edges (only between included nodes)
+        for (const entity of entities) {
+            const crew = entity.getComponent(CrewMemberComponent);
+            if (!crew || !nodeMap.has(entity.id)) continue;
 
             for (const rel of crew.relationships) {
+                if (!nodeMap.has(rel.targetId)) continue;
+
                 const key = [Math.min(entity.id, rel.targetId), Math.max(entity.id, rel.targetId)].join('-');
                 if (edgeSet.has(key)) continue;
                 edgeSet.add(key);
 
-                // Find the reverse description
                 const targetEntity = entities.find(e => e.id === rel.targetId);
                 const targetCrew = targetEntity?.getComponent(CrewMemberComponent);
                 const reverseRel = targetCrew?.relationships.find(r => r.targetId === entity.id);
+
+                const isExternal = this.locationFilter !== null && (
+                    !primaryIds.has(entity.id) || !primaryIds.has(rel.targetId)
+                );
 
                 this.edges.push({
                     sourceId: entity.id,
@@ -196,6 +264,7 @@ export class RelationshipGraphComponent extends Component {
                     descBA: reverseRel?.description ?? '',
                     nameA: crew.fullName,
                     nameB: rel.targetName,
+                    isExternal,
                 });
             }
         }
@@ -225,6 +294,28 @@ export class RelationshipGraphComponent extends Component {
             springStrength: 0.008,
             damping: 0.85,
         });
+
+        // Push ghost nodes to perimeter
+        if (this.locationFilter) {
+            const ghostIds = new Set(this.nodes.filter(n => n.isGhost).map(n => n.entityId));
+            if (ghostIds.size > 0) {
+                const primaryPositions = this.positions.filter(p => !ghostIds.has(p.id));
+                if (primaryPositions.length > 0) {
+                    const cx = primaryPositions.reduce((s, p) => s + p.x, 0) / primaryPositions.length;
+                    const cy = primaryPositions.reduce((s, p) => s + p.y, 0) / primaryPositions.length;
+                    const perimeterR = Math.min(GRAPH_WIDTH, GRAPH_HEIGHT) * 0.45;
+
+                    for (const pos of this.positions) {
+                        if (!ghostIds.has(pos.id)) continue;
+                        const dx = pos.x - cx;
+                        const dy = pos.y - cy;
+                        const angle = Math.atan2(dy, dx);
+                        pos.x = cx + Math.cos(angle) * perimeterR;
+                        pos.y = cy + Math.sin(angle) * perimeterR;
+                    }
+                }
+            }
+        }
     }
 
     private animateStep(): void {
@@ -270,11 +361,14 @@ export class RelationshipGraphComponent extends Component {
     private render(): void {
         if (!this.container) return;
 
+        const world = ServiceLocator.get<World>('world');
+
         this.container.innerHTML = `
             <div class="graph-header">
                 <span class="graph-title">Social Graph</span>
-                <button class="graph-close-btn" id="graph-close-btn" type="button">← BACK</button>
+                <button class="graph-close-btn" id="graph-close-btn" type="button">\u2190 BACK</button>
             </div>
+            ${this.buildLocationTabs(world)}
             <div class="graph-controls">
                 <input class="graph-search" id="graph-search" type="text" placeholder="Search crew..." value="${this.searchQuery}">
                 <button class="graph-filter-btn ${this.activeFilter === null ? 'active' : ''}" data-filter="all">ALL</button>
@@ -287,17 +381,43 @@ export class RelationshipGraphComponent extends Component {
                     ${this.showAllEdges ? 'HIDE EDGES' : 'SHOW ALL EDGES'}
                 </button>
             </div>
-            <div class="graph-svg-container" id="graph-svg-container">
-                ${this.buildSVG()}
-                <div id="graph-card-container"></div>
-                <div id="graph-edge-popover-container"></div>
-                ${this.buildLegend()}
+            <div class="graph-body">
+                <div class="graph-svg-container ${this.detailEntityId !== null ? 'has-detail' : ''}" id="graph-svg-container">
+                    ${this.buildSVG()}
+                    <div id="graph-card-container"></div>
+                    <div id="graph-edge-popover-container"></div>
+                    ${this.buildLegend()}
+                </div>
+                ${this.detailEntityId !== null ? `<div class="graph-detail-panel" id="graph-detail-panel">
+                    <button class="hud-btn" id="graph-detail-close" type="button">\u2190 BACK</button>
+                    ${buildCrewDetail(world, this.detailEntityId, { showAppoint: true, showViewInGraph: false })}
+                </div>` : ''}
             </div>
         `;
 
         this.svg = this.container.querySelector('.graph-svg') as SVGSVGElement | null;
         this.cardEl = document.getElementById('graph-card-container');
         this.edgePopoverEl = document.getElementById('graph-edge-popover-container');
+    }
+
+    private buildLocationTabs(world: World): string {
+        const counts = getCrewCounts(world);
+        const shipCount = getCrewAtShip(world).length;
+        const colonies = getColonyLocations(world);
+
+        let tabs = `<div class="graph-location-tabs">`;
+        tabs += `<button class="graph-loc-tab ${this.locationFilter === null ? 'active' : ''}" data-loc-filter="all">ALL (${counts.total})</button>`;
+        tabs += `<button class="graph-loc-tab ${this.locationFilter?.type === 'ship' ? 'active' : ''}" data-loc-filter="ship">ESV-7 (${shipCount})</button>`;
+
+        for (const colony of colonies) {
+            const isActive = this.locationFilter?.type === 'colony'
+                && this.locationFilter.planetEntityId === colony.planetEntityId
+                && this.locationFilter.regionId === colony.regionId;
+            tabs += `<button class="graph-loc-tab ${isActive ? 'active' : ''}" data-loc-filter="colony" data-loc-planet="${colony.planetEntityId}" data-loc-region="${colony.regionId}">${colony.label} (${colony.count})</button>`;
+        }
+
+        tabs += `</div>`;
+        return tabs;
     }
 
     private buildSVG(): string {
@@ -325,10 +445,12 @@ export class RelationshipGraphComponent extends Component {
             if (visible) classes.push('visible');
             if (highlight) classes.push('highlight');
             if (dimmed) classes.push('dimmed');
+            if (edge.isExternal) classes.push('graph-edge-external');
 
+            const dashAttr = edge.isExternal ? ' stroke-dasharray="4 3"' : '';
             svg += `<line class="${classes.join(' ')}"
                 x1="${posA.x}" y1="${posA.y}" x2="${posB.x}" y2="${posB.y}"
-                stroke="${colour}" stroke-width="${thickness}"
+                stroke="${colour}" stroke-width="${thickness}"${dashAttr}
                 data-source="${edge.sourceId}" data-target="${edge.targetId}" />`;
         }
 
@@ -338,7 +460,8 @@ export class RelationshipGraphComponent extends Component {
             const pos = this.positions.find(p => p.id === node.entityId);
             if (!pos) continue;
 
-            const r = MIN_NODE_RADIUS + (node.connectionCount / maxConns) * (MAX_NODE_RADIUS - MIN_NODE_RADIUS);
+            let r = MIN_NODE_RADIUS + (node.connectionCount / maxConns) * (MAX_NODE_RADIUS - MIN_NODE_RADIUS);
+            if (node.isGhost) r *= 0.6;
             const colour = ROLE_COLOURS[node.role];
             const isSelected = this.selectedNodeId === node.entityId;
             const isConnected = this.selectedNodeId !== null && this.isConnected(this.selectedNodeId, node.entityId);
@@ -348,12 +471,14 @@ export class RelationshipGraphComponent extends Component {
             const classes = ['graph-node'];
             if (isDimmed && !matchesSearch) classes.push('dimmed');
             if (isSelected || isConnected) classes.push('highlight');
+            if (node.isGhost) classes.push('graph-node-ghost');
 
             const labelClasses = ['graph-node-label'];
             if (isDimmed && !matchesSearch) labelClasses.push('dimmed');
 
+            const nodeOpacity = node.isGhost ? 0.35 : 0.85;
             svg += `<g class="${classes.join(' ')}" data-entity-id="${node.entityId}">
-                <circle cx="${pos.x}" cy="${pos.y}" r="${r}" fill="${colour}" opacity="0.85"
+                <circle cx="${pos.x}" cy="${pos.y}" r="${r}" fill="${colour}" opacity="${nodeOpacity}"
                     stroke="${isSelected ? '#ffffff' : 'rgba(255,255,255,0.2)'}"
                     stroke-width="${isSelected ? 2 : 0.5}" />
                 <text class="${labelClasses.join(' ')}" x="${pos.x}" y="${pos.y + r + 12}">${this.shortName(node.name)}</text>
@@ -395,6 +520,13 @@ export class RelationshipGraphComponent extends Component {
     }
 
     private buildLegend(): string {
+        const filterEntries = this.locationFilter ? `
+            <div style="margin-top:6px">
+                <div class="graph-legend-row"><span class="graph-legend-swatch" style="background:rgba(192,200,216,0.35);"></span> Ghost (other loc)</div>
+                <div class="graph-legend-row"><span class="graph-legend-line" style="background:#888;background-image:repeating-linear-gradient(90deg,#888 0 4px,transparent 4px 7px);background-color:transparent;"></span> Cross-location</div>
+            </div>
+        ` : '';
+
         return `<div class="graph-legend">
             <div class="graph-legend-title">Legend</div>
             <div class="graph-legend-row"><span class="graph-legend-swatch" style="background:${ROLE_COLOURS.Soldier}"></span> Soldier</div>
@@ -408,6 +540,7 @@ export class RelationshipGraphComponent extends Component {
                 <div class="graph-legend-row"><span class="graph-legend-line" style="background:#ccaa44"></span> Warm (51-75)</div>
                 <div class="graph-legend-row"><span class="graph-legend-line" style="background:#44cc66"></span> Strong (76-100)</div>
             </div>
+            ${filterEntries}
         </div>`;
     }
 
@@ -557,11 +690,68 @@ export class RelationshipGraphComponent extends Component {
         // Close button
         this.container.querySelector('#graph-close-btn')?.addEventListener('click', () => this.close());
 
-        // Escape key
+        // Location tabs
+        for (const tab of this.container.querySelectorAll('.graph-loc-tab')) {
+            tab.addEventListener('click', () => {
+                const el = tab as HTMLElement;
+                const filter = el.dataset.locFilter;
+                if (filter === 'all') {
+                    this.locationFilter = null;
+                } else if (filter === 'ship') {
+                    this.locationFilter = { type: 'ship' };
+                } else if (filter === 'colony') {
+                    const planetId = Number(el.dataset.locPlanet);
+                    const regionId = Number(el.dataset.locRegion);
+                    this.locationFilter = { type: 'colony', planetEntityId: planetId, regionId };
+                }
+                this.detailEntityId = null;
+                this.selectedNodeId = null;
+                this.buildGraphData();
+                this.precomputeLayout();
+                this.render();
+                this.wireEvents();
+                this.animationStep = 0;
+                this.animationTimer = setInterval(() => {
+                    this.animateStep();
+                }, ANIMATE_INTERVAL_MS);
+            });
+        }
+
+        // Detail panel close
+        this.container.querySelector('#graph-detail-close')?.addEventListener('click', () => {
+            this.detailEntityId = null;
+            this.render();
+            this.wireEvents();
+        });
+
+        // Wire shared detail panel events
+        const detailPanel = this.container.querySelector('#graph-detail-panel') as HTMLElement | null;
+        if (detailPanel) {
+            const world = ServiceLocator.get<World>('world');
+            wireDetailEvents(detailPanel, world, {
+                onNavigate: (targetId: number) => {
+                    this.detailEntityId = targetId;
+                    this.selectedNodeId = targetId;
+                    this.render();
+                    this.wireEvents();
+                    this.zoomToNode(targetId);
+                },
+                onAppoint: () => {
+                    this.render();
+                    this.wireEvents();
+                },
+            });
+        }
+
+        // Escape key — layered: detail → deselect → close
         this.onKeyDown = (e: KeyboardEvent): void => {
             if (e.code === 'Escape') {
                 e.stopImmediatePropagation();
-                if (this.selectedNodeId !== null) {
+                if (this.detailEntityId !== null) {
+                    this.detailEntityId = null;
+                    this.render();
+                    this.wireEvents();
+                } else if (this.selectedNodeId !== null) {
                     this.selectedNodeId = null;
                     this.hideCard();
                     this.hideEdgePopover();
@@ -766,7 +956,7 @@ export class RelationshipGraphComponent extends Component {
 
         this.cardEl.innerHTML = `<div class="graph-card" style="left:${clientX + 10}px; top:${clientY + 10}px;">
             <div class="graph-card-name">${node.name}</div>
-            <div class="graph-card-meta">${node.role} — Age ${node.morale > 0 ? node.morale : '?'}/100 morale</div>
+            <div class="graph-card-meta">${node.role} — Morale ${node.morale}/100</div>
             <div class="graph-card-traits">
                 ${node.traits.map(t => `<span class="graph-card-trait">${t}</span>`).join('')}
             </div>
@@ -774,11 +964,12 @@ export class RelationshipGraphComponent extends Component {
             <button class="graph-card-detail-btn" id="graph-card-detail-btn" type="button">DETAIL →</button>
         </div>`;
 
-        // Wire detail button
+        // Wire detail button — opens side detail panel
         this.cardEl.querySelector('#graph-card-detail-btn')?.addEventListener('click', () => {
-            // Navigate to crew detail in the ship info panel
-            // For now, just close the graph — the detail is accessible from the roster
-            this.close();
+            this.detailEntityId = entityId;
+            this.hideCard();
+            this.render();
+            this.wireEvents();
         });
 
         // Clamp card position to viewport
@@ -862,6 +1053,7 @@ export class RelationshipGraphComponent extends Component {
 
             group.classList.toggle('dimmed', isDimmed && !matchSearch);
             group.classList.toggle('highlight', isSelected || isConnected);
+            group.classList.toggle('graph-node-ghost', node?.isGhost ?? false);
 
             // Update stroke
             const circle = group.querySelector('circle');
