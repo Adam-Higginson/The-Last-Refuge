@@ -201,6 +201,37 @@ describe('createCrew', () => {
         }
     });
 
+    // --- Relationship levels ---
+
+    it('all relationships have level between 0 and 100', () => {
+        createCrew(world);
+        for (const c of getAllCrew()) {
+            for (const rel of c.relationships) {
+                expect(rel.level).toBeGreaterThanOrEqual(0);
+                expect(rel.level).toBeLessThanOrEqual(100);
+            }
+        }
+    });
+
+    it('captain has at least 30 relationships', () => {
+        createCrew(world);
+        const soren = getAllCrew().find(c => c.fullName === 'Commander Soren Vael');
+        expect(soren?.relationships.length).toBeGreaterThanOrEqual(30);
+    });
+
+    it('civilians have fewer connections on average than non-civilians', () => {
+        createCrew(world);
+        const crew = getAllCrew();
+
+        const civilians = crew.filter(c => c.role === 'Civilian');
+        const nonCivilians = crew.filter(c => c.role !== 'Civilian');
+
+        const civAvg = civilians.reduce((sum, c) => sum + c.relationships.length, 0) / civilians.length;
+        const nonCivAvg = nonCivilians.reduce((sum, c) => sum + c.relationships.length, 0) / nonCivilians.length;
+
+        expect(civAvg).toBeLessThan(nonCivAvg);
+    });
+
     // --- Captain ---
 
     it('Commander Soren Vael is the ship captain', () => {
@@ -223,7 +254,7 @@ describe('createCrew', () => {
 
     // --- Determinism ---
 
-    it('produces identical output with the same seed', () => {
+    it('produces identical output across multiple calls', () => {
         createCrew(world);
         const crew1 = getAllCrew().map(c => ({
             name: c.fullName, age: c.age, role: c.role,

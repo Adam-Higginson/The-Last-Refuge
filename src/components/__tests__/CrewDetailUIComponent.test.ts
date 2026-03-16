@@ -320,6 +320,7 @@ describe('CrewDetailUIComponent', () => {
                 targetId: yaelId,
                 targetName: 'Dr. Yael Chen',
                 type: 'Close Bond',
+                level: 95,
                 description: 'Yael is her mother',
             });
         }
@@ -359,6 +360,7 @@ describe('CrewDetailUIComponent', () => {
                 targetId: yaelId,
                 targetName: 'Dr. Yael Chen',
                 type: 'Close Bond',
+                level: 95,
                 description: 'Yael is her mother',
             });
         }
