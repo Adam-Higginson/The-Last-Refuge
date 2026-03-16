@@ -4,8 +4,26 @@
 export const TILE_WIDTH = 120;
 export const TILE_HEIGHT = 60;
 
-/** Grid spacing — how far apart slots are placed. */
-export const GRID_SPACING = 160;
+/** Grid spacing — how far apart slots are placed (per grid cell). */
+export const GRID_SPACING = 80;
+
+/** Colony grid dimension (re-exported from ColonyGrid for rendering convenience). */
+export { COLONY_GRID_SIZE } from '../colony/ColonyGrid';
+
+/**
+ * Compute the adjusted centre offset for gridToScreen so that the 10x10 grid
+ * is centred around the given visual centre point.
+ * Grid coord (COLONY_GRID_SIZE/2, COLONY_GRID_SIZE/2) will map to (visX, visY).
+ */
+export function getGridCentre(visX: number, visY: number): { centreX: number; centreY: number } {
+    const half = 5; // COLONY_GRID_SIZE / 2
+    const spacingH = GRID_SPACING / 2;
+    const spacingV = GRID_SPACING / 4;
+    return {
+        centreX: visX - (half - half) * spacingH, // = visX (symmetric)
+        centreY: visY - (half + half) * spacingV,  // offset down by grid depth
+    };
+}
 
 /** Camera zoom scale applied to the entire ground scene. */
 export const COLONY_ZOOM = 3.0;
