@@ -5,7 +5,7 @@ export const TILE_WIDTH = 120;
 export const TILE_HEIGHT = 60;
 
 /** Grid spacing — how far apart slots are placed (per grid cell). */
-export const GRID_SPACING = 80;
+export const GRID_SPACING = 48;
 
 /** Colony grid dimension (re-exported from ColonyGrid for rendering convenience). */
 export { COLONY_GRID_SIZE } from '../colony/ColonyGrid';
@@ -21,7 +21,7 @@ export function getGridCentre(visX: number, visY: number): { centreX: number; ce
     const spacingV = GRID_SPACING / 4;
     return {
         centreX: visX - (half - half) * spacingH, // = visX (symmetric)
-        centreY: visY - (half + half) * spacingV,  // offset down by grid depth
+        centreY: visY - half * spacingV,           // half-offset so grid sits on the ground plane
     };
 }
 

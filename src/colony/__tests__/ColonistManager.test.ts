@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { initColonists, updateColonists, getVisibleColonists } from '../ColonistManager';
+import { initColonists, updateColonists, getVisibleColonists, spreadAroundCell } from '../ColonistManager';
 import { ColonyGrid } from '../ColonyGrid';
 import { generatePathNetwork } from '../ColonyPathNetwork';
 import type { ColonistVisualState } from '../ColonistState';
@@ -201,6 +201,113 @@ describe('ColonistManager', () => {
         // Near (1+1=2) should come before Far (5+5=10)
         expect(visible[0].entityId).toBe(2);
         expect(visible[1].entityId).toBe(1);
+    });
+
+    describe('spreadAroundCell', () => {
+        it('returns different cells for different entityIds', () => {
+            const pos1 = spreadAroundCell(sim.grid, 5, 5, 1);
+            const pos2 = spreadAroundCell(sim.grid, 5, 5, 2);
+            const pos3 = spreadAroundCell(sim.grid, 5, 5, 3);
+            // At least some should differ
+            const unique = new Set([
+                `${pos1.gridX},${pos1.gridY}`,
+                `${pos2.gridX},${pos2.gridY}`,
+                `${pos3.gridX},${pos3.gridY}`,
+            ]);
+            expect(unique.size).toBeGreaterThan(1);
+        });
+
+        it('returns original cell when no walkable neighbours exist', () => {
+            // Create a grid where a cell is surrounded by buildings
+            const isolatedGrid = new ColonyGrid();
+            // Fill entire grid with buildings
+            for (let y = 0; y < 10; y++) {
+                for (let x = 0; x < 10; x++) {
+                    isolatedGrid.cells[y][x] = { type: 'building', buildingSlotIndex: 0 };
+                }
+            }
+            const result = spreadAroundCell(isolatedGrid, 5, 5, 1);
+            expect(result.gridX).toBe(5);
+            expect(result.gridY).toBe(5);
+        });
+    });
+
+    describe('sleep sheltering', () => {
+        it('shelters resting colonist assigned to shelter (slot 0)', () => {
+            const crew = [
+                { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Sleeper' },
+            ];
+            initColonists(sim as Parameters<typeof initColonists>[0], crew);
+            const colonist = sim.colonistStates.get(1);
+            if (!colonist) return;
+
+            colonist.emergeDelay = 0;
+            colonist.activity = 'resting';
+            colonist.assignedBuildingSlot = 0; // shelter
+
+            const buildings: BuildingInstance[] = [
+                { typeId: 'shelter', slotIndex: 0, state: 'active', turnsRemaining: 0, modifierIds: [] },
+            ];
+
+            updateColonists(
+                sim as Parameters<typeof updateColonists>[0],
+                0.1, 22, 'clear', eq, buildings as BuildingInstance[],
+            );
+
+            expect(colonist.sheltered).toBe(true);
+            const visible = getVisibleColonists(sim as Parameters<typeof getVisibleColonists>[0]);
+            expect(visible.find(c => c.entityId === 1)).toBeUndefined();
+        });
+
+        it('does not shelter walking colonist toward shelter', () => {
+            const crew = [
+                { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Walker' },
+            ];
+            initColonists(sim as Parameters<typeof initColonists>[0], crew);
+            const colonist = sim.colonistStates.get(1);
+            if (!colonist) return;
+
+            colonist.emergeDelay = 0;
+            colonist.activity = 'walking';
+            colonist.assignedBuildingSlot = 0;
+            colonist.path = [{ gridX: 3, gridY: 1 }];
+            colonist.pathIndex = 0;
+
+            const buildings: BuildingInstance[] = [
+                { typeId: 'shelter', slotIndex: 0, state: 'active', turnsRemaining: 0, modifierIds: [] },
+            ];
+
+            updateColonists(
+                sim as Parameters<typeof updateColonists>[0],
+                0.1, 22, 'clear', eq, buildings as BuildingInstance[],
+            );
+
+            expect(colonist.sheltered).toBe(false);
+        });
+
+        it('does not shelter resting colonist without building assignment (sleeping rough)', () => {
+            const crew = [
+                { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Rough' },
+            ];
+            initColonists(sim as Parameters<typeof initColonists>[0], crew);
+            const colonist = sim.colonistStates.get(1);
+            if (!colonist) return;
+
+            colonist.emergeDelay = 0;
+            colonist.activity = 'resting';
+            colonist.assignedBuildingSlot = null; // no building
+
+            const buildings: BuildingInstance[] = [
+                { typeId: 'shelter', slotIndex: 0, state: 'active', turnsRemaining: 0, modifierIds: [] },
+            ];
+
+            updateColonists(
+                sim as Parameters<typeof updateColonists>[0],
+                0.1, 22, 'clear', eq, buildings as BuildingInstance[],
+            );
+
+            expect(colonist.sheltered).toBe(false);
+        });
     });
 
     it('emits events on state transitions', () => {

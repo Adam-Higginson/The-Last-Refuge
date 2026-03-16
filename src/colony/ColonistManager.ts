@@ -7,6 +7,7 @@ import { getScheduleBlock } from './ColonistSchedule';
 import { GameEvents } from '../core/GameEvents';
 import type { ColonistActivity, ColonistVisualState } from './ColonistState';
 import type { ColonySimulationComponent } from '../components/ColonySimulationComponent';
+import type { ColonyGrid } from './ColonyGrid';
 import type { CrewRole } from '../components/CrewMemberComponent';
 import type { EventQueue } from '../core/EventQueue';
 import type { BuildingInstance } from '../data/buildings';
@@ -29,6 +30,29 @@ const HAIR_COLOURS = [
     '#8a6030', '#b08040', '#2a2a2a',
 ];
 
+/**
+ * Spread colonists to nearby walkable cells around a target, avoiding pixel-stacking.
+ * Returns a deterministic cell based on entityId so each colonist gets a unique spot.
+ */
+export function spreadAroundCell(
+    grid: ColonyGrid, targetX: number, targetY: number, entityId: number,
+): { gridX: number; gridY: number } {
+    const walkable: { gridX: number; gridY: number }[] = [];
+    for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+            if (Math.abs(dx) + Math.abs(dy) > 2) continue; // Manhattan distance ≤ 2
+            const gx = targetX + dx;
+            const gy = targetY + dy;
+            const cell = grid.getCell(gx, gy);
+            if (cell && (cell.type === 'empty' || cell.type === 'path' || cell.type === 'door')) {
+                walkable.push({ gridX: gx, gridY: gy });
+            }
+        }
+    }
+    if (walkable.length === 0) return { gridX: targetX, gridY: targetY };
+    return walkable[entityId % walkable.length];
+}
+
 function getSkinTone(id: number): string {
     return SKIN_TONES[id % SKIN_TONES.length];
 }
@@ -45,17 +69,18 @@ export function initColonists(
     sim.colonistStates.clear();
 
     for (const crew of crewEntities) {
-        // Start at shelter door or near grid centre
+        // Start at shelter door or near grid centre, spread out to avoid stacking
         const shelterDoor = sim.grid.getDoors().find(d => d.slotIndex === 0);
-        const startX = shelterDoor ? shelterDoor.gridX : 5;
-        const startY = shelterDoor ? shelterDoor.gridY : 5;
+        const baseX = shelterDoor ? shelterDoor.gridX : 5;
+        const baseY = shelterDoor ? shelterDoor.gridY : 5;
+        const spawn = spreadAroundCell(sim.grid, baseX, baseY, crew.id);
 
         const state: ColonistVisualState = {
             entityId: crew.id,
             role: crew.role,
             activity: 'idle',
-            gridX: startX,
-            gridY: startY,
+            gridX: spawn.gridX,
+            gridY: spawn.gridY,
             path: [],
             pathIndex: 0,
             walkSpeed: 2.0,
@@ -91,13 +116,20 @@ function resolveLocation(
     entityId: number,
 ): ResolvedLocation | null {
     if (location === 'social_area') {
-        return sim.campfireCell ? { ...sim.campfireCell, buildingSlot: null } : null;
+        if (!sim.campfireCell) return null;
+        const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId);
+        return { ...spread, buildingSlot: null };
     }
 
     if (location === 'shelter') {
         const shelterDoor = sim.grid.getDoors().find(d => d.slotIndex === 0);
-        if (shelterDoor) return { gridX: shelterDoor.gridX, gridY: shelterDoor.gridY, buildingSlot: 0 };
-        return sim.campfireCell ? { ...sim.campfireCell, buildingSlot: null } : null;
+        if (shelterDoor) {
+            const spread = spreadAroundCell(sim.grid, shelterDoor.gridX, shelterDoor.gridY, entityId);
+            return { gridX: spread.gridX, gridY: spread.gridY, buildingSlot: 0 };
+        }
+        if (!sim.campfireCell) return null;
+        const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId);
+        return { ...spread, buildingSlot: null };
     }
 
     if (location === 'patrol') {
@@ -130,7 +162,9 @@ function resolveLocation(
         }
 
         // No building for this role — go to campfire
-        return sim.campfireCell ? { ...sim.campfireCell, buildingSlot: null } : null;
+        if (!sim.campfireCell) return null;
+        const fallback = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId);
+        return { ...fallback, buildingSlot: null };
     }
 
     return null;
@@ -185,6 +219,11 @@ export function updateColonists(
         // Dawn stagger: wait for emerge delay
         if (colonist.emergeDelay > 0) {
             colonist.emergeDelay -= dt;
+            colonist.sheltered = true;
+            continue;
+        }
+        // Resting colonists assigned to shelter (slot 0) are inside the building
+        if (colonist.activity === 'resting' && colonist.assignedBuildingSlot === 0) {
             colonist.sheltered = true;
             continue;
         }

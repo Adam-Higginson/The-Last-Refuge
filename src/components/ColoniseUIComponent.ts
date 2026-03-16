@@ -15,6 +15,7 @@ import { TransformComponent } from './TransformComponent';
 import { TransferScreenComponent } from './TransferScreenComponent';
 import { ColonyBuildingComponent } from './ColonyBuildingComponent';
 import { BUILDING_SLOTS_BY_BIOME, DEFAULT_BUILDING_SLOTS } from '../data/buildings';
+import { CrewMemberComponent } from './CrewMemberComponent';
 import type { EventQueue } from '../core/EventQueue';
 import { FOG_DETAIL_RADIUS } from '../data/constants';
 import type { World } from '../core/World';
@@ -83,6 +84,19 @@ export class ColoniseUIComponent extends Component {
                 const buildingComp = this.entity.getComponent(ColonyBuildingComponent);
                 if (buildingComp) {
                     buildingComp.addCompletedBuilding(region.id, 'shelter');
+                }
+
+                // Auto-transfer starter crew to the new colony
+                const world = ServiceLocator.get<World>('world');
+                const shipCrew = world.getEntitiesWithComponent(CrewMemberComponent).filter(e => {
+                    const c = e.getComponent(CrewMemberComponent);
+                    return c?.location.type === 'ship';
+                });
+                const starterCount = Math.min(5, shipCrew.length);
+                const colonyLoc = { type: 'colony' as const, planetEntityId: this.entity.id, regionId: region.id };
+                for (let i = 0; i < starterCount; i++) {
+                    const c = shipCrew[i].getComponent(CrewMemberComponent);
+                    if (c) c.location = { ...colonyLoc };
                 }
 
                 this.eventQueue?.emit({

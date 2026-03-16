@@ -144,18 +144,18 @@ export function drawMicroDetails(
 
 function drawCrates(ctx: CanvasRenderingContext2D, x: number, y: number, seed: number): void {
     ctx.save();
-    ctx.globalAlpha = 0.7;
+    ctx.globalAlpha = 0.85;
 
     // Stack of 2-3 crates
     const count = 2 + Math.floor(Math.abs(Math.sin(seed)) * 2);
     for (let i = 0; i < count; i++) {
         const cx = x + i * 5 - count * 2;
         const cy = y - i * 6;
-        const s = 5 + Math.sin(seed + i) * 2;
+        const s = 6 + Math.sin(seed + i) * 2;
         ctx.fillStyle = i % 2 === 0 ? '#6a5a3a' : '#5a4a2a';
         ctx.fillRect(cx - s, cy - s, s * 2, s * 2);
-        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 1;
         ctx.strokeRect(cx - s, cy - s, s * 2, s * 2);
         // Cross brace
         ctx.beginPath();
@@ -170,23 +170,30 @@ function drawCrates(ctx: CanvasRenderingContext2D, x: number, y: number, seed: n
 
 function drawBarrel(ctx: CanvasRenderingContext2D, x: number, y: number, seed: number): void {
     ctx.save();
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.8;
     const tilt = Math.sin(seed) * 0.1;
 
     ctx.fillStyle = '#5a4a30';
     ctx.beginPath();
-    ctx.ellipse(x, y - 5, 5, 7, tilt, 0, Math.PI * 2);
+    ctx.ellipse(x, y - 5, 7, 9, tilt, 0, Math.PI * 2);
     ctx.fill();
+    // Outline
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
     // Top
     ctx.fillStyle = '#6a5a40';
     ctx.beginPath();
-    ctx.ellipse(x, y - 11, 5, 2, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y - 13, 6, 2.5, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
     // Band
     ctx.strokeStyle = 'rgba(80,70,50,0.5)';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.ellipse(x, y - 5, 5.5, 2, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y - 5, 7.5, 2.5, 0, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.restore();
