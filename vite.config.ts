@@ -8,6 +8,7 @@ export default defineConfig(({ command }) => ({
         __BUILD_TIME__: JSON.stringify(
             new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
         ),
+        __EXTIRIS_API_KEY__: JSON.stringify(process.env.VITE_EXTIRIS_API_KEY ?? ''),
     },
     server: {
         host: '0.0.0.0',

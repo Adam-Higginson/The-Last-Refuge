@@ -70,8 +70,7 @@ export class AISettingsUIComponent extends Component {
                     color: #c0c8d8; font-family: monospace; font-size: 12px;
                     border-radius: 3px; margin-bottom: 8px;"
             />
-            <div style="font-size: 10px; opacity: 0.5; margin-bottom: 12px;">
-                Your API key is stored locally in your browser. Leave blank for deterministic AI.
+            <div id="ai-key-source" style="font-size: 10px; opacity: 0.5; margin-bottom: 12px;">
             </div>
             <div style="margin-bottom: 12px;">
                 <label style="font-size: 12px; cursor: pointer;">
@@ -96,6 +95,19 @@ export class AISettingsUIComponent extends Component {
         `;
 
         document.body.appendChild(this.modal);
+
+        // Show key source hint
+        const keySourceEl = document.getElementById('ai-key-source');
+        if (keySourceEl) {
+            const buildKey = __EXTIRIS_API_KEY__;
+            if (savedKey) {
+                keySourceEl.textContent = 'Using API key from browser storage. Clear to use build default.';
+            } else if (buildKey) {
+                keySourceEl.textContent = 'Using API key from build config. Enter a key here to override.';
+            } else {
+                keySourceEl.textContent = 'No API key set. Enter a key for LLM mode, or leave blank for deterministic AI.';
+            }
+        }
 
         // Set values via DOM properties (not innerHTML interpolation) to prevent XSS
         const keyInput = document.getElementById('ai-api-key-input') as HTMLInputElement | null;
@@ -128,13 +140,14 @@ export class AISettingsUIComponent extends Component {
             // localStorage not available
         }
 
-        // Configure AI service
+        // Configure AI service: localStorage key > build-time key > deterministic
         try {
             const aiService = ServiceLocator.get<AIService>('aiService');
             if (forceDeterministic) {
                 aiService.configure({ apiKey: '' });
             } else {
-                aiService.configure({ apiKey });
+                const effectiveKey = apiKey || __EXTIRIS_API_KEY__;
+                aiService.configure({ apiKey: effectiveKey });
             }
         } catch {
             // No AI service
