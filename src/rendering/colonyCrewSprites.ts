@@ -226,8 +226,7 @@ function drawFigure(
     ctx.fillStyle = '#ffffff';
     ctx.font = '5px "Share Tech Mono", "Courier New", monospace';
     ctx.textAlign = 'center';
-    const firstName = sprite.name.split(' ')[0];
-    ctx.fillText(firstName, x, y - 14 + bob);
+    ctx.fillText(sprite.name, x, y - 14 + bob);
     ctx.globalAlpha = 1;
 
     // Leader star
