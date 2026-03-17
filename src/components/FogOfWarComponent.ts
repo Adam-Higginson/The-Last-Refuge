@@ -1,18 +1,42 @@
 // FogOfWarComponent.ts — Fog of war grid tracking visibility state.
 // Lives on the gameState entity. Tracks which cells have been revealed
-// by the ship's scan radii. Updated each frame by its own lifecycle.
+// by any VisibilitySourceComponent in the world (ship, colonies, etc.).
+//
+// Visibility flow:
+//
+//   VisibilitySourceComponent    TransformComponent
+//   (detailRadius, blipRadius,   (x, y)
+//    effectiveRadii, active)          |
+//          |                          |
+//          v                          v
+//   +----------------------------------------------+
+//   | FogOfWarComponent.update()                    |
+//   |  1. Animate: interpolate effective            |
+//   |     radii toward configured values            |
+//   |  2. Demote: active cells -> revealed          |
+//   |  3. Promote: for each active source,          |
+//   |     revealCellsInRadius(pos, radius)          |
+//   +----------------------------------------------+
+//          |
+//          v
+//   getEntityFogZone(wx, wy)
+//   -> checks distance to ALL active sources
+//   -> returns best zone (active > blip > hidden)
 
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
+import { GameEvents } from '../core/GameEvents';
 import { GameModeComponent } from './GameModeComponent';
 import { TransformComponent } from './TransformComponent';
+import { VisibilitySourceComponent } from './VisibilitySourceComponent';
+import { CrewMemberComponent } from './CrewMemberComponent';
 import {
     FOG_GRID_SIZE,
     FOG_CELL_SIZE,
-    FOG_DETAIL_RADIUS,
-    FOG_BLIP_RADIUS,
+    FOG_REVEAL_DURATION,
 } from '../data/constants';
 import type { World } from '../core/World';
+import type { EventQueue, EventHandler } from '../core/EventQueue';
 
 export const TileVisibility = {
     Hidden: 0,
@@ -29,8 +53,6 @@ const HALF_WORLD = (FOG_GRID_SIZE * FOG_CELL_SIZE) / 2;
 export class FogOfWarComponent extends Component {
     readonly gridSize = FOG_GRID_SIZE;
     readonly cellSize = FOG_CELL_SIZE;
-    readonly detailRadius = FOG_DETAIL_RADIUS;
-    readonly blipRadius = FOG_BLIP_RADIUS;
 
     /** Flat visibility grid: gridSize * gridSize entries. */
     readonly grid: Uint8Array;
@@ -44,9 +66,11 @@ export class FogOfWarComponent extends Component {
     /** Last known positions of entities (for stale rendering when revealed). */
     private readonly lastKnownPositions = new Map<number, { x: number; y: number }>();
 
-    /** Last ship position used for fog update (skip if unchanged). */
-    private lastShipX = NaN;
-    private lastShipY = NaN;
+    /** Position cache per visibility source entity (for skip-if-unchanged optimisation). */
+    private sourcePositionCache = new Map<number, { x: number; y: number }>();
+
+    private eventQueue: EventQueue | null = null;
+    private crewTransferredHandler: EventHandler | null = null;
 
     constructor() {
         super();
@@ -84,20 +108,37 @@ export class FogOfWarComponent extends Component {
         return this.getCellVisibility(col, row);
     }
 
-    /** Returns which zone an entity falls in relative to the ship. */
-    getEntityZone(wx: number, wy: number, shipX: number, shipY: number): EntityZone {
-        const dx = wx - shipX;
-        const dy = wy - shipY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+    /**
+     * Returns which zone a point falls in relative to all active visibility sources.
+     * Returns the best (most visible) zone across all sources.
+     */
+    getEntityZone(wx: number, wy: number): EntityZone {
+        const world = ServiceLocator.get<World>('world');
+        const sources = world.getEntitiesWithComponent(VisibilitySourceComponent);
 
-        if (dist <= this.detailRadius) return 'active';
-        if (dist <= this.blipRadius) return 'blip';
-        return 'hidden';
+        let bestZone: EntityZone = 'hidden';
+
+        for (const sourceEntity of sources) {
+            const vis = sourceEntity.getComponent(VisibilitySourceComponent);
+            const transform = sourceEntity.getComponent(TransformComponent);
+            if (!vis?.active || !transform) continue;
+
+            const dx = wx - transform.x;
+            const dy = wy - transform.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist <= vis.effectiveDetailRadius) return 'active'; // best possible — short circuit
+            if (dist <= vis.effectiveBlipRadius && bestZone === 'hidden') {
+                bestZone = 'blip';
+            }
+        }
+
+        return bestZone;
     }
 
     /** Whether an entity at (wx,wy) can be clicked/hovered. */
-    isInteractable(wx: number, wy: number, shipX: number, shipY: number): boolean {
-        return this.getEntityZone(wx, wy, shipX, shipY) === 'active';
+    isInteractable(wx: number, wy: number): boolean {
+        return this.getEntityZone(wx, wy) === 'active';
     }
 
     /** Record an entity's position as its last known location (for stale rendering). */
@@ -116,8 +157,8 @@ export class FogOfWarComponent extends Component {
         return this.lastKnownPositions.get(entityId);
     }
 
-    /** Pre-reveal cells around a position (called on init). */
-    revealAround(cx: number, cy: number, radius: number): void {
+    /** Reveal cells within radius around a centre point, marking them Active. */
+    private revealCellsInRadius(cx: number, cy: number, radius: number): void {
         const cellRadius = Math.ceil(radius / this.cellSize);
         const centre = this.worldToCell(cx, cy);
         const radiusSq = radius * radius;
@@ -135,41 +176,130 @@ export class FogOfWarComponent extends Component {
                     const idx = row * this.gridSize + col;
                     this.grid[idx] = TileVisibility.Active;
                     this.activeCells.add(idx);
+                    this.revealedCells.delete(idx);
                 }
             }
         }
     }
 
+    /** Pre-reveal cells around a position (called on init or externally). */
+    revealAround(cx: number, cy: number, radius: number): void {
+        this.revealCellsInRadius(cx, cy, radius);
+    }
+
     init(): void {
-        // Pre-reveal around the ship's starting position
+        // Pre-reveal around all visibility sources
+        const world = ServiceLocator.get<World>('world');
+        const sources = world.getEntitiesWithComponent(VisibilitySourceComponent);
+        for (const sourceEntity of sources) {
+            const vis = sourceEntity.getComponent(VisibilitySourceComponent);
+            const transform = sourceEntity.getComponent(TransformComponent);
+            if (!vis?.active || !transform) continue;
+            this.revealCellsInRadius(transform.x, transform.y, vis.effectiveBlipRadius);
+        }
+
+        // Listen for crew transfers to activate/deactivate colony sources
+        this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
+        this.crewTransferredHandler = (): void => {
+            this.updateColonySources();
+        };
+        this.eventQueue.on(GameEvents.CREW_TRANSFERRED, this.crewTransferredHandler);
+    }
+
+    /** Check all non-ship visibility sources and activate/deactivate based on crew presence. */
+    private updateColonySources(): void {
         const world = ServiceLocator.get<World>('world');
         const ship = world.getEntityByName('arkSalvage');
-        const shipTransform = ship?.getComponent(TransformComponent);
-        if (shipTransform) {
-            this.revealAround(shipTransform.x, shipTransform.y, this.blipRadius);
+        const sources = world.getEntitiesWithComponent(VisibilitySourceComponent);
+        const crewEntities = world.getEntitiesWithComponent(CrewMemberComponent);
+
+        for (const sourceEntity of sources) {
+            if (sourceEntity === ship) continue; // ship is always active
+
+            const vis = sourceEntity.getComponent(VisibilitySourceComponent);
+            if (!vis) continue;
+
+            const hasCrew = crewEntities.some(e => {
+                const c = e.getComponent(CrewMemberComponent);
+                return c?.location.type === 'colony' && c.location.planetEntityId === sourceEntity.id;
+            });
+
+            if (!hasCrew && vis.active) {
+                vis.active = false;
+            } else if (hasCrew && !vis.active) {
+                vis.active = true;
+                // Restart reveal animation
+                vis.effectiveDetailRadius = 0;
+                vis.effectiveBlipRadius = 0;
+            }
         }
     }
 
-    update(_dt: number): void {
+    update(dt: number): void {
         // Skip fog updates during planet view
         const gameMode = this.entity.getComponent(GameModeComponent);
         if (gameMode && gameMode.mode !== 'system') return;
 
         const world = ServiceLocator.get<World>('world');
-        const ship = world.getEntityByName('arkSalvage');
-        const shipTransform = ship?.getComponent(TransformComponent);
-        if (!shipTransform) return;
+        const sources = world.getEntitiesWithComponent(VisibilitySourceComponent);
 
-        const shipX = shipTransform.x;
-        const shipY = shipTransform.y;
+        // Animate effective radii for all sources
+        for (const sourceEntity of sources) {
+            const vis = sourceEntity.getComponent(VisibilitySourceComponent);
+            if (!vis?.active) continue;
 
-        // Skip update if ship hasn't moved (within half a cell)
-        const movedDx = shipX - this.lastShipX;
-        const movedDy = shipY - this.lastShipY;
+            if (vis.effectiveDetailRadius < vis.detailRadius) {
+                vis.effectiveDetailRadius = Math.min(
+                    vis.detailRadius,
+                    vis.effectiveDetailRadius + (vis.detailRadius / FOG_REVEAL_DURATION) * dt,
+                );
+            }
+            if (vis.effectiveBlipRadius < vis.blipRadius) {
+                vis.effectiveBlipRadius = Math.min(
+                    vis.blipRadius,
+                    vis.effectiveBlipRadius + (vis.blipRadius / FOG_REVEAL_DURATION) * dt,
+                );
+            }
+        }
+
+        // Check if any source has moved (within half a cell)
         const halfCell = this.cellSize / 2;
-        if (movedDx * movedDx + movedDy * movedDy < halfCell * halfCell) return;
-        this.lastShipX = shipX;
-        this.lastShipY = shipY;
+        const halfCellSq = halfCell * halfCell;
+        let anyMoved = false;
+        const currentSourceIds = new Set<number>();
+
+        for (const sourceEntity of sources) {
+            const vis = sourceEntity.getComponent(VisibilitySourceComponent);
+            const transform = sourceEntity.getComponent(TransformComponent);
+            if (!vis?.active || !transform) continue;
+
+            const id = sourceEntity.id;
+            currentSourceIds.add(id);
+            const cached = this.sourcePositionCache.get(id);
+
+            if (!cached) {
+                this.sourcePositionCache.set(id, { x: transform.x, y: transform.y });
+                anyMoved = true;
+            } else {
+                const dx = transform.x - cached.x;
+                const dy = transform.y - cached.y;
+                if (dx * dx + dy * dy >= halfCellSq) {
+                    cached.x = transform.x;
+                    cached.y = transform.y;
+                    anyMoved = true;
+                }
+            }
+        }
+
+        // Clean up cache entries for removed sources
+        for (const cachedId of this.sourcePositionCache.keys()) {
+            if (!currentSourceIds.has(cachedId)) {
+                this.sourcePositionCache.delete(cachedId);
+                anyMoved = true;
+            }
+        }
+
+        if (!anyMoved) return;
 
         // Pass 1: Demote all currently active cells to revealed
         for (const idx of this.activeCells) {
@@ -178,33 +308,25 @@ export class FogOfWarComponent extends Component {
         }
         this.activeCells.clear();
 
-        // Pass 2: Promote cells within blip radius to active
-        const cellRadius = Math.ceil(this.blipRadius / this.cellSize);
-        const centre = this.worldToCell(shipX, shipY);
-        const blipRadiusSq = this.blipRadius * this.blipRadius;
+        // Pass 2: Promote cells within each source's effective blip radius
+        for (const sourceEntity of sources) {
+            const vis = sourceEntity.getComponent(VisibilitySourceComponent);
+            const transform = sourceEntity.getComponent(TransformComponent);
+            if (!vis?.active || !transform) continue;
 
-        for (let dr = -cellRadius; dr <= cellRadius; dr++) {
-            for (let dc = -cellRadius; dc <= cellRadius; dc++) {
-                const col = centre.col + dc;
-                const row = centre.row + dr;
-                if (col < 0 || col >= this.gridSize || row < 0 || row >= this.gridSize) continue;
+            this.revealCellsInRadius(transform.x, transform.y, vis.effectiveBlipRadius);
+        }
+    }
 
-                const worldPos = this.cellToWorld(col, row);
-                const dx = worldPos.x - shipX;
-                const dy = worldPos.y - shipY;
-                if (dx * dx + dy * dy <= blipRadiusSq) {
-                    const idx = row * this.gridSize + col;
-                    this.grid[idx] = TileVisibility.Active;
-                    this.activeCells.add(idx);
-                    this.revealedCells.delete(idx);
-                }
-            }
+    destroy(): void {
+        if (this.eventQueue && this.crewTransferredHandler) {
+            this.eventQueue.off(GameEvents.CREW_TRANSFERRED, this.crewTransferredHandler);
         }
     }
 }
 
 /**
- * Standalone fog zone lookup — resolves ship + fog from ServiceLocator.
+ * Standalone fog zone lookup — resolves visibility sources + fog from ServiceLocator.
  * Returns 'active' if no fog or world service exists (graceful degradation).
  */
 export function getEntityFogZone(wx: number, wy: number): EntityZone {
@@ -224,9 +346,5 @@ export function getEntityFogZone(wx: number, wy: number): EntityZone {
     const fog = gameState?.getComponent(FogOfWarComponent);
     if (!fog) return 'active';
 
-    const ship = world.getEntityByName('arkSalvage');
-    const shipTransform = ship?.getComponent(TransformComponent);
-    if (!shipTransform) return 'active';
-
-    return fog.getEntityZone(wx, wy, shipTransform.x, shipTransform.y);
+    return fog.getEntityZone(wx, wy);
 }
