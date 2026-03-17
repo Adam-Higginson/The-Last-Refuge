@@ -21,6 +21,15 @@ export const SHIP_MIN_ENGINEERS = 3;
 /** Minimum crew to found a new colony (excluding leader). */
 export const COLONY_MIN_CREW = 5;
 
+/** Full visibility radius around a colony (world units). */
+export const COLONY_FOG_DETAIL_RADIUS = 400;
+
+/** Blip radius around a colony (world units). */
+export const COLONY_FOG_BLIP_RADIUS = 600;
+
+/** Duration of the colony fog reveal animation (seconds). */
+export const FOG_REVEAL_DURATION = 1.5;
+
 /** Extiris sensor radius — what it can "see" (world units). */
 export const EXTIRIS_SENSOR_RADIUS = 1500;
 
