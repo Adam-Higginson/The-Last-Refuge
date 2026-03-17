@@ -6,6 +6,7 @@ import { COLONY_GRID_SIZE } from '../colony/ColonyGrid';
 import type { ColonyGrid } from '../colony/ColonyGrid';
 import type { ColonistVisualState } from '../colony/ColonistState';
 import type { ColonySlotRect } from './drawColonyScene';
+import type { HitTestItem } from './RenderQueue';
 
 // Grid cell spacing — how the 10x10 grid maps to screen via gridToScreen.
 // We use the same gridToScreen function but with smaller integer coords.
@@ -95,7 +96,7 @@ export function drawColonistFigures(
 const FIGURE_SCALE = 1.8;
 
 /** Draw a single colonist figure at screen coordinates. */
-function drawFigure(
+export function drawFigure(
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
@@ -103,6 +104,7 @@ function drawFigure(
     t: number,
     isWalking: boolean,
     isSelected: boolean = false,
+    nearbyBuildingPos?: { x: number; y: number },
 ): void {
     const s = FIGURE_SCALE;
 
@@ -123,10 +125,18 @@ function drawFigure(
         ctx.fill();
     }
 
-    // Shadow
+    // Shadow — stretches toward nearby buildings
+    const baseShadowRx = 3 * s;
+    let shadowRx = baseShadowRx;
+    if (nearbyBuildingPos) {
+        const dx = nearbyBuildingPos.x - x;
+        const dist = Math.abs(dx);
+        const stretch = Math.max(0, 1 - dist / 100) * 0.5; // up to 50% wider
+        shadowRx = baseShadowRx * (1 + stretch);
+    }
     ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
     ctx.beginPath();
-    ctx.ellipse(x, y + 1 * s, 3 * s, 1 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + 1 * s, shadowRx, 1 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Legs — skin-toned
@@ -353,4 +363,46 @@ export function drawDebugOverlay(
     }
 
     ctx.restore();
+}
+
+/** Hit-test result from resolveHitTarget. */
+export interface HitResult {
+    kind: 'building' | 'colonist' | 'empty-slot';
+    entityId?: number;
+    slotIndex?: number;
+}
+
+/**
+ * Depth-aware hit-testing: iterate items highest-depth-first (closest to camera),
+ * first hit wins. Buildings use rect check, colonists use radius check.
+ */
+export function resolveHitTarget(
+    items: readonly HitTestItem[],
+    clickX: number,
+    clickY: number,
+): HitResult | null {
+    // Iterate highest depth first (nearest to camera wins)
+    for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+
+        // Skip props — not clickable
+        if (item.kind === 'prop') continue;
+
+        if (item.hitRadius) {
+            // Radius-based check (colonists)
+            const dx = clickX - item.screenX;
+            const dy = clickY - item.screenY;
+            if (dx * dx + dy * dy <= item.hitRadius * item.hitRadius) {
+                return { kind: item.kind, entityId: item.entityId, slotIndex: item.slotIndex };
+            }
+        } else if (item.hitRect) {
+            // Rect-based check (buildings, empty slots)
+            const r = item.hitRect;
+            if (clickX >= r.x && clickX <= r.x + r.width &&
+                clickY >= r.y && clickY <= r.y + r.height) {
+                return { kind: item.kind, entityId: item.entityId, slotIndex: item.slotIndex };
+            }
+        }
+    }
+    return null;
 }

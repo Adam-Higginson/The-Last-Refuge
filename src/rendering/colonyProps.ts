@@ -11,6 +11,66 @@ import type { ColonySlotRect } from './drawColonyScene';
 // Building-adjacent contextual props
 // =========================================================================
 
+/** Draw contextual props for a single occupied building slot. */
+export function drawSettlementPropsForSlot(
+    ctx: CanvasRenderingContext2D,
+    region: Region,
+    rect: ColonySlotRect,
+    t: number,
+    gameHour = 10,
+): void {
+    if (!rect.occupied) return;
+
+    const building = region.buildings.find(b => b.slotIndex === rect.slotIndex);
+    if (!building || building.state !== 'active') return;
+
+    const dayNight = getDayNightState(gameHour);
+    const isNight = dayNight.ambientLight < 0.3;
+
+    const cx = rect.x + rect.width / 2;
+    const cy = rect.y + rect.height * 0.55;
+    const seed = rect.slotIndex * 17.3 + region.id * 7.1;
+
+    const bt = getBuildingType(building.typeId);
+
+    switch (building.typeId) {
+        case 'storage_depot':
+            drawCrates(ctx, cx + 25, cy + 8, seed);
+            drawBarrel(ctx, cx - 28, cy + 5, seed + 3);
+            break;
+        case 'workshop':
+            drawToolRack(ctx, cx + 22, cy + 3, seed);
+            drawAnvil(ctx, cx - 20, cy + 10, seed + 1);
+            break;
+        case 'shelter':
+            drawCampfire(ctx, cx - 45, cy + 25, t, isNight);
+            drawSupplyCrate(ctx, cx + 40, cy + 15, seed);
+            break;
+        case 'farm':
+            drawWaterTrough(ctx, cx + 30, cy + 5, seed);
+            break;
+        case 'med_bay':
+            drawSupplyCrate(ctx, cx + 24, cy + 8, seed);
+            break;
+        case 'barracks':
+            drawFlagPole(ctx, cx - 22, cy - 5, t);
+            break;
+        case 'solar_array':
+            drawControlBox(ctx, cx + 20, cy + 10, seed);
+            break;
+        case 'hydroponics_bay':
+            drawWaterTank(ctx, cx - 25, cy + 8, seed);
+            break;
+        default:
+            break;
+    }
+
+    // Generic lantern near every building (visible at night)
+    if (isNight && bt.id !== 'shelter') {
+        drawLantern(ctx, cx + Math.sin(seed) * 15, cy + 15, t);
+    }
+}
+
 /** Draw contextual props near each occupied building. */
 export function drawSettlementProps(
     ctx: CanvasRenderingContext2D,
@@ -19,57 +79,8 @@ export function drawSettlementProps(
     t: number,
     gameHour = 10,
 ): void {
-    const dayNight = getDayNightState(gameHour);
-    const isNight = dayNight.ambientLight < 0.3;
-
     for (const rect of slotRects) {
-        if (!rect.occupied) continue;
-
-        const building = region.buildings.find(b => b.slotIndex === rect.slotIndex);
-        if (!building || building.state !== 'active') continue;
-
-        const cx = rect.x + rect.width / 2;
-        const cy = rect.y + rect.height * 0.55;
-        const seed = rect.slotIndex * 17.3 + region.id * 7.1;
-
-        const bt = getBuildingType(building.typeId);
-
-        switch (building.typeId) {
-            case 'storage_depot':
-                drawCrates(ctx, cx + 25, cy + 8, seed);
-                drawBarrel(ctx, cx - 28, cy + 5, seed + 3);
-                break;
-            case 'workshop':
-                drawToolRack(ctx, cx + 22, cy + 3, seed);
-                drawAnvil(ctx, cx - 20, cy + 10, seed + 1);
-                break;
-            case 'shelter':
-                drawCampfire(ctx, cx - 45, cy + 25, t, isNight);
-                drawSupplyCrate(ctx, cx + 40, cy + 15, seed);
-                break;
-            case 'farm':
-                drawWaterTrough(ctx, cx + 30, cy + 5, seed);
-                break;
-            case 'med_bay':
-                drawSupplyCrate(ctx, cx + 24, cy + 8, seed);
-                break;
-            case 'barracks':
-                drawFlagPole(ctx, cx - 22, cy - 5, t);
-                break;
-            case 'solar_array':
-                drawControlBox(ctx, cx + 20, cy + 10, seed);
-                break;
-            case 'hydroponics_bay':
-                drawWaterTank(ctx, cx - 25, cy + 8, seed);
-                break;
-            default:
-                break;
-        }
-
-        // Generic lantern near every building (visible at night)
-        if (isNight && bt.id !== 'shelter') {
-            drawLantern(ctx, cx + Math.sin(seed) * 15, cy + 15, t);
-        }
+        drawSettlementPropsForSlot(ctx, region, rect, t, gameHour);
     }
 }
 
@@ -89,13 +100,25 @@ export function drawMicroDetails(
 ): void {
     if (!slotRects || region.buildings.length === 0) return;
 
-    const dayNight = getDayNightState(gameHour);
-    const isNight = dayNight.ambientLight < 0.3;
-    const seed = region.id * 31.7;
     const occupiedSlots = slotRects.filter(s => s.occupied);
     if (occupiedSlots.length === 0) return;
 
     ctx.save();
+    drawMicroDetailsForSlots(ctx, region, t, occupiedSlots, gameHour);
+    ctx.restore();
+}
+
+/** Draw micro-details for a set of occupied slots (barrels, signposts, campfire ring). */
+export function drawMicroDetailsForSlots(
+    ctx: CanvasRenderingContext2D,
+    region: Region,
+    t: number,
+    occupiedSlots: ColonySlotRect[],
+    gameHour = 10,
+): void {
+    const dayNight = getDayNightState(gameHour);
+    const isNight = dayNight.ambientLight < 0.3;
+    const seed = region.id * 31.7;
 
     // Place barrels and signposts near non-shelter buildings
     const nonShelterSlots = occupiedSlots.filter(s => s.slotIndex !== 0);
@@ -119,7 +142,6 @@ export function drawMicroDetails(
         const slot = nonShelterSlots[0];
         const shelter = occupiedSlots.find(s => s.slotIndex === 0);
         if (shelter) {
-            // Midpoint between shelter and first other building, offset downward
             const cfx = (shelter.x + shelter.width / 2 + slot.x + slot.width / 2) / 2;
             const cfy = Math.max(shelter.y, slot.y) + 60;
             drawCampfireRing(ctx, cfx, cfy, t, isNight);
@@ -134,8 +156,6 @@ export function drawMicroDetails(
         const cfy = slot.y + slot.height * 0.6 + 30;
         drawCampfireRing(ctx, cfx, cfy, t, isNight);
     }
-
-    ctx.restore();
 }
 
 // =========================================================================
