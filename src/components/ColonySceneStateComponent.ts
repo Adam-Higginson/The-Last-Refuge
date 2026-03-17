@@ -10,6 +10,7 @@ import { advanceClock, getDayNightState } from '../rendering/colonyDayNight';
 import { advanceWeather } from '../rendering/colonyWeather';
 import type { ColonySlotRect } from '../rendering/drawColonyScene';
 import type { ColonistScreenPos } from '../rendering/colonyGridRenderer';
+import type { HitTestItem } from '../rendering/RenderQueue';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { CanvasResizeEvent } from '../core/GameEvents';
 
@@ -96,6 +97,7 @@ export class ColonySceneStateComponent extends Component {
             // Clear stale state — renderer recomputes on next frame
             this.lastSlotRects = [];
             this.lastColonistPositions = [];
+            this.lastHitTestItems = [];
             this.hoveredSlotIndex = null;
             this.selectedSlotIndex = null;
             this.selectedColonistId = null;
@@ -157,8 +159,14 @@ export class ColonySceneStateComponent extends Component {
     // Slot rects for input hit-testing
     lastSlotRects: ColonySlotRect[] = [];
 
-    // Colonist screen positions for input hit-testing
+    // Colonist screen positions for input hit-testing (legacy, kept for compatibility)
     lastColonistPositions: ColonistScreenPos[] = [];
+
+    // Depth-sorted hit-test items from RenderQueue
+    lastHitTestItems: HitTestItem[] = [];
+
+    // Debug depth overlay visibility
+    debugDepthVisible = false;
 
     // Input state
     hoveredSlotIndex: number | null = null;

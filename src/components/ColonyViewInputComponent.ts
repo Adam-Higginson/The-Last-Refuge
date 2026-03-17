@@ -8,6 +8,7 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { GameModeComponent } from './GameModeComponent';
 import { ColonySceneStateComponent } from './ColonySceneStateComponent';
+import { resolveHitTarget } from '../rendering/colonyGridRenderer';
 import type { EventQueue } from '../core/EventQueue';
 import type { World } from '../core/World';
 
@@ -124,30 +125,30 @@ export class ColonyViewInputComponent extends Component {
         const state = this.entity.getComponent(ColonySceneStateComponent);
         if (!state) return;
 
-        // Inverse-transform mouse coords for colonist hit-testing
+        // Inverse-transform mouse coords through zoom
         const vt = state.viewTransform;
         const zoomedX = (this.mouseX - vt.groundCentreX) / vt.zoom + vt.groundCentreX;
         const zoomedY = (this.mouseY - vt.groundCentreY) / vt.zoom + vt.groundCentreY;
 
-        // Test colonists first (foreground priority)
-        const HIT_RADIUS = 12;
-        for (const pos of state.lastColonistPositions) {
-            const dx = zoomedX - pos.screenX;
-            const dy = zoomedY - pos.screenY;
-            if (dx * dx + dy * dy <= HIT_RADIUS * HIT_RADIUS) {
-                state.selectedColonistId = pos.entityId;
-                state.selectedSlotIndex = null;
-                return;
+        // Depth-aware hit-testing via RenderQueue items
+        if (state.lastHitTestItems.length > 0) {
+            const hit = resolveHitTarget(state.lastHitTestItems, zoomedX, zoomedY);
+            if (hit) {
+                if (hit.kind === 'colonist' && hit.entityId !== undefined) {
+                    state.selectedColonistId = hit.entityId;
+                    state.selectedSlotIndex = null;
+                    return;
+                } else if (hit.kind === 'building' || hit.kind === 'empty-slot') {
+                    state.selectedColonistId = null;
+                    state.selectedSlotIndex = hit.slotIndex ?? null;
+                    return;
+                }
             }
         }
 
-        // No colonist hit — clear colonist selection, test building slots
+        // No hit — clear selection
         state.selectedColonistId = null;
-        if (state.hoveredSlotIndex !== null) {
-            state.selectedSlotIndex = state.hoveredSlotIndex;
-        } else {
-            state.selectedSlotIndex = null;
-        }
+        state.selectedSlotIndex = null;
     }
 
     private getGameMode(): GameModeComponent | null {

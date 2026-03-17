@@ -6,15 +6,18 @@ import { ColonySceneStateComponent } from '../components/ColonySceneStateCompone
 import { ColonySimulationComponent } from '../components/ColonySimulationComponent';
 import { getBuildingType } from '../data/buildings';
 import { drawBuilding } from './colonyBuildingSprites';
-import { drawSettlementProps, drawMicroDetails } from './colonyProps';
+import { drawSettlementProps, drawMicroDetails, drawSettlementPropsForSlot } from './colonyProps';
 import { drawParticles } from './colonyParticles';
 import { getDayNightState, setGameHour } from './colonyDayNight';
 import { drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
-import { drawGridTiles, drawPathTiles, drawColonistFigures, drawBuildingGlow, drawDebugOverlay } from './colonyGridRenderer';
+import { drawGridTiles, drawPathTiles, drawBuildingGlow, drawDebugOverlay, drawFigure } from './colonyGridRenderer';
 import { getVisibleColonists } from '../colony/ColonistManager';
 import { getBuildingFootprint } from '../colony/ColonyGrid';
+import { RenderQueue, extractHitTestItems } from './RenderQueue';
 import type { WeatherInfo } from './colonyWeather';
 import type { DayNightState } from './colonyDayNight';
+import type { ColonistVisualState } from '../colony/ColonistState';
+import type { BuildingInstance } from '../data/buildings';
 import {
     gridToScreen,
     drawIsometricTile,
@@ -95,7 +98,7 @@ function getVisuals(biome: BiomeName): BiomeVisuals {
     return BIOME_VISUALS[biome] ?? DEFAULT_VISUALS;
 }
 
-/** Debug keyboard handler (W = cycle weather, T = advance time 3 hours). */
+/** Debug keyboard handler (W = cycle weather, T = advance time 3 hours, D = depth overlay). */
 function registerDebugKeys(state: ColonySceneStateComponent): void {
     if (state.debugKeysRegistered) return;
     state.debugKeysRegistered = true;
@@ -105,6 +108,9 @@ function registerDebugKeys(state: ColonySceneStateComponent): void {
         }
         if (e.code === 'KeyT' && !e.ctrlKey && !e.metaKey) {
             setGameHour(state, state.gameHour + 3);
+        }
+        if (e.code === 'KeyD' && !e.ctrlKey && !e.metaKey) {
+            state.debugDepthVisible = !state.debugDepthVisible;
         }
     });
 }
@@ -199,20 +205,40 @@ export function drawColonyScene(
         drawGridTiles(ctx, sim.grid, gridCentre.centreX, gridCentre.centreY);
     }
 
-    const slotRects = drawBuildingSlots(ctx, w, h, region, t, state, sim, gridCentre);
+    const { slotData, slotRects } = collectBuildingSlotData(region, sim, gridCentre);
     drawBuildingShadows(ctx, region, slotRects, dayNight);
-    drawMicroDetails(ctx, w, h, region, t, slotRects, state.gameHour);
-    drawSettlementProps(ctx, region, slotRects, t, state.gameHour);
 
-    // Draw colonists from simulation
+    // Micro-details (campfire ring, barrels, signposts) sit on the ground plane
+    // beneath all depth-sorted entities — draw before the RenderQueue pass.
+    drawMicroDetails(ctx, w, h, region, t, slotRects, state.gameHour);
+
     if (sim) {
         const colonists = getVisibleColonists(sim);
         drawBuildingGlow(ctx, colonists, slotRects);
-        const colonistPositions = drawColonistFigures(
-            ctx, colonists, gridCentre.centreX, gridCentre.centreY, t,
-            state.selectedColonistId,
-        );
-        state.lastColonistPositions = colonistPositions;
+
+        // Pre-compute selected colonist depth for building transparency
+        const selectedColonistDepth = computeSelectedColonistDepth(colonists, state.selectedColonistId);
+
+        const queue = new RenderQueue();
+        registerBuildings(queue, slotData, region, t, state, selectedColonistDepth);
+        registerColonists(queue, colonists, gridCentre, t, state, slotData);
+        registerEmptySlots(queue, slotData, state);
+
+        queue.sort();
+        queue.drawAll(ctx);
+
+        // Silhouette pass for selected colonist behind buildings
+        drawOccludedColonistSilhouette(ctx, colonists, slotData, state, gridCentre, t);
+
+        if (state.debugDepthVisible) queue.drawDebug(ctx);
+
+        state.lastSlotRects = slotRects;
+        state.lastHitTestItems = extractHitTestItems(queue);
+        state.lastColonistPositions = [];
+    } else {
+        // No sim — draw props the old way (just empty slots)
+        drawSettlementProps(ctx, region, slotRects, t, state.gameHour);
+        state.lastSlotRects = slotRects;
     }
 
     drawParticles(ctx, dtSeconds, state);
@@ -234,9 +260,6 @@ export function drawColonyScene(
     drawWeatherEffects(ctx, w, h, t, state);
     drawColonyLabel(ctx, w, region);
     drawTimeIndicator(ctx, w, dayNight, weather);
-
-    // Store slot rects on state for input hit-testing
-    state.lastSlotRects = slotRects;
 
     return slotRects;
 }
@@ -1349,45 +1372,46 @@ function drawAmbientParticles(
     ctx.restore();
 }
 
-// --- Building slots ---
+// --- Building slot data collection + RenderQueue registration ---
 
-function drawBuildingSlots(
-    ctx: CanvasRenderingContext2D,
-    _w: number,
-    _h: number,
+/** Collected data for a single building slot (no drawing). */
+interface BuildingSlotData {
+    slotIndex: number;
+    building: BuildingInstance | null;
+    screenPos: { x: number; y: number };
+    rect: ColonySlotRect;
+    frontDepth: number;
+}
+
+/** Collect building slot positions and rects without drawing. */
+function collectBuildingSlotData(
     region: Region,
-    t: number,
-    state: ColonySceneStateComponent,
     sim: ColonySimulationComponent | null,
     gridCentre: { centreX: number; centreY: number },
-): ColonySlotRect[] {
+): { slotData: BuildingSlotData[]; slotRects: ColonySlotRect[] } {
+    const slotData: BuildingSlotData[] = [];
     const slotRects: ColonySlotRect[] = [];
     const totalSlots = region.buildingSlots;
-    if (totalSlots === 0) return slotRects;
+    if (totalSlots === 0 || !sim) return { slotData, slotRects };
 
     const centreX = gridCentre.centreX;
     const centreY = gridCentre.centreY;
 
     for (let i = 0; i < totalSlots; i++) {
-        const building = region.buildings.find(b => b.slotIndex === i);
+        const building = region.buildings.find(b => b.slotIndex === i) ?? null;
 
-        // Get grid position from simulation grid or fallback
         let screenPos: { x: number; y: number };
-        if (sim) {
-            const buildingCenter = sim.grid.getBuildingCenter(i);
-            if (buildingCenter) {
-                screenPos = gridToScreen(buildingCenter.gridX, buildingCenter.gridY, centreX, centreY);
-            } else {
-                const pos = sim.grid.getBuildingPosition(i);
-                if (pos) {
-                    const footprint = building ? getBuildingFootprint(building.typeId) : { w: 2, h: 2 };
-                    screenPos = gridToScreen(pos.gx + footprint.w / 2, pos.gy + footprint.h / 2, centreX, centreY);
-                } else {
-                    continue;
-                }
-            }
+        const buildingCenter = sim.grid.getBuildingCenter(i);
+        if (buildingCenter) {
+            screenPos = gridToScreen(buildingCenter.gridX, buildingCenter.gridY, centreX, centreY);
         } else {
-            continue;
+            const pos = sim.grid.getBuildingPosition(i);
+            if (pos) {
+                const footprint = building ? getBuildingFootprint(building.typeId) : { w: 2, h: 2 };
+                screenPos = gridToScreen(pos.gx + footprint.w / 2, pos.gy + footprint.h / 2, centreX, centreY);
+            } else {
+                continue;
+            }
         }
 
         const rect: ColonySlotRect = {
@@ -1396,56 +1420,284 @@ function drawBuildingSlots(
             y: screenPos.y - TILE_HEIGHT,
             width: TILE_WIDTH,
             height: TILE_HEIGHT * 2,
-            occupied: building !== null && building !== undefined,
+            occupied: building !== null,
         };
         slotRects.push(rect);
 
-        if (building) {
-            drawBuilding(ctx, building.typeId, screenPos.x, screenPos.y, building.state, t, state.gameHour);
+        // Compute front depth from grid extent, or fallback to building center depth
+        const frontDepth = sim.grid.getBuildingFrontDepth(i);
+        const centerForDepth = sim.grid.getBuildingCenter(i);
+        const depth = frontDepth ?? (centerForDepth ? centerForDepth.gridX + centerForDepth.gridY : i * 2);
 
-            // Building name label
-            ctx.fillStyle = '#ffffff';
-            ctx.globalAlpha = 0.8;
-            ctx.font = '10px "Share Tech Mono", "Courier New", monospace';
-            ctx.textAlign = 'center';
-            const bt = getBuildingType(building.typeId);
-            ctx.fillText(bt.name.toUpperCase(), screenPos.x, screenPos.y + TILE_HEIGHT * 0.7);
-
-            if (building.state === 'constructing') {
-                ctx.fillStyle = '#ffca28';
-                ctx.fillText(`(${building.turnsRemaining} TURNS)`, screenPos.x, screenPos.y + TILE_HEIGHT * 0.7 + 12);
-            }
-            ctx.globalAlpha = 1.0;
-        } else {
-            // Empty slot — draw diamond outline with +
-            const isHovered = state.hoveredSlotIndex === i;
-            ctx.save();
-            ctx.globalAlpha = isHovered ? 0.5 : 0.25;
-            drawIsometricTile(
-                ctx, screenPos.x, screenPos.y,
-                isHovered ? 'rgba(79, 168, 255, 0.2)' : 'rgba(255,255,255,0.15)',
-                isHovered ? '#4fa8ff' : 'rgba(200, 210, 220, 0.6)',
-            );
-
-            // Plus marker
-            ctx.globalAlpha = isHovered ? 0.7 : 0.4;
-            ctx.fillStyle = isHovered ? '#4fa8ff' : '#c0c8d8';
-            ctx.fillRect(screenPos.x - 10, screenPos.y - 1.5, 20, 3);
-            ctx.fillRect(screenPos.x - 1.5, screenPos.y - 10, 3, 20);
-
-            // Hover label
-            if (isHovered) {
-                ctx.globalAlpha = 0.7;
-                ctx.fillStyle = '#4fa8ff';
-                ctx.font = '9px "Share Tech Mono", "Courier New", monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText('BUILD', screenPos.x, screenPos.y + TILE_HEIGHT * 0.7);
-            }
-            ctx.restore();
-        }
+        slotData.push({ slotIndex: i, building, screenPos, rect, frontDepth: depth });
     }
 
-    return slotRects;
+    return { slotData, slotRects };
+}
+
+/** Draw a single occupied building slot (building sprite + label). */
+function drawSingleBuildingSlot(
+    ctx: CanvasRenderingContext2D,
+    data: BuildingSlotData,
+    t: number,
+    state: ColonySceneStateComponent,
+    isOccluding: boolean,
+): void {
+    const { building, screenPos } = data;
+    if (!building) return;
+
+    ctx.save();
+    if (isOccluding) {
+        ctx.globalAlpha = 0.4;
+    }
+
+    drawBuilding(ctx, building.typeId, screenPos.x, screenPos.y, building.state, t, state.gameHour);
+
+    // Building name label
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = isOccluding ? 0.3 : 0.8;
+    ctx.font = '10px "Share Tech Mono", "Courier New", monospace';
+    ctx.textAlign = 'center';
+    const bt = getBuildingType(building.typeId);
+    ctx.fillText(bt.name.toUpperCase(), screenPos.x, screenPos.y + TILE_HEIGHT * 0.7);
+
+    if (building.state === 'constructing') {
+        ctx.fillStyle = '#ffca28';
+        ctx.fillText(`(${building.turnsRemaining} TURNS)`, screenPos.x, screenPos.y + TILE_HEIGHT * 0.7 + 12);
+    }
+
+    ctx.restore();
+}
+
+/** Draw a single empty building slot (diamond outline + plus marker). */
+function drawSingleEmptySlot(
+    ctx: CanvasRenderingContext2D,
+    data: BuildingSlotData,
+    state: ColonySceneStateComponent,
+): void {
+    const { screenPos, slotIndex } = data;
+    const isHovered = state.hoveredSlotIndex === slotIndex;
+
+    ctx.save();
+    ctx.globalAlpha = isHovered ? 0.5 : 0.25;
+    drawIsometricTile(
+        ctx, screenPos.x, screenPos.y,
+        isHovered ? 'rgba(79, 168, 255, 0.2)' : 'rgba(255,255,255,0.15)',
+        isHovered ? '#4fa8ff' : 'rgba(200, 210, 220, 0.6)',
+    );
+
+    ctx.globalAlpha = isHovered ? 0.7 : 0.4;
+    ctx.fillStyle = isHovered ? '#4fa8ff' : '#c0c8d8';
+    ctx.fillRect(screenPos.x - 10, screenPos.y - 1.5, 20, 3);
+    ctx.fillRect(screenPos.x - 1.5, screenPos.y - 10, 3, 20);
+
+    if (isHovered) {
+        ctx.globalAlpha = 0.7;
+        ctx.fillStyle = '#4fa8ff';
+        ctx.font = '9px "Share Tech Mono", "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('BUILD', screenPos.x, screenPos.y + TILE_HEIGHT * 0.7);
+    }
+    ctx.restore();
+}
+
+/** Compute the isometric depth of the selected colonist, or null. */
+function computeSelectedColonistDepth(
+    colonists: ColonistVisualState[],
+    selectedId: number | null,
+): number | null {
+    if (selectedId === null) return null;
+    for (const c of colonists) {
+        if (c.entityId === selectedId) {
+            return c.gridX + c.gridY;
+        }
+    }
+    return null;
+}
+
+/** Register occupied buildings into the RenderQueue. */
+function registerBuildings(
+    queue: RenderQueue,
+    slotData: BuildingSlotData[],
+    region: Region,
+    t: number,
+    state: ColonySceneStateComponent,
+    selectedColonistDepth: number | null,
+): void {
+    for (const data of slotData) {
+        if (!data.building) continue;
+
+        const isOccluding = selectedColonistDepth !== null && selectedColonistDepth < data.frontDepth;
+
+        queue.add({
+            depth: data.frontDepth,
+            kind: 'building',
+            screenX: data.screenPos.x,
+            screenY: data.screenPos.y,
+            label: data.building.typeId,
+            slotIndex: data.slotIndex,
+            hitRect: { x: data.rect.x, y: data.rect.y, width: data.rect.width, height: data.rect.height },
+            draw: (ctx) => {
+                drawSingleBuildingSlot(ctx, data, t, state, isOccluding);
+            },
+        });
+
+        // Register props as separate Renderables at building depth + epsilon
+        queue.add({
+            depth: data.frontDepth + 0.01,
+            kind: 'prop',
+            screenX: data.screenPos.x,
+            screenY: data.screenPos.y,
+            label: `props:${data.building.typeId}`,
+            draw: (ctx) => {
+                drawSettlementPropsForSlot(ctx, region, data.rect, t, state.gameHour);
+            },
+        });
+    }
+}
+
+const COLONIST_HIT_RADIUS = 12;
+
+/** Register colonists into the RenderQueue. */
+function registerColonists(
+    queue: RenderQueue,
+    colonists: ColonistVisualState[],
+    gridCentre: { centreX: number; centreY: number },
+    t: number,
+    state: ColonySceneStateComponent,
+    slotData: BuildingSlotData[],
+): void {
+    for (const colonist of colonists) {
+        const screen = gridToScreen(colonist.gridX, colonist.gridY, gridCentre.centreX, gridCentre.centreY);
+        const depth = colonist.gridX + colonist.gridY;
+        const isWalking = colonist.activity === 'walking' || colonist.activity === 'patrolling';
+        const isSelected = colonist.entityId === state.selectedColonistId;
+
+        queue.add({
+            depth,
+            kind: 'colonist',
+            screenX: screen.x,
+            screenY: screen.y,
+            label: colonist.name.split(' ')[0],
+            entityId: colonist.entityId,
+            hitRadius: COLONIST_HIT_RADIUS,
+            draw: (ctx) => {
+                // Depth-aware shadow stretching toward nearby buildings
+                const nearbyBuildings = slotData.filter(sd => {
+                    if (!sd.building) return false;
+                    const center = sd.screenPos;
+                    const dx = Math.abs(center.x - screen.x);
+                    const dy = Math.abs(center.y - screen.y);
+                    return dx < TILE_WIDTH * 1.5 && dy < TILE_HEIGHT * 2;
+                });
+
+                drawFigure(ctx, screen.x, screen.y, colonist, t, isWalking, isSelected, nearbyBuildings.length > 0 ? nearbyBuildings[0].screenPos : undefined);
+            },
+        });
+
+        // Footstep dust particles for walking colonists
+        if (isWalking) {
+            queue.add({
+                depth,
+                kind: 'prop',
+                screenX: screen.x,
+                screenY: screen.y,
+                label: 'dust',
+                draw: (ctx) => {
+                    drawFootstepDust(ctx, screen.x, screen.y, colonist.walkPhase, t);
+                },
+            });
+        }
+    }
+}
+
+/** Register empty building slots into the RenderQueue. */
+function registerEmptySlots(
+    queue: RenderQueue,
+    slotData: BuildingSlotData[],
+    state: ColonySceneStateComponent,
+): void {
+    for (const data of slotData) {
+        if (data.building) continue;
+
+        queue.add({
+            depth: data.frontDepth,
+            kind: 'empty-slot',
+            screenX: data.screenPos.x,
+            screenY: data.screenPos.y,
+            label: `slot:${data.slotIndex}`,
+            slotIndex: data.slotIndex,
+            hitRect: { x: data.rect.x, y: data.rect.y, width: data.rect.width, height: data.rect.height },
+            draw: (ctx) => {
+                drawSingleEmptySlot(ctx, data, state);
+            },
+        });
+    }
+}
+
+/** Draw footstep dust puffs at colonist feet. */
+function drawFootstepDust(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    walkPhase: number,
+    t: number,
+): void {
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = 'rgba(160, 140, 100, 0.5)';
+
+    // 2-3 small circles that appear timed to step cycle
+    const step = Math.abs(Math.sin(walkPhase));
+    if (step < 0.3) {
+        ctx.restore();
+        return;
+    }
+
+    const drift = Math.sin(t / 200) * 2;
+    for (let i = 0; i < 3; i++) {
+        const dx = (i - 1) * 2 + drift;
+        const dy = 2 + i * 0.5;
+        const r = 1 + Math.sin(walkPhase + i) * 0.5;
+        ctx.beginPath();
+        ctx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
+/** Draw silhouette of selected colonist through occluding buildings. */
+function drawOccludedColonistSilhouette(
+    ctx: CanvasRenderingContext2D,
+    colonists: ColonistVisualState[],
+    slotData: BuildingSlotData[],
+    state: ColonySceneStateComponent,
+    gridCentre: { centreX: number; centreY: number },
+    t: number,
+): void {
+    if (state.selectedColonistId === null) return;
+
+    const colonist = colonists.find(c => c.entityId === state.selectedColonistId);
+    if (!colonist) return;
+
+    const colonistDepth = colonist.gridX + colonist.gridY;
+
+    // Check if any building with higher front depth occludes the selected colonist
+    const occludingBuildings = slotData.filter(sd =>
+        sd.building !== null && sd.frontDepth > colonistDepth
+    );
+
+    if (occludingBuildings.length === 0) return;
+
+    const screen = gridToScreen(colonist.gridX, colonist.gridY, gridCentre.centreX, gridCentre.centreY);
+    const isWalking = colonist.activity === 'walking' || colonist.activity === 'patrolling';
+
+    // Draw a semi-transparent silhouette on top of occluding buildings
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    drawFigure(ctx, screen.x, screen.y, colonist, t, isWalking, true);
+    ctx.restore();
 }
 
 // drawCrewOnSurface removed — replaced by ColonistManager + colonyGridRenderer.ts

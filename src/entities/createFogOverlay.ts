@@ -1,6 +1,6 @@
 // createFogOverlay.ts — Factory for the fog of war overlay entity.
 // Renders a full-screen fog layer using an offscreen canvas with
-// compositing to carve out visibility around the ship.
+// compositing to carve out visibility around all VisibilitySourceComponents.
 
 import { ServiceLocator } from '../core/ServiceLocator';
 import { RenderComponent } from '../components/RenderComponent';
@@ -8,6 +8,7 @@ import { CameraComponent } from '../components/CameraComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
 import { FogOfWarComponent } from '../components/FogOfWarComponent';
+import { VisibilitySourceComponent } from '../components/VisibilitySourceComponent';
 
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
@@ -29,6 +30,37 @@ function isFogDisabled(): boolean {
     }
 }
 
+/** Punch a radial gradient hole for a single visibility source. */
+function punchVisibilityHole(
+    fc: CanvasRenderingContext2D,
+    screenX: number,
+    screenY: number,
+    detailScreenR: number,
+    blipScreenR: number,
+): void {
+    if (blipScreenR <= 0) return;
+
+    const ratio = blipScreenR > 0 ? detailScreenR / blipScreenR : 0.5;
+    const detailEdge = Math.min(ratio * 0.9, 0.89);
+    const blipStart = Math.min(ratio, 0.90);
+    const blipMid = Math.min((ratio + 1) / 2, 0.95);
+
+    const grad = fc.createRadialGradient(
+        screenX, screenY, 0,
+        screenX, screenY, blipScreenR,
+    );
+    grad.addColorStop(0, 'rgba(0, 0, 0, 1.0)');
+    grad.addColorStop(detailEdge, 'rgba(0, 0, 0, 1.0)');
+    grad.addColorStop(blipStart, 'rgba(0, 0, 0, 0.7)');
+    grad.addColorStop(blipMid, 'rgba(0, 0, 0, 0.3)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+    fc.fillStyle = grad;
+    fc.beginPath();
+    fc.arc(screenX, screenY, blipScreenR, 0, Math.PI * 2);
+    fc.fill();
+}
+
 function drawFogOverlay(
     ctx: CanvasRenderingContext2D,
     fogCanvas: HTMLCanvasElement,
@@ -48,18 +80,9 @@ function drawFogOverlay(
     const fog = gameState?.getComponent(FogOfWarComponent);
     if (!fog) return;
 
-    // Get ship screen position
-    const ship = world.getEntityByName('arkSalvage');
-    const shipTransform = ship?.getComponent(TransformComponent);
-    if (!shipTransform) return;
-
     const cameraEntity = world.getEntityByName('camera');
     const camera = cameraEntity?.getComponent(CameraComponent);
     if (!camera) return;
-
-    const shipScreen = camera.worldToScreen(shipTransform.x, shipTransform.y);
-    const detailScreenR = camera.worldToScreenDist(fog.detailRadius);
-    const blipScreenR = camera.worldToScreenDist(fog.blipRadius);
 
     // Reset to screen space
     ctx.save();
@@ -106,28 +129,18 @@ function drawFogOverlay(
         );
     }
 
-    // Active zone: radial gradient punch-through
-    // Detail zone (inner): full visibility — alpha 1.0 clears fog completely
-    // Blip zone (outer ring): partial visibility with soft falloff at the edge
-    const ratio = blipScreenR > 0 ? detailScreenR / blipScreenR : 0.5;
-    const detailEdge = Math.min(ratio * 0.9, 0.89);   // soft fade start inside detail zone
-    const blipStart = Math.min(ratio, 0.90);            // detail/blip boundary
-    const blipMid = Math.min((ratio + 1) / 2, 0.95);   // midpoint of blip zone
+    // Punch visibility holes for all active sources
+    const sources = world.getEntitiesWithComponent(VisibilitySourceComponent);
+    for (const sourceEntity of sources) {
+        const vis = sourceEntity.getComponent(VisibilitySourceComponent);
+        const transform = sourceEntity.getComponent(TransformComponent);
+        if (!vis?.active || !transform) continue;
 
-    const grad = fc.createRadialGradient(
-        shipScreen.x, shipScreen.y, 0,
-        shipScreen.x, shipScreen.y, blipScreenR,
-    );
-    grad.addColorStop(0, 'rgba(0, 0, 0, 1.0)');
-    grad.addColorStop(detailEdge, 'rgba(0, 0, 0, 1.0)');
-    grad.addColorStop(blipStart, 'rgba(0, 0, 0, 0.7)');
-    grad.addColorStop(blipMid, 'rgba(0, 0, 0, 0.3)');
-    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-    fc.fillStyle = grad;
-    fc.beginPath();
-    fc.arc(shipScreen.x, shipScreen.y, blipScreenR, 0, Math.PI * 2);
-    fc.fill();
+        const screen = camera.worldToScreen(transform.x, transform.y);
+        const detailScreenR = camera.worldToScreenDist(vis.effectiveDetailRadius);
+        const blipScreenR = camera.worldToScreenDist(vis.effectiveBlipRadius);
+        punchVisibilityHole(fc, screen.x, screen.y, detailScreenR, blipScreenR);
+    }
 
     // Star is always visible — punch a soft hole at world origin
     const starScreen = camera.worldToScreen(0, 0);
