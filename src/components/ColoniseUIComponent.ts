@@ -15,19 +15,9 @@ import { TransformComponent } from './TransformComponent';
 import { TransferScreenComponent } from './TransferScreenComponent';
 import { ColonyBuildingComponent } from './ColonyBuildingComponent';
 import { BUILDING_SLOTS_BY_BIOME, DEFAULT_BUILDING_SLOTS } from '../data/buildings';
-import { CrewMemberComponent } from './CrewMemberComponent';
 import type { EventQueue } from '../core/EventQueue';
 import { FOG_DETAIL_RADIUS } from '../data/constants';
 import type { World } from '../core/World';
-
-/** Fisher-Yates in-place shuffle. */
-function shuffleArray<T>(arr: T[]): T[] {
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-}
 
 export class ColoniseUIComponent extends Component {
     private eventQueue: EventQueue | null = null;
@@ -95,20 +85,6 @@ export class ColoniseUIComponent extends Component {
                     buildingComp.addCompletedBuilding(region.id, 'shelter');
                 }
 
-                // Auto-transfer starter crew to the new colony
-                const world = ServiceLocator.get<World>('world');
-                const shipCrew = world.getEntitiesWithComponent(CrewMemberComponent).filter(e => {
-                    const c = e.getComponent(CrewMemberComponent);
-                    return c?.location.type === 'ship';
-                });
-                shuffleArray(shipCrew);
-                const starterCount = Math.min(5, shipCrew.length);
-                const colonyLoc = { type: 'colony' as const, planetEntityId: this.entity.id, regionId: region.id };
-                for (let i = 0; i < starterCount; i++) {
-                    const c = shipCrew[i].getComponent(CrewMemberComponent);
-                    if (c) c.location = { ...colonyLoc };
-                }
-
                 this.eventQueue?.emit({
                     type: GameEvents.COLONISE_CONFIRM,
                     regionId: region.id,
@@ -118,6 +94,18 @@ export class ColoniseUIComponent extends Component {
 
             this.pendingRegionId = null;
             if (this.modal) this.modal.style.display = 'none';
+
+            // Open transfer screen pre-focused on the new colony
+            if (region) {
+                const hud = this.world?.getEntityByName('hud');
+                const transferScreen = hud?.getComponent(TransferScreenComponent);
+                if (transferScreen && !transferScreen.isOpen) {
+                    transferScreen.open(
+                        { type: 'colony', planetEntityId: this.entity.id, regionId: region.id },
+                        { requireMinCrew: true },
+                    );
+                }
+            }
         };
         this.modalConfirm?.addEventListener('click', this.onConfirmClick);
 
