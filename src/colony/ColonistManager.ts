@@ -61,6 +61,42 @@ function getHairColour(id: number): string {
     return HAIR_COLOURS[(id * 3 + 7) % HAIR_COLOURS.length];
 }
 
+/** Create a single ColonistVisualState and add it to the sim's colonistStates map. */
+export function addColonist(
+    sim: ColonySimulationComponent,
+    crew: { id: number; role: CrewRole; isLeader: boolean; name: string },
+): ColonistVisualState {
+    const shelterDoor = sim.grid.getDoors().find(d => d.slotIndex === 0);
+    const baseX = shelterDoor ? shelterDoor.gridX : 5;
+    const baseY = shelterDoor ? shelterDoor.gridY : 5;
+    const spawn = spreadAroundCell(sim.grid, baseX, baseY, crew.id);
+
+    const state: ColonistVisualState = {
+        entityId: crew.id,
+        role: crew.role,
+        activity: 'idle',
+        gridX: spawn.gridX,
+        gridY: spawn.gridY,
+        path: [],
+        pathIndex: 0,
+        walkSpeed: 2.0,
+        stateTimer: 0,
+        facingDirection: 0,
+        assignedBuildingSlot: null,
+        sheltered: false,
+        emergeDelay: (Math.sin(crew.id * 3.7 + 1.2) * 0.5 + 0.5) * 2, // 0-2s
+        skinTone: getSkinTone(crew.id),
+        hairColour: getHairColour(crew.id),
+        colour: ROLE_COLOURS[crew.role] ?? '#c0c8d8',
+        name: crew.name,
+        isLeader: crew.isLeader,
+        walkPhase: (crew.id * 2.3) % (Math.PI * 2),
+    };
+
+    sim.colonistStates.set(crew.id, state);
+    return state;
+}
+
 /** Initialise colonist visual states from crew entities. */
 export function initColonists(
     sim: ColonySimulationComponent,
@@ -69,35 +105,7 @@ export function initColonists(
     sim.colonistStates.clear();
 
     for (const crew of crewEntities) {
-        // Start at shelter door or near grid centre, spread out to avoid stacking
-        const shelterDoor = sim.grid.getDoors().find(d => d.slotIndex === 0);
-        const baseX = shelterDoor ? shelterDoor.gridX : 5;
-        const baseY = shelterDoor ? shelterDoor.gridY : 5;
-        const spawn = spreadAroundCell(sim.grid, baseX, baseY, crew.id);
-
-        const state: ColonistVisualState = {
-            entityId: crew.id,
-            role: crew.role,
-            activity: 'idle',
-            gridX: spawn.gridX,
-            gridY: spawn.gridY,
-            path: [],
-            pathIndex: 0,
-            walkSpeed: 2.0,
-            stateTimer: 0,
-            facingDirection: 0,
-            assignedBuildingSlot: null,
-            sheltered: false,
-            emergeDelay: (Math.sin(crew.id * 3.7 + 1.2) * 0.5 + 0.5) * 2, // 0-2s
-            skinTone: getSkinTone(crew.id),
-            hairColour: getHairColour(crew.id),
-            colour: ROLE_COLOURS[crew.role] ?? '#c0c8d8',
-            name: crew.name,
-            isLeader: crew.isLeader,
-            walkPhase: (crew.id * 2.3) % (Math.PI * 2),
-        };
-
-        sim.colonistStates.set(crew.id, state);
+        addColonist(sim, crew);
     }
 }
 
