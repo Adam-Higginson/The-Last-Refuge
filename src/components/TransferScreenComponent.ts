@@ -405,7 +405,12 @@ export class TransferScreenComponent extends Component {
         }
 
         if (count > 0) {
-            eventQueue.emit({ type: GameEvents.CREW_TRANSFERRED, count });
+            eventQueue.emit({
+                type: GameEvents.CREW_TRANSFERRED,
+                count,
+                destination,
+                source: this.viewingLocation,
+            });
         }
 
         this.selectedCrewIds.clear();
