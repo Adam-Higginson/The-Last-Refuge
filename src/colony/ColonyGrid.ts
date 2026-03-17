@@ -93,7 +93,8 @@ export class ColonyGrid {
         return this.cells[gy][gx];
     }
 
-    getBuildingCenter(slotIndex: number): { gridX: number; gridY: number } | null {
+    /** Get the bounding extent (min/max grid coords) of a placed building. */
+    getBuildingExtent(slotIndex: number): { minX: number; minY: number; maxX: number; maxY: number } | null {
         let minX = COLONY_GRID_SIZE;
         let minY = COLONY_GRID_SIZE;
         let maxX = -1;
@@ -110,7 +111,23 @@ export class ColonyGrid {
             }
         }
         if (maxX < 0) return null;
-        return { gridX: (minX + maxX + 1) / 2, gridY: (minY + maxY + 1) / 2 };
+        return { minX, minY, maxX, maxY };
+    }
+
+    getBuildingCenter(slotIndex: number): { gridX: number; gridY: number } | null {
+        const extent = this.getBuildingExtent(slotIndex);
+        if (!extent) return null;
+        return {
+            gridX: (extent.minX + extent.maxX + 1) / 2,
+            gridY: (extent.minY + extent.maxY + 1) / 2,
+        };
+    }
+
+    /** Get the isometric front-depth of a building (front edge closest to camera). */
+    getBuildingFrontDepth(slotIndex: number): number | null {
+        const extent = this.getBuildingExtent(slotIndex);
+        if (!extent) return null;
+        return extent.maxX + extent.maxY;
     }
 
     getDoors(): { gridX: number; gridY: number; slotIndex: number }[] {

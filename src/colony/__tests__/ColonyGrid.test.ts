@@ -138,4 +138,35 @@ describe('ColonyGrid', () => {
         const grid = new ColonyGrid();
         expect(grid.getBuildingCenter(99)).toBeNull();
     });
+
+    it('getBuildingExtent returns correct min/max for placed building', () => {
+        const grid = new ColonyGrid();
+        grid.placeBuilding(0, 2, 1, 3, 3);
+        const extent = grid.getBuildingExtent(0);
+        expect(extent).toEqual({ minX: 2, minY: 1, maxX: 4, maxY: 3 });
+    });
+
+    it('getBuildingExtent returns null for invalid slot', () => {
+        const grid = new ColonyGrid();
+        expect(grid.getBuildingExtent(99)).toBeNull();
+    });
+
+    it('getBuildingFrontDepth: 2x2 at (2,1) gives depth 4', () => {
+        const grid = new ColonyGrid();
+        grid.placeBuilding(0, 2, 1, 2, 2);
+        // maxX=3, maxY=2 → frontDepth = 3+2 = 5
+        expect(grid.getBuildingFrontDepth(0)).toBe(5);
+    });
+
+    it('getBuildingFrontDepth: 3x3 at (5,4) gives depth 12', () => {
+        const grid = new ColonyGrid();
+        grid.placeBuilding(1, 5, 4, 3, 3);
+        // maxX=7, maxY=6 → frontDepth = 7+6 = 13
+        expect(grid.getBuildingFrontDepth(1)).toBe(13);
+    });
+
+    it('getBuildingFrontDepth returns null for non-existent building', () => {
+        const grid = new ColonyGrid();
+        expect(grid.getBuildingFrontDepth(99)).toBeNull();
+    });
 });
