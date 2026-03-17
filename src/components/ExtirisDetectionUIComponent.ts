@@ -1,14 +1,17 @@
 // ExtirisDetectionUIComponent.ts — Detection FX overlay.
 // Shows red edge pulse + "DETECTED" text when the Extiris detects the player.
-// Shows intercepted signals when Extiris is in blip range.
+// Shows intercepted signals when Extiris is in blip range (ship or colony).
+// Shows amber "COLONY SENSORS: HOSTILE CONTACT" when Extiris is near a colony.
 
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { TransformComponent } from './TransformComponent';
 import { ExtirisAIComponent } from './ExtirisAIComponent';
+import { VisibilitySourceComponent } from './VisibilitySourceComponent';
 import { getEntityFogZone } from './FogOfWarComponent';
 import type { World } from '../core/World';
+import type { Entity } from '../core/Entity';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
 /** Detection vignette + text overlay. */
@@ -20,6 +23,7 @@ export class ExtirisDetectionUIComponent extends Component {
     private overlayEl: HTMLElement | null = null;
     private detectedTextEl: HTMLElement | null = null;
     private signalEl: HTMLElement | null = null;
+    private colonyAlertEl: HTMLElement | null = null;
 
     /** Whether detection was already triggered this detection window. */
     private detectionActive = false;
@@ -27,6 +31,8 @@ export class ExtirisDetectionUIComponent extends Component {
     private detectionFadeTimer = 0;
     /** Timer for intercepted signal display. */
     private signalFadeTimer = 0;
+    /** Timer for colony alert display. */
+    private colonyAlertFadeTimer = 0;
 
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
@@ -65,6 +71,19 @@ export class ExtirisDetectionUIComponent extends Component {
             max-width: 400px; text-align: center;
         `;
         document.body.appendChild(this.signalEl);
+
+        // Colony sensor alert (amber — distinct from ship's red "DETECTED")
+        this.colonyAlertEl = document.createElement('div');
+        this.colonyAlertEl.id = 'extiris-colony-alert';
+        this.colonyAlertEl.textContent = 'COLONY SENSORS: HOSTILE CONTACT';
+        this.colonyAlertEl.style.cssText = `
+            position: fixed; top: 150px; left: 50%; transform: translateX(-50%);
+            color: #cc8833; font-family: monospace; font-size: 18px; font-weight: bold;
+            letter-spacing: 4px; text-transform: uppercase;
+            opacity: 0; pointer-events: none; z-index: 101;
+            text-shadow: 0 0 12px rgba(200,140,40,0.5), 0 0 24px rgba(200,140,40,0.25);
+        `;
+        document.body.appendChild(this.colonyAlertEl);
 
         this.detectedHandler = (): void => {
             this.triggerDetection();
@@ -121,9 +140,38 @@ export class ExtirisDetectionUIComponent extends Component {
             if (zone === 'blip' && Math.random() < 0.3 && extirisAI.memory.reasoning) {
                 this.showInterceptedSignal(extirisAI.memory.reasoning);
             }
+
+            // Colony sensor alert: check if Extiris is within any colony's blip radius
+            this.checkColonyDetection(world, extirisTransform, ship);
         } catch {
             // Graceful degradation
         }
+    }
+
+    private checkColonyDetection(world: World, extirisTransform: TransformComponent, ship: Entity | null): void {
+        const sources = world.getEntitiesWithComponent(VisibilitySourceComponent);
+        for (const sourceEntity of sources) {
+            if (sourceEntity === ship) continue; // skip ship — has its own detection
+
+            const vis = sourceEntity.getComponent(VisibilitySourceComponent);
+            const transform = sourceEntity.getComponent(TransformComponent);
+            if (!vis?.active || !transform) continue;
+
+            const cdx = extirisTransform.x - transform.x;
+            const cdy = extirisTransform.y - transform.y;
+            const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
+
+            if (cdist <= vis.effectiveBlipRadius) {
+                this.showColonyAlert();
+                return;
+            }
+        }
+    }
+
+    private showColonyAlert(): void {
+        if (!this.colonyAlertEl) return;
+        this.colonyAlertEl.style.opacity = '1';
+        this.colonyAlertFadeTimer = 3.0;
     }
 
     private showInterceptedSignal(reasoning: string): void {
@@ -169,6 +217,14 @@ export class ExtirisDetectionUIComponent extends Component {
                 this.signalEl.style.opacity = '0';
             }
         }
+
+        // Fade out colony alert
+        if (this.colonyAlertFadeTimer > 0) {
+            this.colonyAlertFadeTimer -= dt;
+            if (this.colonyAlertFadeTimer <= 0 && this.colonyAlertEl) {
+                this.colonyAlertEl.style.opacity = '0';
+            }
+        }
     }
 
     destroy(): void {
@@ -181,5 +237,6 @@ export class ExtirisDetectionUIComponent extends Component {
         this.overlayEl?.remove();
         this.detectedTextEl?.remove();
         this.signalEl?.remove();
+        this.colonyAlertEl?.remove();
     }
 }
