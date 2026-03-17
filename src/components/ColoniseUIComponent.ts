@@ -20,6 +20,15 @@ import type { EventQueue } from '../core/EventQueue';
 import { FOG_DETAIL_RADIUS } from '../data/constants';
 import type { World } from '../core/World';
 
+/** Fisher-Yates in-place shuffle. */
+function shuffleArray<T>(arr: T[]): T[] {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
 export class ColoniseUIComponent extends Component {
     private eventQueue: EventQueue | null = null;
     private world: World | null = null;
@@ -92,6 +101,7 @@ export class ColoniseUIComponent extends Component {
                     const c = e.getComponent(CrewMemberComponent);
                     return c?.location.type === 'ship';
                 });
+                shuffleArray(shipCrew);
                 const starterCount = Math.min(5, shipCrew.length);
                 const colonyLoc = { type: 'colony' as const, planetEntityId: this.entity.id, regionId: region.id };
                 for (let i = 0; i < starterCount; i++) {
