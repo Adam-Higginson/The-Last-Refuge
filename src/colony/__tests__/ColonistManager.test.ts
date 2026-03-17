@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { initColonists, updateColonists, getVisibleColonists, spreadAroundCell } from '../ColonistManager';
+import { initColonists, updateColonists, getVisibleColonists, spreadAroundCell, addColonist } from '../ColonistManager';
 import { ColonyGrid } from '../ColonyGrid';
 import { generatePathNetwork } from '../ColonyPathNetwork';
 import type { ColonistVisualState } from '../ColonistState';
@@ -403,6 +403,36 @@ describe('ColonistManager', () => {
             const activities: string[] = [c1.activity, c2.activity];
             const movingOrSocializing = activities.filter(a => a === 'walking' || a === 'socializing');
             expect(movingOrSocializing.length).toBeGreaterThanOrEqual(1);
+        });
+    });
+
+    describe('addColonist', () => {
+        it('creates correct ColonistVisualState fields', () => {
+            const crew = { id: 42, role: 'Medic' as const, isLeader: true, name: 'Dr. Smith' };
+            const state = addColonist(sim as Parameters<typeof addColonist>[0], crew);
+
+            expect(state.entityId).toBe(42);
+            expect(state.role).toBe('Medic');
+            expect(state.isLeader).toBe(true);
+            expect(state.name).toBe('Dr. Smith');
+            expect(state.colour).toBe('#ef5350'); // Medic colour
+            expect(state.activity).toBe('idle');
+            expect(state.path).toEqual([]);
+            expect(state.walkSpeed).toBe(2.0);
+            expect(state.skinTone).toBeDefined();
+            expect(state.hairColour).toBeDefined();
+            expect(sim.colonistStates.has(42)).toBe(true);
+        });
+
+        it('adds to existing colonistStates without clearing', () => {
+            const crew1 = { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Alice' };
+            const crew2 = { id: 2, role: 'Engineer' as const, isLeader: false, name: 'Bob' };
+            addColonist(sim as Parameters<typeof addColonist>[0], crew1);
+            addColonist(sim as Parameters<typeof addColonist>[0], crew2);
+
+            expect(sim.colonistStates.size).toBe(2);
+            expect(sim.colonistStates.has(1)).toBe(true);
+            expect(sim.colonistStates.has(2)).toBe(true);
         });
     });
 
