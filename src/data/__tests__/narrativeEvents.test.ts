@@ -82,10 +82,10 @@ describe('narrativeEvents', () => {
 
     // --- cache_findings ---
 
-    it('cache_findings requires investigated_cache flag', () => {
+    it('cache_findings condition returns false (fires only via chain queue)', () => {
         const findings = NARRATIVE_EVENTS.find(e => e.id === 'cache_findings');
         expect(findings?.condition(makeContext({ flags: new Set() }))).toBe(false);
-        expect(findings?.condition(makeContext({ flags: new Set(['investigated_cache']) }))).toBe(true);
+        expect(findings?.condition(makeContext({ flags: new Set(['investigated_cache']) }))).toBe(false);
     });
 
     it('cache_findings is a story event', () => {

@@ -94,30 +94,54 @@ export class NarrativeModal {
     showOutcome(text: string): Promise<void> {
         this.clearTypewriter();
 
-        if (!this.bodyEl || !this.actionsEl) return Promise.resolve();
+        // Reopen the modal (close() from choice selection hid it)
+        this.ensureDOM();
+        if (!this.bodyEl || !this.actionsEl || !this.backdrop) return Promise.resolve();
+        this.backdrop.classList.add('open');
 
         this.state = 'typewriting';
         this.fullText = text;
         this.charIndex = 0;
         this.bodyEl.textContent = '';
 
-        // Hide current actions, will show continue after typewriter
+        // Replace actions with Continue button immediately (hidden).
+        // This ensures completeTypewriter() reveals the correct button
+        // whether the user skips or the typewriter finishes naturally.
+        this.actionsEl.innerHTML = `<button class="narrative-modal-btn continue" type="button">CONTINUE</button>`;
         this.actionsEl.classList.add('hidden');
 
         return new Promise<void>((outerResolve) => {
-            // Render continue-only actions for the outcome phase
-            const renderContinue = (): void => {
-                if (!this.actionsEl) return;
-                this.actionsEl.innerHTML = `<button class="narrative-modal-btn continue" type="button">CONTINUE</button>`;
-                this.actionsEl.classList.remove('hidden');
-                this.state = 'awaiting_choice';
+            const btn = this.actionsEl?.querySelector('.narrative-modal-btn.continue');
+            btn?.addEventListener('click', () => {
+                if (this.onKeyDown) {
+                    window.removeEventListener('keydown', this.onKeyDown, true);
+                    this.onKeyDown = null;
+                }
+                this.backdrop?.classList.remove('open');
+                this.state = 'closed';
+                outerResolve();
+            });
 
-                const btn = this.actionsEl.querySelector('.narrative-modal-btn.continue');
-                btn?.addEventListener('click', () => {
-                    this.close(-1);
-                    outerResolve();
-                });
+            // Set up keydown handler for skip/enter
+            if (this.onKeyDown) {
+                window.removeEventListener('keydown', this.onKeyDown, true);
+            }
+            this.onKeyDown = (e: KeyboardEvent): void => {
+                if (this.state === 'typewriting') {
+                    if (e.code === 'Escape' || e.code === 'Space') {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        this.completeTypewriter();
+                    }
+                } else if (this.state === 'awaiting_choice') {
+                    if (e.code === 'Enter') {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        this.clickFirstEnabled();
+                    }
+                }
             };
+            window.addEventListener('keydown', this.onKeyDown, true);
 
             this.typewriterTimer = setInterval(() => {
                 if (!this.bodyEl) {
@@ -127,8 +151,7 @@ export class NarrativeModal {
                 this.charIndex++;
                 this.bodyEl.textContent = this.fullText.slice(0, this.charIndex);
                 if (this.charIndex >= this.fullText.length) {
-                    this.clearTypewriter();
-                    renderContinue();
+                    this.completeTypewriter();
                 }
             }, TYPEWRITER_INTERVAL_MS);
         });
@@ -260,11 +283,7 @@ export class NarrativeModal {
             btns.forEach((btn) => {
                 btn.addEventListener('click', () => {
                     const idx = parseInt(btn.getAttribute('data-choice') ?? '-1', 10);
-                    // Resolve without hiding — showOutcome will display on this modal
-                    if (this.resolve) {
-                        this.resolve(idx);
-                        this.resolve = null;
-                    }
+                    this.close(idx);
                 });
             });
         } else {

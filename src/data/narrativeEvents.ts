@@ -100,7 +100,9 @@ The logs are fragmented, but one entry stands out: the station was abandoned aft
 
 Your navigator marks the coordinates. It may prove useful — if you survive long enough to reach it.`,
         category: 'story',
-        condition: (ctx): boolean => ctx.flags.has('investigated_cache'),
+        // Only fires via chain queue (queued by supply_cache investigate choice).
+        // Condition returns false to prevent the story event loop from triggering it early.
+        condition: (): boolean => false,
         once: true,
     },
 ];

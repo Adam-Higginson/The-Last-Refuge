@@ -84,7 +84,8 @@ export class NarrativeEventSystem extends System {
 
         const ctx = this.buildContext(turn, state);
 
-        // 1. Check chain queue
+        // 1. Check chain queue — chain trigger IS the authorization to fire,
+        //    so we skip the condition check (only check once/seen guard)
         const chains = state.getTriggeredChains(turn);
         for (const chain of chains) {
             const def = NARRATIVE_EVENTS.find(e => e.id === chain.eventId);
@@ -93,11 +94,7 @@ export class NarrativeEventSystem extends System {
                 continue;
             }
             if (def.once !== false && state.hasSeen(def.id)) continue;
-            try {
-                if (def.condition(ctx)) return def;
-            } catch (err) {
-                console.warn(`NarrativeEventSystem: condition error for '${def.id}'`, err);
-            }
+            return def;
         }
 
         // 2. Check story events (weight-0, condition-based only)

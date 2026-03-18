@@ -231,9 +231,8 @@ describe('NarrativeEventSystem', () => {
         system.update(0); // consume needsInitialCheck — no events eligible
         await flush();
 
-        // Now set up chain conditions fresh
+        // Now set up chain — no flag needed, chains skip condition check
         eventState.seenEventIds.delete('cache_findings');
-        eventState.addFlag('investigated_cache');
         eventState.queueChain('cache_findings', 3, 2); // triggers at turn 5
         mockModal.show.mockClear();
 
@@ -244,6 +243,24 @@ describe('NarrativeEventSystem', () => {
         expect(mockModal.show).toHaveBeenCalledTimes(1);
         const opts = mockModal.show.mock.calls[0][0] as NarrativeModalOptions;
         expect(opts.title).toBe('WHAT WE FOUND');
+    });
+
+    it('chain event does NOT fire before its trigger turn', async () => {
+        eventState.markSeen('intro_escape');
+        eventState.markSeen('supply_cache');
+
+        system.update(0);
+        await flush();
+
+        eventState.queueChain('cache_findings', 3, 2); // triggers at turn 5
+        mockModal.show.mockClear();
+
+        // Turn 4: chain not yet due
+        eventQueue.emit({ type: GameEvents.TURN_END, turn: 4 });
+        eventQueue.drain();
+        await flush();
+
+        expect(mockModal.show).not.toHaveBeenCalled();
     });
 
     // --- Priority: chain > story > deck ---
@@ -258,7 +275,6 @@ describe('NarrativeEventSystem', () => {
 
         // Now set up chain + deck conditions
         eventState.seenEventIds.delete('cache_findings');
-        eventState.addFlag('investigated_cache');
         eventState.queueChain('cache_findings', 1, 2); // triggers at turn 3
         mockModal.show.mockClear();
 
