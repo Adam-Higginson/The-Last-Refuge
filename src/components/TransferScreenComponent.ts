@@ -82,6 +82,13 @@ export class TransferScreenComponent extends Component {
     /** Full rebuild of the transfer screen HTML. */
     private rebuild(): void {
         if (!this.container) return;
+
+        // Save scroll positions before rebuild
+        const rosterList = this.container.querySelector('.roster-list');
+        const locationsPanel = this.container.querySelector('.transfer-locations');
+        const rosterScroll = rosterList?.scrollTop ?? 0;
+        const locationsScroll = locationsPanel?.scrollTop ?? 0;
+
         const world = ServiceLocator.get<World>('world');
 
         const hasSelection = this.selectedCrewIds.size > 0;
@@ -124,6 +131,12 @@ export class TransferScreenComponent extends Component {
         `;
 
         this.wireEvents(world);
+
+        // Restore scroll positions after rebuild
+        const newRosterList = this.container.querySelector('.roster-list');
+        const newLocationsPanel = this.container.querySelector('.transfer-locations');
+        if (newRosterList) newRosterList.scrollTop = rosterScroll;
+        if (newLocationsPanel) newLocationsPanel.scrollTop = locationsScroll;
     }
 
     private buildLocationCards(world: World): string {
