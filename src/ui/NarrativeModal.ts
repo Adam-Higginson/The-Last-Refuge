@@ -114,6 +114,7 @@ export class NarrativeModal {
 
                 const btn = this.actionsEl.querySelector('.narrative-modal-btn.continue');
                 btn?.addEventListener('click', () => {
+                    this.close(-1);
                     outerResolve();
                 });
             };
@@ -259,7 +260,11 @@ export class NarrativeModal {
             btns.forEach((btn) => {
                 btn.addEventListener('click', () => {
                     const idx = parseInt(btn.getAttribute('data-choice') ?? '-1', 10);
-                    this.close(idx);
+                    // Resolve without hiding — showOutcome will display on this modal
+                    if (this.resolve) {
+                        this.resolve(idx);
+                        this.resolve = null;
+                    }
                 });
             });
         } else {
