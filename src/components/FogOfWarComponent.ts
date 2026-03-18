@@ -30,6 +30,7 @@ import { GameModeComponent } from './GameModeComponent';
 import { TransformComponent } from './TransformComponent';
 import { VisibilitySourceComponent } from './VisibilitySourceComponent';
 import { CrewMemberComponent } from './CrewMemberComponent';
+import { ScoutDataComponent } from './ScoutDataComponent';
 import {
     FOG_GRID_SIZE,
     FOG_CELL_SIZE,
@@ -215,6 +216,7 @@ export class FogOfWarComponent extends Component {
 
         for (const sourceEntity of sources) {
             if (sourceEntity === ship) continue; // ship is always active
+            if (sourceEntity.hasComponent(ScoutDataComponent)) continue; // scouts manage their own visibility
 
             const vis = sourceEntity.getComponent(VisibilitySourceComponent);
             if (!vis) continue;

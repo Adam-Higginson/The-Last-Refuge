@@ -7,6 +7,7 @@ import { TransformComponent } from '../TransformComponent';
 import { GameModeComponent } from '../GameModeComponent';
 import { VisibilitySourceComponent } from '../VisibilitySourceComponent';
 import { CrewMemberComponent } from '../CrewMemberComponent';
+import { ScoutDataComponent } from '../ScoutDataComponent';
 import { GameEvents } from '../../core/GameEvents';
 import {
     FOG_GRID_SIZE,
@@ -532,6 +533,24 @@ describe('FogOfWarComponent', () => {
         expect(vis.active).toBe(true);
         expect(vis.effectiveDetailRadius).toBe(0); // animation restarted
         expect(vis.effectiveBlipRadius).toBe(0);
+    });
+
+    // --- Scout visibility ---
+
+    it('scout visibility sources remain active after colony source update', () => {
+        fog.init();
+
+        const scout = world.createEntity('scout1');
+        scout.addComponent(new TransformComponent(2000, 2000));
+        const vis = scout.addComponent(new VisibilitySourceComponent(300, 600, true));
+        scout.addComponent(new ScoutDataComponent('Scout Alpha', 999, 'Test Pilot'));
+
+        // Trigger colony source update via crew transfer event
+        eventQueue.emit({ type: GameEvents.CREW_TRANSFERRED, count: 1 });
+        eventQueue.drain();
+
+        // Scout visibility should remain active (not deactivated by colony check)
+        expect(vis.active).toBe(true);
     });
 
     // --- VisibilitySourceComponent ---

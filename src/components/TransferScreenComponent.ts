@@ -419,6 +419,32 @@ export class TransferScreenComponent extends Component {
             }
         }
 
+        // Check if transferring a scout pilot — warn about immobile scout
+        const pilotWarnings: string[] = [];
+        const scoutEntities = world.getEntitiesWithComponent(ScoutDataComponent);
+        for (const id of this.selectedCrewIds) {
+            const e = world.getEntity(id);
+            const cr = e?.getComponent(CrewMemberComponent);
+            if (cr?.location.type === 'scout') {
+                // Find the scout this pilot belongs to
+                for (const scoutEntity of scoutEntities) {
+                    const scoutData = scoutEntity.getComponent(ScoutDataComponent);
+                    if (scoutData && scoutData.pilotEntityId === id) {
+                        pilotWarnings.push(`${scoutData.displayName} will become immobile without a pilot`);
+                    }
+                }
+            }
+        }
+        if (pilotWarnings.length > 0) {
+            const proceed = await modal.show({
+                title: 'WARNING',
+                body: `${pilotWarnings.join('\n')}\n\nProceed with transfer?`,
+                danger: true,
+            });
+            if (!proceed) return;
+            if (!this.container) return;
+        }
+
         // Check for leader/captain being transferred — warn and demote
         const leaderWarnings: string[] = [];
         for (const id of this.selectedCrewIds) {

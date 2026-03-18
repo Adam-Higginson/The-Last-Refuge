@@ -9,6 +9,7 @@ import { GameEvents } from '../core/GameEvents';
 import { GameModeComponent } from './GameModeComponent';
 import { CameraComponent } from './CameraComponent';
 import { RenderComponent } from './RenderComponent';
+import { ScoutDataComponent } from './ScoutDataComponent';
 import { SelectableComponent } from './SelectableComponent';
 import type { EventQueue, GameEvent } from '../core/EventQueue';
 import type { World } from '../core/World';
@@ -127,6 +128,13 @@ export class PlanetViewTransitionComponent extends Component {
                 if (render) {
                     render.visible = visible;
                 }
+            }
+        }
+        // Also toggle scout visibility (dynamically created entities)
+        for (const scout of this.world.getEntitiesWithComponent(ScoutDataComponent)) {
+            const render = scout.getComponent(RenderComponent);
+            if (render) {
+                render.visible = visible;
             }
         }
     }
