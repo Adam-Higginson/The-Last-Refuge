@@ -23,6 +23,8 @@ import { ColonyBuildPickerComponent } from '../components/ColonyBuildPickerCompo
 import { ColonySidebarUIComponent } from '../components/ColonySidebarUIComponent';
 import { ColonyCrewDetailComponent } from '../components/ColonyCrewDetailComponent';
 import { PlanetInfoUIComponent } from '../components/PlanetInfoUIComponent';
+import { VisibilitySourceComponent } from '../components/VisibilitySourceComponent';
+import { COLONY_FOG_DETAIL_RADIUS, COLONY_FOG_BLIP_RADIUS } from '../data/constants';
 import { drawColonyScene, drawTransitionToColony, drawTransitionFromColony } from '../rendering/drawColonyScene';
 import { generateVoronoi } from '../utils/voronoi';
 import { assignBiomes } from '../data/biomes';
@@ -941,6 +943,10 @@ export function createPlanet(world: World, config: PlanetConfig): Entity {
         entity.addComponent(new ColonyBuildPickerComponent());
         entity.addComponent(new ColonySidebarUIComponent());
         entity.addComponent(new ColonyCrewDetailComponent());
+
+        const colonyVis = new VisibilitySourceComponent(COLONY_FOG_DETAIL_RADIUS, COLONY_FOG_BLIP_RADIUS);
+        colonyVis.active = false;
+        entity.addComponent(colonyVis);
     }
 
     return entity;
