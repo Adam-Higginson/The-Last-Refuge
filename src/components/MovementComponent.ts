@@ -11,7 +11,7 @@ import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { TransformComponent } from './TransformComponent';
 import { animateMovement } from '../utils/animateMovement';
-import type { RightClickEvent, ShiftRightClickEvent } from '../core/GameEvents';
+import type { RightClickEvent, ModifierRightClickEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
 /** Speed at which displayBudget lerps toward budgetRemaining (units/sec) */
@@ -28,13 +28,12 @@ export class MovementComponent extends Component {
     displayBudget: number;     // animated budget radius for range circle visualization
     turnOriginX: number | null; // position at start of first move this turn
     turnOriginY: number | null;
-    waypointQueue: Array<{ x: number; y: number }>; // queued waypoints (shift+right-click)
+    waypointQueue: Array<{ x: number; y: number }>; // queued waypoints (ctrl+right-click)
 
     private eventQueue: EventQueue | null = null;
     private rightClickHandler: EventHandler | null = null;
-    private shiftRightClickHandler: EventHandler | null = null;
+    private modifierRightClickHandler: EventHandler | null = null;
     private turnEndHandler: EventHandler | null = null;
-    private moveCompleteHandler: EventHandler | null = null;
     private aiPhaseStartHandler: EventHandler | null = null;
     private aiPhaseEndHandler: EventHandler | null = null;
     private aiPhaseActive = false;
@@ -67,9 +66,9 @@ export class MovementComponent extends Component {
             this.handleRightClick(x, y);
         };
 
-        this.shiftRightClickHandler = (event): void => {
-            const { x, y } = event as ShiftRightClickEvent;
-            this.handleShiftRightClick(x, y);
+        this.modifierRightClickHandler = (event): void => {
+            const { x, y } = event as ModifierRightClickEvent;
+            this.handleModifierRightClick(x, y);
         };
 
         this.turnEndHandler = (): void => {
@@ -77,16 +76,14 @@ export class MovementComponent extends Component {
             this.displayBudget = this.budgetMax;
             this.turnOriginX = null;
             this.turnOriginY = null;
-            // Clear stale waypoints if not currently moving
-            if (!this.moving) {
-                this.waypointQueue = [];
-            }
-        };
 
-        this.moveCompleteHandler = (event): void => {
-            const { entityId } = event as { entityId: number; type: string };
-            if (entityId !== this.entity.id) return;
-            this.onMoveComplete();
+            // Start executing queued waypoints with fresh budget
+            if (!this.moving && this.waypointQueue.length > 0) {
+                const transform = this.entity.getComponent(TransformComponent);
+                if (transform) {
+                    this.executeNextWaypoint(transform);
+                }
+            }
         };
 
         this.aiPhaseStartHandler = (): void => {
@@ -97,9 +94,8 @@ export class MovementComponent extends Component {
         };
 
         this.eventQueue.on(GameEvents.RIGHT_CLICK, this.rightClickHandler);
-        this.eventQueue.on(GameEvents.SHIFT_RIGHT_CLICK, this.shiftRightClickHandler);
+        this.eventQueue.on(GameEvents.MODIFIER_RIGHT_CLICK, this.modifierRightClickHandler);
         this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
-        this.eventQueue.on(GameEvents.MOVE_COMPLETE, this.moveCompleteHandler);
         this.eventQueue.on(GameEvents.AI_PHASE_START, this.aiPhaseStartHandler);
         this.eventQueue.on(GameEvents.AI_PHASE_END, this.aiPhaseEndHandler);
     }
@@ -124,21 +120,33 @@ export class MovementComponent extends Component {
         this.beginMoveTo(targetX, targetY, transform, selectable);
     }
 
-    /** Append a waypoint to the queue (shift+right-click). */
-    private handleShiftRightClick(targetX: number, targetY: number): void {
+    /** Append a waypoint to the queue (ctrl+right-click). Always queues, never starts immediately. */
+    private handleModifierRightClick(targetX: number, targetY: number): void {
         if (this.aiPhaseActive) return;
 
         const selectable = this.entity.getComponent(SelectableComponent);
         if (!selectable?.selected) return;
 
-        if (this.moving) {
-            // Currently moving — append to queue
-            this.waypointQueue.push({ x: targetX, y: targetY });
-        } else {
-            // Not moving — start moving to this point, like a normal right-click
-            const transform = this.entity.getComponent(TransformComponent);
-            if (!transform) return;
-            this.beginMoveTo(targetX, targetY, transform, selectable);
+        // Always append — never start moving immediately
+        this.waypointQueue.push({ x: targetX, y: targetY });
+    }
+
+    /** Pop the next waypoint and begin moving toward it.
+     *  If budget clamps the move short of the original target, re-queue it. */
+    private executeNextWaypoint(transform: TransformComponent): void {
+        if (this.waypointQueue.length === 0) return;
+        const selectable = this.entity.getComponent(SelectableComponent);
+        if (!selectable) return;
+
+        const next = this.waypointQueue.shift();
+        if (!next) return;
+
+        this.beginMoveTo(next.x, next.y, transform, selectable);
+
+        // If budget was fully consumed and target was clamped, re-queue original
+        if (this.budgetRemaining <= 0 &&
+            (this.targetX !== next.x || this.targetY !== next.y)) {
+            this.waypointQueue.unshift({ x: next.x, y: next.y });
         }
     }
 
@@ -186,28 +194,6 @@ export class MovementComponent extends Component {
         this.entity.emit({ type: GameEvents.TURN_BLOCK, key: this.blockerKey });
     }
 
-    /** Called when this entity's movement animation completes. */
-    private onMoveComplete(): void {
-        // If there are queued waypoints, pop and continue moving
-        if (this.waypointQueue.length > 0 && this.budgetRemaining > 0) {
-            const next = this.waypointQueue.shift();
-            if (next) {
-                const transform = this.entity.getComponent(TransformComponent);
-                const selectable = this.entity.getComponent(SelectableComponent);
-                if (transform && selectable) {
-                    this.beginMoveTo(next.x, next.y, transform, selectable);
-                    return;
-                }
-            }
-        }
-
-        // No more waypoints — unblock turn
-        this.entity.emit({
-            type: GameEvents.TURN_UNBLOCK,
-            key: this.blockerKey,
-        });
-    }
-
     update(dt: number): void {
         const transform = this.entity.getComponent(TransformComponent);
         if (!transform) return;
@@ -241,10 +227,24 @@ export class MovementComponent extends Component {
                 this.targetX = null;
                 this.targetY = null;
 
+                // Chain to next waypoint if available
+                if (this.waypointQueue.length > 0 && this.budgetRemaining > 0) {
+                    this.executeNextWaypoint(transform);
+                }
+
+                // Always emit MOVE_COMPLETE (other systems listen: FleetSidebar, etc.)
                 this.entity.emit({
                     type: GameEvents.MOVE_COMPLETE,
                     entityId: this.entity.id,
                 });
+
+                // Unblock turn only if not continuing to another waypoint
+                if (!this.moving) {
+                    this.entity.emit({
+                        type: GameEvents.TURN_UNBLOCK,
+                        key: this.blockerKey,
+                    });
+                }
             }
         }
 
@@ -256,14 +256,11 @@ export class MovementComponent extends Component {
         if (this.eventQueue && this.rightClickHandler) {
             this.eventQueue.off(GameEvents.RIGHT_CLICK, this.rightClickHandler);
         }
-        if (this.eventQueue && this.shiftRightClickHandler) {
-            this.eventQueue.off(GameEvents.SHIFT_RIGHT_CLICK, this.shiftRightClickHandler);
+        if (this.eventQueue && this.modifierRightClickHandler) {
+            this.eventQueue.off(GameEvents.MODIFIER_RIGHT_CLICK, this.modifierRightClickHandler);
         }
         if (this.eventQueue && this.turnEndHandler) {
             this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
-        }
-        if (this.eventQueue && this.moveCompleteHandler) {
-            this.eventQueue.off(GameEvents.MOVE_COMPLETE, this.moveCompleteHandler);
         }
         if (this.eventQueue && this.aiPhaseStartHandler) {
             this.eventQueue.off(GameEvents.AI_PHASE_START, this.aiPhaseStartHandler);

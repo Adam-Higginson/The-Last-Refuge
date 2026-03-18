@@ -198,18 +198,14 @@ describe('MovementComponent', () => {
 
         eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 130, y: 100 });
         eventQueue.drain();
-        // Drain the turn:block event
-        eventQueue.drain();
 
         const unblocked: Array<{ type: string; key?: string }> = [];
         eventQueue.on(GameEvents.TURN_UNBLOCK, (event) => {
             unblocked.push(event as { type: string; key?: string });
         });
 
+        // update() now directly emits TURN_UNBLOCK on arrival (no event round-trip)
         movement.update(1);
-        // MOVE_COMPLETE queued → drain triggers onMoveComplete → queues TURN_UNBLOCK
-        eventQueue.drain();
-        // Now drain the TURN_UNBLOCK
         eventQueue.drain();
 
         expect(unblocked.length).toBeGreaterThan(0);
@@ -348,7 +344,37 @@ describe('MovementComponent', () => {
 
     // --- Waypoint queue ---
 
-    it('appends waypoints on SHIFT_RIGHT_CLICK while moving', () => {
+    it('chains to next waypoint on arrival', () => {
+        const { movement, selectable, transform } = createShipEntity(100, 100, 600, 10000);
+        selectable.selected = true;
+
+        // Start moving to first target
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 200, y: 100 });
+        eventQueue.drain();
+        expect(movement.moving).toBe(true);
+
+        // Queue a waypoint via ctrl+right-click
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 300, y: 100 });
+        eventQueue.drain();
+        expect(movement.waypointQueue).toHaveLength(1);
+
+        // Arrive at first target — should immediately chain to waypoint
+        movement.update(1);
+
+        expect(movement.moving).toBe(true);
+        expect(movement.targetX).toBeCloseTo(300);
+        expect(movement.targetY).toBeCloseTo(100);
+        expect(movement.waypointQueue).toHaveLength(0);
+
+        // Arrive at second target
+        movement.update(1);
+
+        expect(movement.moving).toBe(false);
+        expect(transform.x).toBeCloseTo(300);
+        expect(transform.y).toBeCloseTo(100);
+    });
+
+    it('appends waypoints on MODIFIER_RIGHT_CLICK while moving', () => {
         const { movement, selectable } = createShipEntity(100, 100, 300, 200);
         selectable.selected = true;
 
@@ -358,7 +384,7 @@ describe('MovementComponent', () => {
         expect(movement.moving).toBe(true);
 
         // Queue a waypoint
-        eventQueue.emit({ type: GameEvents.SHIFT_RIGHT_CLICK, x: 300, y: 100 });
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 300, y: 100 });
         eventQueue.drain();
 
         expect(movement.waypointQueue).toHaveLength(1);
@@ -372,13 +398,16 @@ describe('MovementComponent', () => {
         // Move and queue a waypoint
         eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 150, y: 100 });
         eventQueue.drain();
-        eventQueue.emit({ type: GameEvents.SHIFT_RIGHT_CLICK, x: 300, y: 100 });
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 300, y: 100 });
         eventQueue.drain();
         expect(movement.waypointQueue).toHaveLength(1);
 
-        // Arrive at first target
+        // Arrive at first target — waypoint chaining happens inline in update()
         movement.update(1);
         eventQueue.drain();
+
+        // Wait for chained waypoint to arrive too
+        movement.update(1);
         eventQueue.drain();
 
         // Normal right-click should clear queue
@@ -388,16 +417,139 @@ describe('MovementComponent', () => {
         expect(movement.waypointQueue).toHaveLength(0);
     });
 
-    it('clears waypoint queue on TURN_END when not moving', () => {
+    it('persists waypoints across TURN_END and starts executing them', () => {
         const { movement, selectable } = createShipEntity(100, 100, 300);
         selectable.selected = true;
 
-        // Manually add a stale waypoint
-        movement.waypointQueue.push({ x: 500, y: 500 });
+        // Queue a waypoint (ctrl+right-click while idle)
+        movement.waypointQueue.push({ x: 200, y: 100 });
 
         eventQueue.emit({ type: GameEvents.TURN_END, turn: 2 });
         eventQueue.drain();
 
+        // Waypoint should have been consumed and movement started
+        expect(movement.moving).toBe(true);
+        expect(movement.targetX).toBeCloseTo(200);
+    });
+
+    it('ctrl+right-click while idle queues without moving', () => {
+        const { movement, selectable } = createShipEntity(100, 100, 300);
+        selectable.selected = true;
+
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 300, y: 100 });
+        eventQueue.drain();
+
+        expect(movement.waypointQueue).toHaveLength(1);
+        expect(movement.moving).toBe(false);
+    });
+
+    it('executes queued waypoints on TURN_END', () => {
+        const { movement, selectable } = createShipEntity(100, 100, 300);
+        selectable.selected = true;
+
+        // Queue a waypoint via ctrl+right-click
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 200, y: 100 });
+        eventQueue.drain();
+        expect(movement.moving).toBe(false);
+
+        // End turn — should start moving toward the waypoint
+        eventQueue.emit({ type: GameEvents.TURN_END, turn: 2 });
+        eventQueue.drain();
+
+        expect(movement.moving).toBe(true);
+        expect(movement.targetX).toBeCloseTo(200);
+        expect(movement.targetY).toBeCloseTo(100);
+    });
+
+    it('waypoints persist across turns when budget exhausted', () => {
+        // Budget of 100, two waypoints each 200 apart
+        const { movement, selectable } = createShipEntity(100, 100, 100, 10000);
+        selectable.selected = true;
+
+        // Queue two far waypoints
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 300, y: 100 });
+        eventQueue.drain();
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 500, y: 100 });
+        eventQueue.drain();
+        expect(movement.waypointQueue).toHaveLength(2);
+
+        // TURN_END — starts moving toward first waypoint, but budget clamps to 100wu
+        eventQueue.emit({ type: GameEvents.TURN_END, turn: 2 });
+        eventQueue.drain();
+
+        expect(movement.moving).toBe(true);
+        expect(movement.budgetRemaining).toBeCloseTo(0);
+        // Original waypoint should be re-queued since budget clamped
+        expect(movement.waypointQueue.length).toBeGreaterThanOrEqual(1);
+
+        // Arrive at clamped position
+        movement.update(1);
+        eventQueue.drain();
+
+        // Still have waypoints remaining
+        expect(movement.waypointQueue.length).toBeGreaterThanOrEqual(1);
+
+        // Next TURN_END — fresh budget, should resume
+        eventQueue.emit({ type: GameEvents.TURN_END, turn: 3 });
+        eventQueue.drain();
+
+        expect(movement.moving).toBe(true);
+    });
+
+    it('re-queues original waypoint when budget clamps', () => {
+        // Budget 300, waypoint 500wu away
+        const { movement, selectable } = createShipEntity(100, 100, 300, 10000);
+        selectable.selected = true;
+
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 600, y: 100 });
+        eventQueue.drain();
+
+        // TURN_END triggers execution
+        eventQueue.emit({ type: GameEvents.TURN_END, turn: 2 });
+        eventQueue.drain();
+
+        expect(movement.moving).toBe(true);
+        // Target should be clamped to 300wu from start
+        expect(movement.targetX).toBeCloseTo(400);
+        expect(movement.budgetRemaining).toBeCloseTo(0);
+        // Original waypoint (600, 100) should be re-queued
+        expect(movement.waypointQueue).toHaveLength(1);
+        expect(movement.waypointQueue[0]).toEqual({ x: 600, y: 100 });
+    });
+
+    it('TURN_END with empty queue does not start movement', () => {
+        const { movement } = createShipEntity(100, 100, 300);
+
+        eventQueue.emit({ type: GameEvents.TURN_END, turn: 2 });
+        eventQueue.drain();
+
+        expect(movement.moving).toBe(false);
+    });
+
+    it('arrival chains multiple close waypoints in one turn', () => {
+        // Budget 600, three waypoints each 50wu apart — well within budget
+        const { movement, selectable, transform } = createShipEntity(100, 100, 600, 10000);
+        selectable.selected = true;
+
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 150, y: 100 });
+        eventQueue.drain();
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 200, y: 100 });
+        eventQueue.drain();
+        eventQueue.emit({ type: GameEvents.MODIFIER_RIGHT_CLICK, x: 250, y: 100 });
+        eventQueue.drain();
+
+        // TURN_END starts first waypoint
+        eventQueue.emit({ type: GameEvents.TURN_END, turn: 2 });
+        eventQueue.drain();
+
+        // Update until all arrivals (high speed means instant)
+        movement.update(1);
+        movement.update(1);
+        movement.update(1);
+
+        expect(transform.x).toBeCloseTo(250);
+        expect(transform.y).toBeCloseTo(100);
         expect(movement.waypointQueue).toHaveLength(0);
+        expect(movement.moving).toBe(false);
     });
 });

@@ -118,6 +118,38 @@ function drawShip(
         }
     }
 
+    // --- Planned waypoint route (queued via ctrl+right-click) ---
+    if (movement && movement.waypointQueue.length > 0) {
+        ctx.save();
+        ctx.setLineDash([16, 12]);
+        ctx.lineWidth = 3;
+        let prevX = movement.targetX ?? x;
+        let prevY = movement.targetY ?? y;
+        for (const wp of movement.waypointQueue) {
+            ctx.beginPath();
+            ctx.moveTo(prevX, prevY);
+            ctx.lineTo(wp.x, wp.y);
+            ctx.strokeStyle = 'rgba(255, 220, 120, 0.25)';
+            ctx.stroke();
+
+            // Diamond marker at each waypoint
+            ctx.beginPath();
+            ctx.moveTo(wp.x, wp.y - 10);
+            ctx.lineTo(wp.x + 10, wp.y);
+            ctx.lineTo(wp.x, wp.y + 10);
+            ctx.lineTo(wp.x - 10, wp.y);
+            ctx.closePath();
+            ctx.strokeStyle = 'rgba(255, 220, 120, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            prevX = wp.x;
+            prevY = wp.y;
+        }
+        ctx.setLineDash([]);
+        ctx.restore();
+    }
+
     // --- Pending move marker (tap-to-confirm on mobile) ---
     const moveConfirm = entity.getComponent(MoveConfirmComponent);
     if (selected && movement && !movement.moving && moveConfirm) {
