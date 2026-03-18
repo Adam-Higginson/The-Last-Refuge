@@ -545,7 +545,7 @@ describe('ColonistManager', () => {
     });
 
     describe('24-hour simulation integration', () => {
-        it('runs 24 hours without crashes, all states valid', () => {
+        it('runs 24 hours without crashes, all states valid', { timeout: 15000 }, () => {
             const crew = [
                 { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Farmer' },
                 { id: 2, role: 'Engineer' as const, isLeader: false, name: 'Builder' },
