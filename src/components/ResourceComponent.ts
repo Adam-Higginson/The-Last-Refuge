@@ -149,6 +149,14 @@ export class ResourceComponent extends Component {
         return this.resources[resource].current >= amount;
     }
 
+    /** Add resources (e.g. from event rewards). Clamps to cap. */
+    add(resource: ResourceType, amount: number): void {
+        this.resources[resource].current = Math.min(
+            this.resources[resource].current + amount,
+            this.resources[resource].cap,
+        );
+    }
+
     /** Deduct resources (e.g. for construction). Returns false if insufficient. */
     deduct(resource: ResourceType, amount: number): boolean {
         if (!this.canAfford(resource, amount)) return false;

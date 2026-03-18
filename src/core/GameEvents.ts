@@ -79,6 +79,8 @@ export const GameEvents = {
     MODIFIER_RIGHT_CLICK: 'input:modifier-right-click',
     /** Extiris detected a scout within sensor radius. */
     EXTIRIS_DETECTED_SCOUT: 'extiris:detected:scout',
+    /** A narrative event was shown and a choice was made. */
+    NARRATIVE_SHOWN: 'narrative:shown',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -277,4 +279,12 @@ export interface ModifierRightClickEvent extends GameEvent {
 export interface ExtirisDetectedScoutEvent extends GameEvent {
     type: typeof GameEvents.EXTIRIS_DETECTED_SCOUT;
     scoutEntityId: number;
+}
+
+export interface NarrativeShownEvent extends GameEvent {
+    type: typeof GameEvents.NARRATIVE_SHOWN;
+    /** ID of the narrative event that was shown. */
+    id: string;
+    /** Index of the choice made, or -1 for continue-only events. */
+    choiceIndex: number;
 }
