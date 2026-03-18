@@ -146,6 +146,20 @@ describe('ResourceComponent', () => {
         expect(res.resources.materials.current).toBe(RESOURCE_CONFIGS.materials.startingCap);
     });
 
+    // --- add ---
+
+    it('add increases resource amount', () => {
+        const startFood = res.resources.food.current;
+        res.add('food', 30);
+        expect(res.resources.food.current).toBe(startFood + 30);
+    });
+
+    it('add clamps to cap', () => {
+        res.resources.food.current = res.resources.food.cap - 5;
+        res.add('food', 20);
+        expect(res.resources.food.current).toBe(res.resources.food.cap);
+    });
+
     // --- canAfford / deduct ---
 
     it('canAfford returns true when sufficient', () => {

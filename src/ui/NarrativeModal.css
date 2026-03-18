@@ -1,0 +1,135 @@
+/* NarrativeModal — typewriter-animated narrative event dialog */
+
+.narrative-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 4, 10, 0.92);
+    z-index: 70;
+}
+
+.narrative-modal-backdrop.open {
+    display: flex;
+}
+
+@keyframes narrative-border-pulse {
+    0%   { border-color: rgba(79, 168, 255, 0.6); }
+    40%  { border-color: rgba(79, 168, 255, 0.8); }
+    100% { border-color: rgba(79, 168, 255, 0.3); }
+}
+
+.narrative-modal-box {
+    background: rgba(3, 4, 10, 0.95);
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    padding: 32px 40px;
+    max-width: min(520px, 90vw);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.narrative-modal-backdrop.open .narrative-modal-box {
+    animation: narrative-border-pulse 1.2s ease-out forwards;
+}
+
+.narrative-modal-title {
+    font-size: 14px;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+}
+
+.narrative-modal-body {
+    font-size: 12px;
+    opacity: 0.7;
+    line-height: 1.8;
+    margin-bottom: 24px;
+    white-space: pre-line;
+    overflow-y: auto;
+    max-height: 50vh;
+    cursor: pointer;
+}
+
+.narrative-modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.narrative-modal-actions.hidden {
+    display: none;
+}
+
+.narrative-modal-btn {
+    background: transparent;
+    border: 1px solid rgba(79, 168, 255, 0.4);
+    color: #4fa8ff;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    width: 100%;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.narrative-modal-btn:hover {
+    border-color: #4fa8ff;
+    color: #ffffff;
+}
+
+.narrative-modal-btn.continue {
+    border-color: #d4a020;
+    color: #d4a020;
+    text-align: center;
+    justify-content: center;
+}
+
+.narrative-modal-btn.continue:hover {
+    background: rgba(212, 160, 32, 0.15);
+    color: #ffffff;
+}
+
+.narrative-modal-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.narrative-modal-btn .cost-text {
+    color: #e05050;
+    font-size: 11px;
+}
+
+.narrative-modal-btn .gain-text {
+    color: #50e080;
+    font-size: 11px;
+}
+
+.narrative-modal-btn .label-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.narrative-modal-btn .description {
+    font-size: 10px;
+    opacity: 0.6;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.narrative-modal-btn .resource-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}

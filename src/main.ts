@@ -29,6 +29,8 @@ import { CrewMemberComponent } from './components/CrewMemberComponent';
 import { TransformComponent } from './components/TransformComponent';
 import { AIService } from './services/AIService';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { NarrativeModal } from './ui/NarrativeModal';
+import { NarrativeEventSystem } from './systems/NarrativeEventSystem';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -55,8 +57,9 @@ function boot(): void {
     const aiService = new AIService();
     ServiceLocator.register('aiService', aiService);
 
-    // Register confirmation modal service
+    // Register modal services
     ServiceLocator.register('confirmModal', new ConfirmModal());
+    ServiceLocator.register('narrativeModal', new NarrativeModal());
 
     // Load API key: localStorage override > build-time env > no key (deterministic)
     try {
@@ -71,6 +74,7 @@ function boot(): void {
     // Add systems in explicit update order
     world.addSystem(new InputSystem());
     world.addSystem(new TurnSystem());
+    world.addSystem(new NarrativeEventSystem());
     world.addSystem(new ComponentSystem());
     world.addSystem(new RenderSystem());
     world.addSystem(new UISystem());
