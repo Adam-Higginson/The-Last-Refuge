@@ -168,6 +168,22 @@ function drawArms(
     ctx.strokeStyle = colonist.skinTone;
     ctx.lineWidth = 1 * s;
 
+    // Greeting wave
+    if (colonist.greetingTimer > 0) {
+        const wavePhase = Math.sin(t / 150) * 2 * s;
+        // Left arm normal
+        ctx.beginPath();
+        ctx.moveTo(x - 2 * s, y - 6 * s + bob);
+        ctx.lineTo(x - 3.5 * s, y - 3 * s + bob);
+        ctx.stroke();
+        // Right arm waving
+        ctx.beginPath();
+        ctx.moveTo(x + 2 * s, y - 6 * s + bob);
+        ctx.lineTo(x + 3 * s + wavePhase, y - 10 * s + bob);
+        ctx.stroke();
+        return;
+    }
+
     if (isStretching) {
         // Arms raised above head
         ctx.beginPath();

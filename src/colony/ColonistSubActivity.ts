@@ -24,7 +24,7 @@ export function seededChoice<T>(entityId: number, items: T[], salt: number): T {
 }
 
 /** Deterministic float in [0, 1) based on entityId and salt. */
-function seededRandom(entityId: number, salt: number): number {
+export function seededRandom(entityId: number, salt: number): number {
     return Math.abs(Math.sin(entityId * 127.1 + salt * 311.7) * 43758.5453) % 1;
 }
 
@@ -70,16 +70,24 @@ export function resolveWorkSubActivity(
 export function resolveIdleSubActivity(
     entityId: number,
     elapsed: number,
+    morale?: number,
 ): SubActivityResult {
     const salt = Math.floor(elapsed / 4);
     const roll = seededRandom(entityId, salt);
 
-    // Weighted: standing 60%, looking_around 20%, stretching 10%, sitting 10%
     let subActivity: IdleSubActivity;
-    if (roll < 0.6) subActivity = 'standing';
-    else if (roll < 0.8) subActivity = 'looking_around';
-    else if (roll < 0.9) subActivity = 'stretching';
-    else subActivity = 'sitting';
+    if (morale !== undefined && morale < 30) {
+        // Low morale: sitting 50%, standing 30%, looking_around 20%
+        if (roll < 0.5) subActivity = 'sitting';
+        else if (roll < 0.8) subActivity = 'standing';
+        else subActivity = 'looking_around';
+    } else {
+        // Normal: standing 60%, looking_around 20%, stretching 10%, sitting 10%
+        if (roll < 0.6) subActivity = 'standing';
+        else if (roll < 0.8) subActivity = 'looking_around';
+        else if (roll < 0.9) subActivity = 'stretching';
+        else subActivity = 'sitting';
+    }
 
     const duration = 3 + seededRandom(entityId, salt + 77) * 5;
     return { subActivity, duration };
@@ -90,15 +98,25 @@ export function resolveSocializingSubActivity(
     entityId: number,
     elapsed: number,
     nearbyCount: number,
+    morale?: number,
 ): SubActivityResult {
     const salt = Math.floor(elapsed / 5);
 
     let subActivity: SocializingSubActivity;
-    if (nearbyCount <= 1) {
-        // Alone or with one other — sitting together
+    if (morale !== undefined && morale < 40) {
+        // Low morale: 40% sit alone, rest normal
+        const roll = seededRandom(entityId, salt + 200);
+        if (roll < 0.4) {
+            subActivity = 'sitting_together';
+        } else if (nearbyCount <= 1) {
+            subActivity = 'sitting_together';
+        } else {
+            const groupOptions: SocializingSubActivity[] = ['chatting', 'laughing', 'gesturing'];
+            subActivity = seededChoice(entityId, groupOptions, salt);
+        }
+    } else if (nearbyCount <= 1) {
         subActivity = 'sitting_together';
     } else {
-        // Group — chatting/laughing/gesturing
         const groupOptions: SocializingSubActivity[] = ['chatting', 'laughing', 'gesturing'];
         subActivity = seededChoice(entityId, groupOptions, salt);
     }

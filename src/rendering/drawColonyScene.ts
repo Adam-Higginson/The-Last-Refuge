@@ -11,13 +11,18 @@ import { drawParticles } from './colonyParticles';
 import { getDayNightState, setGameHour } from './colonyDayNight';
 import { drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
 import { drawGridTiles, drawPathTiles, drawBuildingGlow, drawDebugOverlay, drawFigure, drawFireflies } from './colonyGridRenderer';
+import { drawRelationshipOverlays, drawThoughtBubble } from './colonyRelationshipRenderer';
 import { getVisibleColonists } from '../colony/ColonistManager';
+import { resolveThought } from '../colony/ColonistThoughts';
+import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import { getBuildingFootprint } from '../colony/ColonyGrid';
+import { ServiceLocator } from '../core/ServiceLocator';
 import { RenderQueue, extractHitTestItems } from './RenderQueue';
 import type { WeatherInfo } from './colonyWeather';
 import type { DayNightState } from './colonyDayNight';
 import type { ColonistVisualState } from '../colony/ColonistState';
 import type { BuildingInstance } from '../data/buildings';
+import type { World } from '../core/World';
 import {
     gridToScreen,
     drawIsometricTile,
@@ -226,6 +231,38 @@ export function drawColonyScene(
 
         queue.sort();
         queue.drawAll(ctx);
+
+        // Relationship overlays (only for selected colonist)
+        if (ServiceLocator.has('world')) {
+            const world = ServiceLocator.get<World>('world');
+            drawRelationshipOverlays(ctx, colonists, gridCentre.centreX, gridCentre.centreY, world, t, state.selectedColonistId);
+
+            // Thought bubbles for selected colonist
+            if (state.selectedColonistId !== null) {
+                const selColonist = colonists.find(c => c.entityId === state.selectedColonistId);
+                if (selColonist) {
+                    // Resolve new thought if timer expired
+                    if (selColonist.thoughtTimer <= 0) {
+                        const entity = world.getEntity(selColonist.entityId);
+                        const crew = entity?.getComponent(CrewMemberComponent);
+                        if (crew) {
+                            const thought = resolveThought(selColonist, crew, state.gameHour);
+                            if (thought) {
+                                selColonist.thoughtBubble = thought;
+                                // 8-12 second display timer
+                                selColonist.thoughtTimer = 8 + (selColonist.entityId % 5);
+                            }
+                        }
+                    }
+
+                    if (selColonist.thoughtBubble) {
+                        const screen = gridToScreen(selColonist.gridX, selColonist.gridY, gridCentre.centreX, gridCentre.centreY);
+                        const maxTime = 8 + (selColonist.entityId % 5);
+                        drawThoughtBubble(ctx, screen.x, screen.y, selColonist.thoughtBubble, selColonist.thoughtTimer, maxTime);
+                    }
+                }
+            }
+        }
 
         // Silhouette pass for selected colonist behind buildings
         drawOccludedColonistSilhouette(ctx, colonists, slotData, state, gridCentre, t);

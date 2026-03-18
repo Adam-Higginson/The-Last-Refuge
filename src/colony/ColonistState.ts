@@ -68,4 +68,8 @@ export interface ColonistVisualState {
     buildingTypeId: string | null;
     secondaryTarget: { gridX: number; gridY: number } | null;
     returningToOrigin: boolean;
+    greetingTimer: number;
+    greetingTargetId: number | null;
+    thoughtBubble: string | null;
+    thoughtTimer: number;
 }

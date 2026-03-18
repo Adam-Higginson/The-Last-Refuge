@@ -8,6 +8,8 @@ import { GameEvents } from '../core/GameEvents';
 import { ColonyGrid } from '../colony/ColonyGrid';
 import { generatePathNetwork } from '../colony/ColonyPathNetwork';
 import { initColonists, updateColonists } from '../colony/ColonistManager';
+import { resolveTurnMorale, getWorkEfficiency } from '../colony/ColonistMoraleEffects';
+import { ResourceComponent } from './ResourceComponent';
 import { CrewMemberComponent } from './CrewMemberComponent';
 import { ColonySceneStateComponent } from './ColonySceneStateComponent';
 import { RegionDataComponent } from './RegionDataComponent';
@@ -25,6 +27,7 @@ export class ColonySimulationComponent extends Component {
 
     private eventQueue: EventQueue | null = null;
     private buildingHandler: EventHandler | null = null;
+    private turnEndHandler: EventHandler | null = null;
     private initialized = false;
     private activeRegionId: number | null = null;
 
@@ -38,6 +41,33 @@ export class ColonySimulationComponent extends Component {
         this.eventQueue.on(GameEvents.BUILDING_STARTED, this.buildingHandler);
         this.eventQueue.on(GameEvents.BUILDING_COMPLETED, this.buildingHandler);
         this.eventQueue.on(GameEvents.BUILDING_DEMOLISHED, this.buildingHandler);
+
+        // TURN_END: resolve morale + apply work efficiency modifier
+        this.turnEndHandler = (): void => {
+            if (!this.initialized || this.activeRegionId === null) return;
+            const world = ServiceLocator.get<World>('world');
+            resolveTurnMorale(world, this.entity.id, this.activeRegionId);
+
+            const efficiency = getWorkEfficiency(world, this.entity.id, this.activeRegionId);
+            const gameState = world.getEntityByName('gameState');
+            const resources = gameState?.getComponent(ResourceComponent);
+            if (resources) {
+                const mult = efficiency - 1; // e.g. -0.2 at 60% morale
+                const types: ('food' | 'materials' | 'energy')[] = ['food', 'materials', 'energy'];
+                for (const res of types) {
+                    const modId = `colony:efficiency:${this.activeRegionId}:${res}`;
+                    resources.removeModifier(modId);
+                    resources.addModifier({
+                        id: modId,
+                        resource: res,
+                        amount: 0,
+                        multiplier: mult,
+                        source: 'Colony Morale',
+                    });
+                }
+            }
+        };
+        this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
 
         // Debug key G to toggle grid overlay
         window.addEventListener('keydown', this.onKeyDown);
@@ -99,7 +129,8 @@ export class ColonySimulationComponent extends Component {
         const gameHour = sceneState.gameHour;
         const weather = sceneState.currentWeather;
 
-        updateColonists(this, dt, gameHour, weather, this.eventQueue, region.buildings);
+        const world = ServiceLocator.get<World>('world');
+        updateColonists(this, dt, gameHour, weather, this.eventQueue, region.buildings, world);
     }
 
     destroy(): void {
@@ -107,6 +138,9 @@ export class ColonySimulationComponent extends Component {
             this.eventQueue.off(GameEvents.BUILDING_STARTED, this.buildingHandler);
             this.eventQueue.off(GameEvents.BUILDING_COMPLETED, this.buildingHandler);
             this.eventQueue.off(GameEvents.BUILDING_DEMOLISHED, this.buildingHandler);
+        }
+        if (this.eventQueue && this.turnEndHandler) {
+            this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
         }
         window.removeEventListener('keydown', this.onKeyDown);
         this.colonistStates.clear();
