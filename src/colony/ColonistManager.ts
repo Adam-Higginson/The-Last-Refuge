@@ -18,11 +18,14 @@ import {
     resolveSocializingSubActivity,
     resolveEatingSubActivity,
 } from './ColonistSubActivity';
+import { applyTraitScheduleModifier, applyTraitSubActivityModifier } from './ColonistTraitModifiers';
+import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import type { ColonistVisualState } from './ColonistState';
 import type { ColonySimulationComponent } from '../components/ColonySimulationComponent';
 import type { CrewRole } from '../components/CrewMemberComponent';
 import type { EventQueue } from '../core/EventQueue';
 import type { BuildingInstance } from '../data/buildings';
+import type { World } from '../core/World';
 
 // Re-export spreadAroundCell for external consumers (tests, etc.)
 export { spreadAroundCell } from './ColonistLocationResolver';
@@ -93,6 +96,10 @@ export function initColonists(
             buildingTypeId: null,
             secondaryTarget: null,
             returningToOrigin: false,
+            greetingTimer: 0,
+            greetingTargetId: null,
+            thoughtBubble: null,
+            thoughtTimer: 0,
         };
 
         sim.colonistStates.set(crew.id, state);
@@ -143,16 +150,35 @@ function countNearbySocializing(sim: ColonySimulationComponent, entityId: number
     return count;
 }
 
+interface ColonistCrewData {
+    traits: [import('../components/CrewMemberComponent').Trait, import('../components/CrewMemberComponent').Trait];
+    morale: number;
+}
+
+/** Get traits + morale for a colonist from the World in a single lookup. */
+function getCrewData(world: World | undefined, entityId: number): ColonistCrewData | null {
+    if (!world) return null;
+    const entity = world.getEntity(entityId);
+    if (!entity) return null;
+    const crew = entity.getComponent(CrewMemberComponent);
+    if (!crew) return null;
+    return { traits: crew.traits, morale: crew.morale };
+}
+
 /** Set the initial sub-activity when a colonist arrives at their destination. */
-function assignSubActivity(colonist: ColonistVisualState, sim: ColonySimulationComponent): void {
+function assignSubActivity(colonist: ColonistVisualState, sim: ColonySimulationComponent, world?: World): void {
     const elapsed = colonist.stateTimer;
+    const crewData = getCrewData(world, colonist.entityId);
+    const traits = crewData?.traits ?? null;
+    const morale = crewData?.morale;
     // Clear carrying state when assigning new sub-activity
     colonist.secondaryTarget = null;
     colonist.returningToOrigin = false;
 
     switch (colonist.activity) {
         case 'working': {
-            const result = resolveWorkSubActivity(colonist.role, colonist.buildingTypeId, colonist.entityId, elapsed);
+            let result = resolveWorkSubActivity(colonist.role, colonist.buildingTypeId, colonist.entityId, elapsed);
+            if (traits) result = applyTraitSubActivityModifier(result, traits);
             colonist.subActivity = result.subActivity;
             colonist.subActivityTimer = result.duration;
 
@@ -177,14 +203,16 @@ function assignSubActivity(colonist: ColonistVisualState, sim: ColonySimulationC
             break;
         }
         case 'idle': {
-            const result = resolveIdleSubActivity(colonist.entityId, elapsed);
+            let result = resolveIdleSubActivity(colonist.entityId, elapsed, morale);
+            if (traits) result = applyTraitSubActivityModifier(result, traits);
             colonist.subActivity = result.subActivity;
             colonist.subActivityTimer = result.duration;
             break;
         }
         case 'socializing': {
             const nearby = countNearbySocializing(sim, colonist.entityId);
-            const result = resolveSocializingSubActivity(colonist.entityId, elapsed, nearby);
+            let result = resolveSocializingSubActivity(colonist.entityId, elapsed, nearby, morale);
+            if (traits) result = applyTraitSubActivityModifier(result, traits);
             colonist.subActivity = result.subActivity;
             colonist.subActivityTimer = result.duration;
             break;
@@ -275,6 +303,7 @@ export function updateColonists(
     _weather: string,
     eventQueue: EventQueue,
     buildings: BuildingInstance[],
+    world?: World,
 ): void {
     for (const [_id, colonist] of sim.colonistStates) {
         // Dawn stagger: wait for emerge delay
@@ -312,8 +341,19 @@ export function updateColonists(
             }
         }
 
-        // Check current schedule
-        const schedule = getScheduleBlock(colonist.role, gameHour, colonist.entityId);
+        // Single ECS lookup per colonist per frame
+        const crewData = getCrewData(world, colonist.entityId);
+
+        // Morale-driven walk speed: 0.7–1.0x based on morale
+        if (crewData) {
+            colonist.walkSpeed = 2.0 * (0.7 + 0.3 * crewData.morale / 100);
+        }
+
+        // Check current schedule, apply trait modifiers
+        let schedule = getScheduleBlock(colonist.role, gameHour, colonist.entityId);
+        if (crewData) {
+            schedule = applyTraitScheduleModifier(schedule, crewData.traits, colonist.entityId, gameHour);
+        }
 
         // Handle patrol separately for soldiers
         if (schedule.activity === 'patrolling' && sim.perimeterPath.length > 0) {
@@ -341,7 +381,7 @@ export function updateColonists(
             }
 
             const oldActivity = colonist.activity;
-            const target = resolveLocation(sim, schedule.location, colonist.role, buildings, colonist.entityId);
+            const target = resolveLocation(sim, schedule.location, colonist.role, buildings, colonist.entityId, world);
 
             if (target) {
                 const roundX = Math.round(colonist.gridX);
@@ -363,7 +403,7 @@ export function updateColonists(
                     colonist.assignedBuildingSlot = target.buildingSlot;
                     colonist.buildingTypeId = target.buildingTypeId;
                     colonist.stateTimer = 0;
-                    assignSubActivity(colonist, sim);
+                    assignSubActivity(colonist, sim, world);
                     emitActivityChanged(eventQueue, colonist.entityId, oldActivity, schedule.activity, colonist.gridX, colonist.gridY);
                 } else {
                     // No path — stay idle
@@ -388,7 +428,7 @@ export function updateColonists(
             updateWalking(colonist, dt, eventQueue, schedule.activity);
             // If walking just completed (activity changed), assign sub-activity
             if (prevActivity === 'walking' && colonist.activity !== 'walking') {
-                assignSubActivity(colonist, sim);
+                assignSubActivity(colonist, sim, world);
             }
         }
 
@@ -402,7 +442,41 @@ export function updateColonists(
             colonist.subActivityTimer -= dt;
             colonist.subActivityPhase += dt;
             if (colonist.subActivityTimer <= 0) {
-                assignSubActivity(colonist, sim);
+                assignSubActivity(colonist, sim, world);
+            }
+        }
+
+        // --- Greeting detection ---
+        if (colonist.greetingTimer > 0) {
+            colonist.greetingTimer -= dt;
+            if (colonist.greetingTimer <= 0) {
+                colonist.greetingTargetId = null;
+            }
+        } else if (colonist.activity === 'walking' && world) {
+            // Check if walking near a friend
+            const crewEntity = world.getEntity(colonist.entityId);
+            const crew = crewEntity?.getComponent(CrewMemberComponent);
+            if (crew) {
+                for (const rel of crew.relationships) {
+                    if (rel.type !== 'Close Bond' && rel.type !== 'Romantic') continue;
+                    const other = sim.colonistStates.get(rel.targetId);
+                    if (!other || other.sheltered) continue;
+                    const dx = other.gridX - colonist.gridX;
+                    const dy = other.gridY - colonist.gridY;
+                    if (Math.abs(dx) + Math.abs(dy) <= 1.5) {
+                        colonist.greetingTimer = 0.5;
+                        colonist.greetingTargetId = rel.targetId;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // --- Thought bubble timer ---
+        if (colonist.thoughtTimer > 0) {
+            colonist.thoughtTimer -= dt;
+            if (colonist.thoughtTimer <= 0) {
+                colonist.thoughtBubble = null;
             }
         }
     }

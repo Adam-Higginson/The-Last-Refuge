@@ -1,10 +1,13 @@
 // ColonistLocationResolver.ts — Location resolution and spatial spreading for colonists.
 // Extracted from ColonistManager.ts for module separation.
+// Phase B: relationship-aware spreading (friends cluster, rivals separate).
 
+import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import type { ColonySimulationComponent } from '../components/ColonySimulationComponent';
 import type { ColonyGrid } from './ColonyGrid';
 import type { CrewRole } from '../components/CrewMemberComponent';
 import type { BuildingInstance } from '../data/buildings';
+import type { World } from '../core/World';
 
 export interface ResolvedLocation {
     gridX: number;
@@ -36,6 +39,97 @@ export function spreadAroundCell(
     return walkable[entityId % walkable.length];
 }
 
+/**
+ * Relationship-aware spreading: bias cell selection toward friends/partners,
+ * away from rivals. Returns a cell near `targetX/Y` that accounts for relationships.
+ */
+function spreadWithRelationships(
+    grid: ColonyGrid,
+    targetX: number, targetY: number,
+    entityId: number,
+    sim: ColonySimulationComponent,
+    world: World,
+): { gridX: number; gridY: number } {
+    const walkable: { gridX: number; gridY: number }[] = [];
+    for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+            if (Math.abs(dx) + Math.abs(dy) > 2) continue;
+            const gx = targetX + dx;
+            const gy = targetY + dy;
+            const cell = grid.getCell(gx, gy);
+            if (cell && (cell.type === 'empty' || cell.type === 'path' || cell.type === 'door')) {
+                walkable.push({ gridX: gx, gridY: gy });
+            }
+        }
+    }
+    if (walkable.length === 0) return { gridX: targetX, gridY: targetY };
+
+    const entity = world.getEntity(entityId);
+    const crew = entity?.getComponent(CrewMemberComponent);
+    if (!crew || crew.relationships.length === 0) {
+        return walkable[entityId % walkable.length];
+    }
+
+    // Score each walkable cell based on proximity to friends/partners and distance from rivals
+    const scores = walkable.map(cell => {
+        let score = 0;
+        for (const rel of crew.relationships) {
+            const other = sim.colonistStates.get(rel.targetId);
+            if (!other) continue;
+            const dist = Math.abs(cell.gridX - other.gridX) + Math.abs(cell.gridY - other.gridY);
+            if (rel.type === 'Romantic' || rel.type === 'Close Bond') {
+                // Prefer closer to friends/partners
+                score -= dist * 2;
+            } else if (rel.type === 'Mentor/Protege') {
+                score -= dist;
+            } else if (rel.type === 'Rival' || rel.type === 'Estranged') {
+                // Prefer farther from rivals
+                score += dist * 1.5;
+            }
+        }
+        return score;
+    });
+
+    // Pick the highest-scoring cell (deterministic tiebreak by entityId)
+    let bestIdx = 0;
+    let bestScore = scores[0];
+    for (let i = 1; i < scores.length; i++) {
+        if (scores[i] > bestScore || (scores[i] === bestScore && (i % (entityId + 1)) < (bestIdx % (entityId + 1)))) {
+            bestScore = scores[i];
+            bestIdx = i;
+        }
+    }
+    return walkable[bestIdx];
+}
+
+/**
+ * Empathetic trait: find the cell adjacent to the lowest-morale colonist at the social area.
+ */
+function findLowestMoraleNeighbor(
+    sim: ColonySimulationComponent,
+    entityId: number,
+    world: World,
+): { gridX: number; gridY: number } | null {
+    let lowestMorale = Infinity;
+    let lowestState: { gridX: number; gridY: number } | null = null;
+
+    for (const [id, state] of sim.colonistStates) {
+        if (id === entityId) continue;
+        if (state.activity !== 'socializing' && state.activity !== 'idle') continue;
+        const entity = world.getEntity(id);
+        const crew = entity?.getComponent(CrewMemberComponent);
+        if (!crew) continue;
+        if (crew.morale < lowestMorale) {
+            lowestMorale = crew.morale;
+            lowestState = { gridX: state.gridX, gridY: state.gridY };
+        }
+    }
+
+    if (!lowestState) return null;
+    // Spread to a guaranteed-walkable cell adjacent to the lowest-morale colonist
+    return spreadAroundCell(sim.grid, lowestState.gridX, lowestState.gridY, entityId);
+}
+
 const ROLE_BUILDINGS: Record<string, string[]> = {
     Civilian: ['farm', 'hydroponics_bay'],
     Engineer: ['solar_array', 'workshop', 'hydroponics_bay'],
@@ -51,9 +145,32 @@ export function resolveLocation(
     role: CrewRole,
     buildings: BuildingInstance[],
     entityId: number,
+    world?: World,
 ): ResolvedLocation | null {
     if (location === 'social_area') {
         if (!sim.campfireCell) return null;
+
+        // Empathetic trait: seek lowest-morale colonist
+        if (world) {
+            const entity = world.getEntity(entityId);
+            const crew = entity?.getComponent(CrewMemberComponent);
+            if (crew && crew.traits.includes('Empathetic')) {
+                const target = findLowestMoraleNeighbor(sim, entityId, world);
+                if (target) {
+                    const cell = sim.grid.getCell(target.gridX, target.gridY);
+                    if (cell && (cell.type === 'empty' || cell.type === 'path' || cell.type === 'door')) {
+                        return { ...target, buildingSlot: null, buildingTypeId: null };
+                    }
+                }
+            }
+        }
+
+        // Relationship-aware spreading at social area
+        if (world) {
+            const spread = spreadWithRelationships(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId, sim, world);
+            return { ...spread, buildingSlot: null, buildingTypeId: null };
+        }
+
         const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId);
         return { ...spread, buildingSlot: null, buildingTypeId: null };
     }
@@ -86,6 +203,11 @@ export function resolveLocation(
             // Spread around building door for variety (door is always on a walkable cell)
             const door = sim.grid.getDoors().find(d => d.slotIndex === building.slotIndex);
             if (door) {
+                // Mentor/protege: spread protege near mentor if they share a building
+                if (world) {
+                    const spread = spreadWithRelationships(sim.grid, door.gridX, door.gridY, entityId, sim, world);
+                    return { ...spread, buildingSlot: building.slotIndex, buildingTypeId: building.typeId };
+                }
                 const spread = spreadAroundCell(sim.grid, door.gridX, door.gridY, entityId);
                 return { ...spread, buildingSlot: building.slotIndex, buildingTypeId: building.typeId };
             }
