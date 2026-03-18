@@ -199,6 +199,8 @@ export interface BuildingStartedEvent extends GameEvent {
 
 export interface BuildingCompletedEvent extends GameEvent {
     type: typeof GameEvents.BUILDING_COMPLETED;
+    /** Which building type completed construction. */
+    buildingId: string;
 }
 
 export interface BuildingDemolishedEvent extends GameEvent {

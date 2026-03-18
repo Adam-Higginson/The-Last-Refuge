@@ -87,3 +87,34 @@
 .resource-item:active .resource-tooltip {
     display: block;
 }
+
+/* Icon pulse animation for negative net rate */
+@keyframes pulse-warning {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 0.3; }
+}
+
+.pulse-warning {
+    animation: pulse-warning 1.2s ease-in-out infinite;
+    color: #ef5350 !important;
+}
+
+/* Trend arrow */
+.resource-trend {
+    font-size: 11px;
+    margin-left: 2px;
+}
+
+.resource-trend--up { color: #66bb6a; }
+.resource-trend--down { color: #ef5350; }
+.resource-trend--neutral { color: rgba(192, 200, 216, 0.3); }
+
+/* Building completion flash */
+@keyframes build-flash {
+    0% { background: rgba(102, 187, 106, 0.3); }
+    100% { background: transparent; }
+}
+
+.build-flash {
+    animation: build-flash 1s ease-out;
+}

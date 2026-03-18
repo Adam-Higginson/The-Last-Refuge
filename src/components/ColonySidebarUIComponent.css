@@ -87,6 +87,7 @@
 
 .colony-sidebar-stat-value.positive { color: #66bb6a; }
 .colony-sidebar-stat-value.negative { color: #ef5350; }
+.colony-sidebar-stat-value.deficit-warning { color: #ef5350; font-weight: bold; }
 
 .colony-sidebar-section-title {
     font-size: 10px;
