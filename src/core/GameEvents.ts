@@ -75,8 +75,8 @@ export const GameEvents = {
     SCOUT_DESTROYED: 'scout:destroyed',
     /** A scout ship docked with the main ship. */
     SCOUT_DOCKED: 'scout:docked',
-    /** A shift+right-click occurred (waypoint queue). Carries world coordinates. */
-    SHIFT_RIGHT_CLICK: 'input:shift-right-click',
+    /** A ctrl+right-click occurred (waypoint queue). Carries world coordinates. */
+    MODIFIER_RIGHT_CLICK: 'input:modifier-right-click',
     /** Extiris detected a scout within sensor radius. */
     EXTIRIS_DETECTED_SCOUT: 'extiris:detected:scout',
 } as const;
@@ -268,8 +268,8 @@ export interface ScoutDockedEvent extends GameEvent {
     scoutEntityId: number;
 }
 
-export interface ShiftRightClickEvent extends GameEvent {
-    type: typeof GameEvents.SHIFT_RIGHT_CLICK;
+export interface ModifierRightClickEvent extends GameEvent {
+    type: typeof GameEvents.MODIFIER_RIGHT_CLICK;
     x: number;
     y: number;
 }

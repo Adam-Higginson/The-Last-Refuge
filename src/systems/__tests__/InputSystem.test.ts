@@ -96,8 +96,9 @@ describe('InputSystem', () => {
         fireCanvas('click', {} as Partial<MouseEvent>);
     }
 
-    /** Simulate a right-click (contextmenu event). */
-    function simulateRightClick(x: number, y: number): void {
+    /** Simulate a right-click (mousedown button 2 + contextmenu). */
+    function simulateRightClick(x: number, y: number, ctrlKey = false): void {
+        fireCanvas('mousedown', { button: 2, clientX: x, clientY: y, ctrlKey } as Partial<MouseEvent>);
         fireCanvas('contextmenu', { clientX: x, clientY: y, preventDefault: vi.fn() } as unknown as Partial<MouseEvent>);
     }
 
