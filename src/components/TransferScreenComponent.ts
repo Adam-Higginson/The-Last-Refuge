@@ -30,6 +30,7 @@ import {
 import type { CrewLocation, CrewRole } from './CrewMemberComponent';
 import type { EventQueue } from '../core/EventQueue';
 import type { World } from '../core/World';
+import type { ConfirmModal } from '../ui/ConfirmModal';
 import type { Entity } from '../core/Entity';
 
 export class TransferScreenComponent extends Component {
@@ -40,22 +41,18 @@ export class TransferScreenComponent extends Component {
     private viewingLocation: CrewLocation = { type: 'ship' };
     private detailCrewId: number | null = null;
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
-    private requireMinCrew = false;
-    private requireMinCrewLocation: CrewLocation | null = null;
 
     init(): void {
         this.container = document.getElementById('transfer-screen');
     }
 
     /** Open the transfer screen, optionally pre-set to a specific location. */
-    open(location?: CrewLocation, options?: { requireMinCrew?: boolean }): void {
+    open(location?: CrewLocation): void {
         if (!this.container) return;
         this.isOpen = true;
         this.selectedCrewIds.clear();
         this.viewingLocation = location ?? { type: 'ship' };
         this.detailCrewId = null;
-        this.requireMinCrew = options?.requireMinCrew ?? false;
-        this.requireMinCrewLocation = this.requireMinCrew ? { ...this.viewingLocation } : null;
         this.rebuild();
         this.container.classList.add('open');
 
@@ -76,23 +73,7 @@ export class TransferScreenComponent extends Component {
     /** Close the transfer screen. */
     close(): void {
         if (!this.container) return;
-
-        // Block closing if the colony needs at least 1 crew member
-        if (this.requireMinCrew && this.requireMinCrewLocation) {
-            const world = ServiceLocator.get<World>('world');
-            const loc = this.requireMinCrewLocation;
-            const crewAtColony = loc.type === 'colony'
-                ? getCrewAtColony(world, loc.planetEntityId, loc.regionId)
-                : getCrewAtShip(world);
-            if (crewAtColony.length === 0) {
-                this.rebuild();
-                return;
-            }
-        }
-
         this.isOpen = false;
-        this.requireMinCrew = false;
-        this.requireMinCrewLocation = null;
         this.container.classList.remove('open');
         if (this.onKeyDown) {
             window.removeEventListener('keydown', this.onKeyDown);
@@ -103,6 +84,13 @@ export class TransferScreenComponent extends Component {
     /** Full rebuild of the transfer screen HTML. */
     private rebuild(): void {
         if (!this.container) return;
+
+        // Save scroll positions before rebuild
+        const rosterList = this.container.querySelector('.roster-list');
+        const locationsPanel = this.container.querySelector('.transfer-locations');
+        const rosterScroll = rosterList?.scrollTop ?? 0;
+        const locationsScroll = locationsPanel?.scrollTop ?? 0;
+
         const world = ServiceLocator.get<World>('world');
 
         const hasSelection = this.selectedCrewIds.size > 0;
@@ -133,12 +121,10 @@ export class TransferScreenComponent extends Component {
                 ${this.detailCrewId !== null ? this.buildDetailPanel(world) : ''}
             </div>
             <div class="transfer-bar ${hasSelection ? 'has-selection' : ''}">
-                <div class="transfer-info ${hasSelection || this.showMinCrewWarning(world) ? 'active' : ''}">
+                <div class="transfer-info ${hasSelection ? 'active' : ''}">
                     ${hasSelection
                         ? `${this.selectedCrewIds.size} crew selected — tap a destination to transfer`
-                        : this.showMinCrewWarning(world)
-                            ? 'Transfer at least 1 crew member to your new colony'
-                            : 'Select crew members to transfer'}
+                        : 'Select crew members to transfer'}
                 </div>
                 <div class="transfer-actions">
                     ${hasSelection ? '<button class="transfer-btn cancel-btn" id="transfer-clear">CLEAR</button>' : ''}
@@ -147,6 +133,12 @@ export class TransferScreenComponent extends Component {
         `;
 
         this.wireEvents(world);
+
+        // Restore scroll positions after rebuild
+        const newRosterList = this.container.querySelector('.roster-list');
+        const newLocationsPanel = this.container.querySelector('.transfer-locations');
+        if (newRosterList) newRosterList.scrollTop = rosterScroll;
+        if (newLocationsPanel) newLocationsPanel.scrollTop = locationsScroll;
     }
 
     private buildLocationCards(world: World): string {
@@ -397,7 +389,9 @@ export class TransferScreenComponent extends Component {
         `;
     }
 
-    private transferSelected(destination: CrewLocation, world: World): void {
+    private async transferSelected(destination: CrewLocation, world: World): Promise<void> {
+        const modal = ServiceLocator.get<ConfirmModal>('confirmModal');
+
         // Check if transferring FROM the ship would violate minimums
         if (this.viewingLocation.type === 'ship' && destination.type === 'colony') {
             const minimums = checkShipMinimums(world);
@@ -415,8 +409,13 @@ export class TransferScreenComponent extends Component {
             }
 
             if (warnings.length > 0) {
-                const proceed = confirm(`WARNING:\n${warnings.join('\n')}\n\nProceed with transfer?`);
+                const proceed = await modal.show({
+                    title: 'WARNING',
+                    body: `${warnings.join('\n')}\n\nProceed with transfer?`,
+                    danger: true,
+                });
                 if (!proceed) return;
+                if (!this.container) return;
             }
         }
 
@@ -433,8 +432,13 @@ export class TransferScreenComponent extends Component {
             }
         }
         if (leaderWarnings.length > 0) {
-            const proceed = confirm(`WARNING:\n${leaderWarnings.join('\n')}\n\nProceed with transfer?`);
+            const proceed = await modal.show({
+                title: 'WARNING',
+                body: `${leaderWarnings.join('\n')}\n\nProceed with transfer?`,
+                danger: true,
+            });
             if (!proceed) return;
+            if (!this.container) return;
         }
 
         const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
@@ -460,12 +464,7 @@ export class TransferScreenComponent extends Component {
         }
 
         if (count > 0) {
-            eventQueue.emit({
-                type: GameEvents.CREW_TRANSFERRED,
-                count,
-                destination,
-                source: this.viewingLocation,
-            });
+            eventQueue.emit({ type: GameEvents.CREW_TRANSFERRED, count });
         }
 
         this.selectedCrewIds.clear();
@@ -499,15 +498,6 @@ export class TransferScreenComponent extends Component {
             return getCrewAtScout(world, this.viewingLocation.scoutEntityId);
         }
         return [];
-    }
-
-    private showMinCrewWarning(world: World): boolean {
-        if (!this.requireMinCrew || !this.requireMinCrewLocation) return false;
-        const loc = this.requireMinCrewLocation;
-        const crew = loc.type === 'colony'
-            ? getCrewAtColony(world, loc.planetEntityId, loc.regionId)
-            : getCrewAtShip(world);
-        return crew.length === 0;
     }
 
     private isViewingThis(loc: CrewLocation): boolean {

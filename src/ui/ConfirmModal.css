@@ -1,0 +1,83 @@
+/* ConfirmModal — reusable confirmation dialog, matches colonise modal aesthetic */
+
+.confirm-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 4, 10, 0.8);
+    z-index: 60;
+}
+
+.confirm-modal-backdrop.open {
+    display: flex;
+}
+
+.confirm-modal-box {
+    background: rgba(3, 4, 10, 0.95);
+    border: 1px solid rgba(79, 168, 255, 0.3);
+    padding: 32px 40px;
+    max-width: min(420px, 90vw);
+    text-align: center;
+}
+
+.confirm-modal-title {
+    font-size: 14px;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+}
+
+.confirm-modal-body {
+    font-size: 12px;
+    opacity: 0.7;
+    line-height: 1.7;
+    margin-bottom: 24px;
+    white-space: pre-line;
+}
+
+.confirm-modal-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+}
+
+.confirm-modal-btn {
+    background: transparent;
+    border: 1px solid rgba(79, 168, 255, 0.4);
+    color: #4fa8ff;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px 24px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.confirm-modal-btn:hover {
+    border-color: #4fa8ff;
+    color: #ffffff;
+}
+
+.confirm-modal-btn.confirm {
+    border-color: #d4a020;
+    color: #d4a020;
+}
+
+.confirm-modal-btn.confirm:hover {
+    background: rgba(212, 160, 32, 0.15);
+    color: #ffffff;
+}
+
+.confirm-modal-btn.confirm.danger {
+    border-color: #e05050;
+    color: #e05050;
+}
+
+.confirm-modal-btn.confirm.danger:hover {
+    background: rgba(224, 80, 80, 0.15);
+    color: #ffffff;
+}

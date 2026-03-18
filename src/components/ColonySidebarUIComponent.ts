@@ -15,8 +15,10 @@ import { ResourceComponent } from './ResourceComponent';
 import { TransferScreenComponent } from './TransferScreenComponent';
 import { getBuildingType } from '../data/buildings';
 import { getCrewAtColony } from '../utils/crewUtils';
-import type { EventQueue } from '../core/EventQueue';
+import type { ResourceDeficitEvent } from '../core/GameEvents';
+import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { World } from '../core/World';
+import type { ResourceType } from '../data/resources';
 
 export class ColonySidebarUIComponent extends Component {
     private eventQueue: EventQueue | null = null;
@@ -34,6 +36,10 @@ export class ColonySidebarUIComponent extends Component {
     private buildingsTitleEl: HTMLElement | null = null;
     private buildingsListEl: HTMLElement | null = null;
     private activeRegionId: number | null = null;
+    private deficitHandler: EventHandler | null = null;
+    private turnEndHandler: EventHandler | null = null;
+    /** Resources currently in deficit this turn. */
+    private deficitResources: Set<ResourceType> = new Set();
 
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
@@ -91,6 +97,18 @@ export class ColonySidebarUIComponent extends Component {
         this.panel.querySelector('#colony-sidebar-back')?.addEventListener('click', () => {
             this.eventQueue?.emit({ type: GameEvents.COLONY_VIEW_EXIT });
         });
+
+        // Subscribe to deficit events
+        this.deficitHandler = (event): void => {
+            const e = event as ResourceDeficitEvent;
+            this.deficitResources.add(e.resource as ResourceType);
+        };
+        this.eventQueue.on(GameEvents.RESOURCE_DEFICIT, this.deficitHandler);
+
+        this.turnEndHandler = (): void => {
+            this.deficitResources.clear();
+        };
+        this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
     }
 
     update(_dt: number): void {
@@ -133,9 +151,9 @@ export class ColonySidebarUIComponent extends Component {
         const energyRate = resources ? resources.getNetRate('energy') : 0;
         const matRate = resources ? resources.getNetRate('materials') : 0;
 
-        this.updateRate(this.foodEl, foodRate);
-        this.updateRate(this.energyEl, energyRate);
-        this.updateRate(this.matEl, matRate);
+        this.updateRate(this.foodEl, foodRate, 'food');
+        this.updateRate(this.energyEl, energyRate, 'energy');
+        this.updateRate(this.matEl, matRate, 'materials');
 
         if (this.buildingsTitleEl) {
             this.buildingsTitleEl.textContent = `Buildings (${region.buildings.length}/${region.buildingSlots})`;
@@ -166,13 +184,20 @@ export class ColonySidebarUIComponent extends Component {
         }
     }
 
-    private updateRate(el: HTMLElement | null, rate: number): void {
+    private updateRate(el: HTMLElement | null, rate: number, resource?: ResourceType): void {
         if (!el) return;
+        const inDeficit = resource ? this.deficitResources.has(resource) : false;
+        const prefix = inDeficit ? '\u26A0 ' : '';
         const sign = rate >= 0 ? '+' : '';
-        el.textContent = `${sign}${rate.toFixed(1)}`;
+        el.textContent = `${prefix}${sign}${rate.toFixed(1)}`;
         el.className = 'colony-sidebar-stat-value';
-        if (rate > 0) el.classList.add('positive');
-        else if (rate < 0) el.classList.add('negative');
+        if (inDeficit) {
+            el.classList.add('deficit-warning');
+        } else if (rate > 0) {
+            el.classList.add('positive');
+        } else if (rate < 0) {
+            el.classList.add('negative');
+        }
     }
 
     private openRoster(regionId: number): void {
@@ -189,6 +214,12 @@ export class ColonySidebarUIComponent extends Component {
     }
 
     destroy(): void {
+        if (this.eventQueue && this.deficitHandler) {
+            this.eventQueue.off(GameEvents.RESOURCE_DEFICIT, this.deficitHandler);
+        }
+        if (this.eventQueue && this.turnEndHandler) {
+            this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
+        }
         if (this.panel) {
             this.panel.classList.remove('open');
             this.panel.innerHTML = '';

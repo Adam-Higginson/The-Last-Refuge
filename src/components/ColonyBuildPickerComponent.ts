@@ -17,6 +17,7 @@ import { gridToScreen, getGridCentre } from '../rendering/isometric';
 import { getAvailableBuildings, getBuildingType } from '../data/buildings';
 import { getColonyLocations } from '../utils/crewUtils';
 import type { BuildingId } from '../data/buildings';
+import type { ConfirmModal } from '../ui/ConfirmModal';
 import type { World } from '../core/World';
 
 export class ColonyBuildPickerComponent extends Component {
@@ -172,9 +173,15 @@ export class ColonyBuildPickerComponent extends Component {
             this.closePicker();
         });
 
-        this.picker.querySelector('#build-picker-demolish')?.addEventListener('click', () => {
-            const proceed = confirm(`Demolish ${bt.name}?`);
+        this.picker.querySelector('#build-picker-demolish')?.addEventListener('click', async () => {
+            const modal = ServiceLocator.get<ConfirmModal>('confirmModal');
+            const proceed = await modal.show({
+                title: 'DEMOLISH BUILDING',
+                body: `Demolish ${bt.name}?`,
+                danger: true,
+            });
             if (!proceed) return;
+            if (!this.entity) return;
             const buildingComp = this.entity.getComponent(ColonyBuildingComponent);
             if (buildingComp) {
                 buildingComp.demolish(regionId, building.slotIndex);
@@ -183,10 +190,15 @@ export class ColonyBuildPickerComponent extends Component {
         });
     }
 
-    private confirmBuild(buildingId: BuildingId, regionId: number): void {
+    private async confirmBuild(buildingId: BuildingId, regionId: number): Promise<void> {
         const bt = getBuildingType(buildingId);
-        const proceed = confirm(`Build ${bt.name}?\n\nCost: ${bt.materialCost} Materials\nTime: ${bt.buildTime} turn(s)\n${bt.energyPerTurn > 0 ? `Energy: -${bt.energyPerTurn}/turn\n` : ''}${bt.description}`);
+        const modal = ServiceLocator.get<ConfirmModal>('confirmModal');
+        const proceed = await modal.show({
+            title: 'BUILD',
+            body: `Build ${bt.name}?\n\nCost: ${bt.materialCost} Materials\nTime: ${bt.buildTime} turn(s)\n${bt.energyPerTurn > 0 ? `Energy: -${bt.energyPerTurn}/turn\n` : ''}${bt.description}`,
+        });
         if (!proceed) return;
+        if (!this.entity) return;
 
         const buildingComp = this.entity.getComponent(ColonyBuildingComponent);
         if (buildingComp) {

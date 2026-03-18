@@ -3,7 +3,7 @@
 // Typos become compile errors, and all event documentation lives here.
 
 import type { GameEvent } from './EventQueue';
-import type { CrewLocation } from '../components/CrewMemberComponent';
+
 
 // ---------------------------------------------------------------------------
 // Event type constants
@@ -179,10 +179,6 @@ export interface CrewTransferredEvent extends GameEvent {
     type: typeof GameEvents.CREW_TRANSFERRED;
     /** Number of crew transferred. */
     count: number;
-    /** Where crew were transferred to. */
-    destination?: CrewLocation;
-    /** Where crew were transferred from. */
-    source?: CrewLocation;
 }
 
 export interface LeaderAppointedEvent extends GameEvent {
@@ -207,6 +203,8 @@ export interface BuildingStartedEvent extends GameEvent {
 
 export interface BuildingCompletedEvent extends GameEvent {
     type: typeof GameEvents.BUILDING_COMPLETED;
+    /** Which building type completed construction. */
+    buildingId: string;
 }
 
 export interface BuildingDemolishedEvent extends GameEvent {

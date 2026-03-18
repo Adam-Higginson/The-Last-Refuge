@@ -28,6 +28,7 @@ import { CameraComponent } from './components/CameraComponent';
 import { CrewMemberComponent } from './components/CrewMemberComponent';
 import { TransformComponent } from './components/TransformComponent';
 import { AIService } from './services/AIService';
+import { ConfirmModal } from './ui/ConfirmModal';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -53,6 +54,9 @@ function boot(): void {
     // Register AI service (configure API key later via settings UI)
     const aiService = new AIService();
     ServiceLocator.register('aiService', aiService);
+
+    // Register confirmation modal service
+    ServiceLocator.register('confirmModal', new ConfirmModal());
 
     // Load API key: localStorage override > build-time env > no key (deterministic)
     try {

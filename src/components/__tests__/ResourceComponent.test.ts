@@ -59,8 +59,8 @@ describe('ResourceComponent', () => {
     });
 
     it('getNetRate includes population food consumption', () => {
-        // Create 10 crew
-        for (let i = 0; i < 10; i++) {
+        // Create 50 crew — 50 × 0.2 = 10 food/turn consumption
+        for (let i = 0; i < 50; i++) {
             const crew = world.createEntity(`crew${i}`);
             crew.addComponent(new CrewMemberComponent(
                 `Person ${i}`, 30, 'Civilian', 50, ['Quiet', 'Hopeful'], 'Test backstory',
@@ -69,7 +69,7 @@ describe('ResourceComponent', () => {
 
         const netFood = res.getNetRate('food');
         // No food modifiers, minus population consumption
-        expect(netFood).toBe(-10 * FOOD_PER_PERSON);
+        expect(netFood).toBe(-50 * FOOD_PER_PERSON);
     });
 
     it('ship reactor provides baseline energy', () => {
@@ -113,8 +113,8 @@ describe('ResourceComponent', () => {
 
     it('clamps to 0 and emits RESOURCE_DEFICIT when food goes negative', () => {
         res.resources.food.current = 2;
-        // Create 10 crew — will consume 10 food, deficit of 8
-        for (let i = 0; i < 10; i++) {
+        // Create 50 crew — will consume 50 × 0.2 = 10 food, deficit of 8
+        for (let i = 0; i < 50; i++) {
             const crew = world.createEntity(`crew${i}`);
             crew.addComponent(new CrewMemberComponent(
                 `Person ${i}`, 30, 'Civilian', 50, ['Quiet', 'Hopeful'], 'Test backstory',
@@ -158,7 +158,7 @@ describe('ResourceComponent', () => {
 
     it('deduct reduces resource and returns true', () => {
         expect(res.deduct('materials', 20)).toBe(true);
-        expect(res.resources.materials.current).toBe(30);
+        expect(res.resources.materials.current).toBe(RESOURCE_CONFIGS.materials.startingAmount - 20);
     });
 
     it('deduct returns false and does not reduce when insufficient', () => {

@@ -139,7 +139,7 @@ export class ColonyBuildingComponent extends Component {
                         building.turnsRemaining = 0;
                         building.state = 'active';
                         this.activateBuilding(building, region.id, world);
-                        this.eventQueue?.emit({ type: GameEvents.BUILDING_COMPLETED });
+                        this.eventQueue?.emit({ type: GameEvents.BUILDING_COMPLETED, buildingId: building.typeId });
                     }
                 }
 

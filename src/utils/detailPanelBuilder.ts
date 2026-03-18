@@ -15,6 +15,7 @@ import {
 } from './leaderUtils';
 import { GameEvents } from '../core/GameEvents';
 import { ServiceLocator } from '../core/ServiceLocator';
+import type { ConfirmModal } from '../ui/ConfirmModal';
 import type { EventQueue } from '../core/EventQueue';
 import type { World } from '../core/World';
 
@@ -161,7 +162,7 @@ export function wireDetailEvents(
 
     // Appoint button
     const appointBtn = container.querySelector('.detail-appoint-btn') as HTMLElement | null;
-    appointBtn?.addEventListener('click', () => {
+    appointBtn?.addEventListener('click', async () => {
         const crewEntityId = Number(appointBtn.dataset.entityId);
         if (!crewEntityId) return;
 
@@ -173,9 +174,7 @@ export function wireDetailEvents(
         const roleLabel = isShip ? 'Captain' : 'Colony Leader';
         const newBonuses = getLeaderBonusLines(crew.role, crew.traits);
 
-        const msgLines: string[] = [];
-        msgLines.push(`APPOINT ${crew.fullName.toUpperCase()} AS ${roleLabel.toUpperCase()}?`);
-        msgLines.push('');
+        const bodyLines: string[] = [];
 
         let currentHolder: CrewMemberComponent | null = null;
         if (isShip) {
@@ -187,21 +186,28 @@ export function wireDetailEvents(
         }
 
         if (currentHolder) {
-            msgLines.push(`Replaces: ${currentHolder.fullName}`);
-            msgLines.push('');
+            bodyLines.push(`Replaces: ${currentHolder.fullName}`);
+            bodyLines.push('');
             const oldBonuses = getLeaderBonusLines(currentHolder.role, currentHolder.traits);
             for (const b of oldBonuses) {
-                msgLines.push(`  \u2717 Loses: ${b.text}`);
+                bodyLines.push(`  \u2717 Loses: ${b.text}`);
             }
-            msgLines.push('');
+            bodyLines.push('');
         }
 
         for (const b of newBonuses) {
-            msgLines.push(`  \u2713 Gains: ${b.text}`);
+            bodyLines.push(`  \u2713 Gains: ${b.text}`);
         }
 
-        const proceed = confirm(msgLines.join('\n'));
+        const modal = ServiceLocator.get<ConfirmModal>('confirmModal');
+        const proceed = await modal.show({
+            title: `APPOINT ${crew.fullName.toUpperCase()} AS ${roleLabel.toUpperCase()}?`,
+            body: bodyLines.join('\n'),
+        });
         if (!proceed) return;
+
+        // Guard: entity may have been removed during await
+        if (!world.getEntity(crewEntityId)) return;
 
         const eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
 

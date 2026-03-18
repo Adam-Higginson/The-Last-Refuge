@@ -7,6 +7,7 @@ import { DateUIComponent } from '../components/DateUIComponent';
 import { ResourceBarUIComponent } from '../components/ResourceBarUIComponent';
 import { TransferScreenComponent } from '../components/TransferScreenComponent';
 import { RelationshipGraphComponent } from '../components/RelationshipGraphComponent';
+import { ResourceDeficitUIComponent } from '../components/ResourceDeficitUIComponent';
 import { ScoutDeathUIComponent } from '../components/ScoutDeathUIComponent';
 import { FleetSidebarComponent } from '../components/FleetSidebarComponent';
 import { ScoutInfoUIComponent } from '../components/ScoutInfoUIComponent';
@@ -20,6 +21,7 @@ export function createHUD(world: World): Entity {
     entity.addComponent(new ResourceBarUIComponent());
     entity.addComponent(new TransferScreenComponent());
     entity.addComponent(new RelationshipGraphComponent());
+    entity.addComponent(new ResourceDeficitUIComponent());
     entity.addComponent(new ScoutDeathUIComponent());
     entity.addComponent(new FleetSidebarComponent());
     entity.addComponent(new ScoutInfoUIComponent());
