@@ -159,12 +159,33 @@ export class ColonyBuildPickerComponent extends Component {
             : building.state.toUpperCase();
         const statusClass = building.state === 'active' ? 'colony-sidebar-building-status--active' : 'colony-sidebar-building-status--constructing';
 
+        // Find workers assigned to this building
+        const sim = this.entity.getComponent(ColonySimulationComponent);
+        const workers: { name: string; role: string; activity: string }[] = [];
+        if (sim) {
+            for (const [_id, colonist] of sim.colonistStates) {
+                if (colonist.assignedBuildingSlot === building.slotIndex) {
+                    workers.push({ name: colonist.name, role: colonist.role, activity: colonist.activity });
+                }
+            }
+        }
+
+        const workersHTML = workers.length > 0
+            ? `<div class="build-picker-workers">
+                <div class="build-picker-workers-title">ASSIGNED CREW (${workers.length})</div>
+                ${workers.map(w => `<div class="build-picker-worker"><span class="build-picker-worker-name">${w.name}</span> <span class="build-picker-worker-role">${w.role}</span></div>`).join('')}
+            </div>`
+            : building.state === 'active'
+                ? '<div class="build-picker-workers"><div class="build-picker-workers-title">NO ASSIGNED CREW</div></div>'
+                : '';
+
         this.picker.innerHTML = `
             <button class="build-picker-close" id="build-picker-close">&times;</button>
             <div class="build-picker-info">
                 <div class="build-picker-info-name">${bt.name}</div>
                 <div class="build-picker-info-desc">${bt.description}</div>
                 <div class="build-picker-info-status ${statusClass}">${statusLabel}</div>
+                ${workersHTML}
                 ${building.state !== 'constructing' ? `<button class="build-picker-demolish" id="build-picker-demolish">DEMOLISH</button>` : ''}
             </div>
         `;
