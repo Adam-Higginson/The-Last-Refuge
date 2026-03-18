@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CREW_MANIFEST, RELATIONSHIP_MANIFEST } from '../crewManifest';
 import type { CrewRole, Trait, RelationshipType } from '../../components/CrewMemberComponent';
 
-const VALID_ROLES: CrewRole[] = ['Engineer', 'Soldier', 'Medic', 'Scientist', 'Civilian'];
+const VALID_ROLES: CrewRole[] = ['Engineer', 'Soldier', 'Medic', 'Scientist', 'Civilian', 'Pilot'];
 const VALID_TRAITS: Trait[] = [
     'Stubborn', 'Empathetic', 'Reckless', 'Analytical',
     'Protective', 'Haunted', 'Resourceful', 'Quiet',
@@ -13,8 +13,8 @@ const VALID_REL_TYPES: RelationshipType[] = [
 ];
 
 describe('CREW_MANIFEST', () => {
-    it('has exactly 50 crew members', () => {
-        expect(CREW_MANIFEST).toHaveLength(50);
+    it('has exactly 53 crew members', () => {
+        expect(CREW_MANIFEST).toHaveLength(53);
     });
 
     it('all names are unique', () => {
@@ -32,6 +32,7 @@ describe('CREW_MANIFEST', () => {
         expect(counts.Medic).toBe(5);
         expect(counts.Scientist).toBe(5);
         expect(counts.Civilian).toBe(22);
+        expect(counts.Pilot).toBe(3);
     });
 
     it('all roles are valid', () => {

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { LEADER_ROLE_BONUSES, LEADER_TRAIT_BONUSES, getLeaderBonusLines } from '../leaderBonuses';
 
 describe('leaderBonuses', () => {
-    it('all 5 roles have bonus definitions', () => {
-        expect(Object.keys(LEADER_ROLE_BONUSES)).toHaveLength(5);
+    it('all 6 roles have bonus definitions', () => {
+        expect(Object.keys(LEADER_ROLE_BONUSES)).toHaveLength(6);
     });
 
     it('all role bonuses have at least one effect', () => {

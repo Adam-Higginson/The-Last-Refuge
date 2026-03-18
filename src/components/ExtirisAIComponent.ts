@@ -9,6 +9,7 @@ import { GameEvents } from '../core/GameEvents';
 import { TransformComponent } from './TransformComponent';
 import { ExtirisMovementComponent } from './ExtirisMovementComponent';
 import { PlanetDataComponent } from './PlanetDataComponent';
+import { ScoutDataComponent } from './ScoutDataComponent';
 
 import {
     EXTIRIS_SENSOR_RADIUS,
@@ -231,9 +232,11 @@ export class ExtirisAIComponent extends Component {
             if (distance > this.sensorRadius) continue;
 
             // Determine entity type
-            let type: 'planet' | 'ship' | 'star' | null = null;
+            let type: 'planet' | 'ship' | 'star' | 'scout' | null = null;
             if (entity.name === 'arkSalvage') {
                 type = 'ship';
+            } else if (entity.hasComponent(ScoutDataComponent)) {
+                type = 'scout';
             } else if (entity.hasComponent(PlanetDataComponent)) {
                 type = 'planet';
             } else if (entity.name === 'star') {
@@ -259,6 +262,15 @@ export class ExtirisAIComponent extends Component {
                     turn: currentTurn,
                 };
                 this.entity.emit({ type: GameEvents.EXTIRIS_DETECTED_PLAYER });
+            }
+
+            // Track scout detection
+            if (type === 'scout') {
+                this.playerDetected = true;
+                this.entity.emit({
+                    type: GameEvents.EXTIRIS_DETECTED_SCOUT,
+                    scoutEntityId: entity.id,
+                });
             }
 
             // Track known planets

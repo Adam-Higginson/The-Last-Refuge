@@ -1,0 +1,48 @@
+#scout-info-panel {
+    top: 80px;
+    right: 0;
+    width: 280px;
+    padding: 20px;
+    border-left: 1px solid rgba(64, 200, 200, 0.2);
+    border-bottom: 1px solid rgba(64, 200, 200, 0.2);
+    transform: translateX(100%);
+    transition: transform 0.25s ease-out;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+#scout-info-panel.open {
+    transform: translateX(0);
+}
+
+.scout-panel-name {
+    font-size: 15px;
+    font-weight: bold;
+    color: #40c8c8;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+}
+
+.scout-panel-pilot {
+    font-size: 11px;
+    color: rgba(192, 200, 216, 0.7);
+    margin-bottom: 12px;
+}
+
+.scout-panel-divider {
+    border: none;
+    border-top: 1px solid rgba(64, 200, 200, 0.15);
+    margin: 8px 0;
+}
+
+.scout-panel-stat {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: rgba(192, 200, 216, 0.6);
+    margin-bottom: 4px;
+}
+
+.scout-panel-stat-value {
+    color: rgba(220, 225, 235, 0.9);
+}

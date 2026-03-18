@@ -13,11 +13,13 @@ export interface Relationship {
     description: string;
 }
 
-export type CrewRole = 'Engineer' | 'Soldier' | 'Medic' | 'Scientist' | 'Civilian';
+export type CrewRole = 'Engineer' | 'Soldier' | 'Medic' | 'Scientist' | 'Civilian' | 'Pilot';
 
 export type CrewLocation =
     | { type: 'ship' }
-    | { type: 'colony'; regionId: number; planetEntityId: number };
+    | { type: 'colony'; regionId: number; planetEntityId: number }
+    | { type: 'scout'; scoutEntityId: number }
+    | { type: 'dead' };
 
 export type Trait =
     | 'Stubborn' | 'Empathetic' | 'Reckless' | 'Analytical'

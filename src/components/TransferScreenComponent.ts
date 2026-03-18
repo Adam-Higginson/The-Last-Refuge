@@ -8,9 +8,11 @@ import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { CrewMemberComponent } from './CrewMemberComponent';
+import { ScoutDataComponent } from './ScoutDataComponent';
 import {
     getCrewAtShip,
     getCrewAtColony,
+    getCrewAtScout,
     getCrewCounts,
     getShipRoleCounts,
     getColonyLocations,
@@ -193,6 +195,26 @@ export class TransferScreenComponent extends Component {
             `;
         }
 
+        // Scout location cards
+        const scoutEntities = world.getEntitiesWithComponent(ScoutDataComponent);
+        for (const scoutEntity of scoutEntities) {
+            const scoutData = scoutEntity.getComponent(ScoutDataComponent);
+            if (!scoutData) continue;
+
+            const isViewing = this.viewingLocation.type === 'scout'
+                && this.viewingLocation.scoutEntityId === scoutEntity.id;
+
+            const scoutCrew = getCrewAtScout(world, scoutEntity.id);
+
+            html += `
+                <div class="location-card ${isViewing ? 'active' : ''} ${hasSelection && !isViewing ? 'transfer-target' : ''}"
+                     data-loc="scout" data-scout-id="${scoutEntity.id}">
+                    <div class="location-name">${scoutData.displayName.toUpperCase()}</div>
+                    <div class="location-meta">${scoutCrew.length} crew — Pilot: ${scoutData.pilotName}</div>
+                </div>
+            `;
+        }
+
         return html;
     }
 
@@ -340,6 +362,17 @@ export class TransferScreenComponent extends Component {
                         this.selectedCrewIds.clear();
                         this.rebuild();
                     }
+                } else if (locType === 'scout') {
+                    const scoutId = Number(el.dataset.scoutId);
+                    const scoutLoc: CrewLocation = { type: 'scout', scoutEntityId: scoutId };
+
+                    if (this.selectedCrewIds.size > 0 && !this.isViewingThis(scoutLoc)) {
+                        this.transferSelected(scoutLoc, world);
+                    } else {
+                        this.viewingLocation = scoutLoc;
+                        this.selectedCrewIds.clear();
+                        this.rebuild();
+                    }
                 }
             });
         }
@@ -384,6 +417,32 @@ export class TransferScreenComponent extends Component {
                 if (!proceed) return;
                 if (!this.container) return;
             }
+        }
+
+        // Check if transferring a scout pilot — warn about immobile scout
+        const pilotWarnings: string[] = [];
+        const scoutEntities = world.getEntitiesWithComponent(ScoutDataComponent);
+        for (const id of this.selectedCrewIds) {
+            const e = world.getEntity(id);
+            const cr = e?.getComponent(CrewMemberComponent);
+            if (cr?.location.type === 'scout') {
+                // Find the scout this pilot belongs to
+                for (const scoutEntity of scoutEntities) {
+                    const scoutData = scoutEntity.getComponent(ScoutDataComponent);
+                    if (scoutData && scoutData.pilotEntityId === id) {
+                        pilotWarnings.push(`${scoutData.displayName} will become immobile without a pilot`);
+                    }
+                }
+            }
+        }
+        if (pilotWarnings.length > 0) {
+            const proceed = await modal.show({
+                title: 'WARNING',
+                body: `${pilotWarnings.join('\n')}\n\nProceed with transfer?`,
+                danger: true,
+            });
+            if (!proceed) return;
+            if (!this.container) return;
         }
 
         // Check for leader/captain being transferred — warn and demote
@@ -441,7 +500,7 @@ export class TransferScreenComponent extends Component {
     }
 
     private getTransferringRoleCounts(world: World): Record<CrewRole, number> {
-        const counts: Record<CrewRole, number> = { Engineer: 0, Soldier: 0, Medic: 0, Scientist: 0, Civilian: 0 };
+        const counts: Record<CrewRole, number> = { Engineer: 0, Soldier: 0, Medic: 0, Scientist: 0, Civilian: 0, Pilot: 0 };
         for (const id of this.selectedCrewIds) {
             const entity = world.getEntity(id);
             const crew = entity?.getComponent(CrewMemberComponent);
@@ -454,23 +513,34 @@ export class TransferScreenComponent extends Component {
         if (this.viewingLocation.type === 'ship') {
             return getCrewAtShip(world);
         }
-        return getCrewAtColony(
-            world,
-            this.viewingLocation.planetEntityId,
-            this.viewingLocation.regionId,
-        );
+        if (this.viewingLocation.type === 'colony') {
+            return getCrewAtColony(
+                world,
+                this.viewingLocation.planetEntityId,
+                this.viewingLocation.regionId,
+            );
+        }
+        if (this.viewingLocation.type === 'scout') {
+            return getCrewAtScout(world, this.viewingLocation.scoutEntityId);
+        }
+        return [];
     }
 
     private isViewingThis(loc: CrewLocation): boolean {
         if (loc.type !== this.viewingLocation.type) return false;
         if (loc.type === 'ship') return true;
-        if (this.viewingLocation.type !== 'colony') return false;
-        return loc.planetEntityId === this.viewingLocation.planetEntityId
-            && loc.regionId === this.viewingLocation.regionId;
+        if (loc.type === 'colony' && this.viewingLocation.type === 'colony') {
+            return loc.planetEntityId === this.viewingLocation.planetEntityId
+                && loc.regionId === this.viewingLocation.regionId;
+        }
+        if (loc.type === 'scout' && this.viewingLocation.type === 'scout') {
+            return loc.scoutEntityId === this.viewingLocation.scoutEntityId;
+        }
+        return loc.type === 'dead';
     }
 
     private countRoles(entities: Entity[]): Record<CrewRole, number> {
-        const counts: Record<CrewRole, number> = { Engineer: 0, Soldier: 0, Medic: 0, Scientist: 0, Civilian: 0 };
+        const counts: Record<CrewRole, number> = { Engineer: 0, Soldier: 0, Medic: 0, Scientist: 0, Civilian: 0, Pilot: 0 };
         for (const e of entities) {
             const c = e.getComponent(CrewMemberComponent);
             if (c) counts[c.role]++;

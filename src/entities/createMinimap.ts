@@ -8,6 +8,7 @@ import { CameraComponent } from '../components/CameraComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import { FogOfWarComponent, TileVisibility } from '../components/FogOfWarComponent';
 import { PlanetDataComponent } from '../components/PlanetDataComponent';
+import { ScoutDataComponent } from '../components/ScoutDataComponent';
 import { MinimapComponent } from '../components/MinimapComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
@@ -101,6 +102,19 @@ function drawMinimap(
         ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
         ctx.beginPath();
         ctx.arc(shipPos.x, shipPos.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // --- Scouts (cyan dots) ---
+    const scouts = world.getEntitiesWithComponent(ScoutDataComponent);
+    for (const scoutEntity of scouts) {
+        const scoutTransform = scoutEntity.getComponent(TransformComponent);
+        if (!scoutTransform) continue;
+
+        const scoutPos = minimap.worldToMinimap(scoutTransform.x, scoutTransform.y);
+        ctx.fillStyle = '#40c8c8';
+        ctx.beginPath();
+        ctx.arc(scoutPos.x, scoutPos.y, 2, 0, Math.PI * 2);
         ctx.fill();
     }
 

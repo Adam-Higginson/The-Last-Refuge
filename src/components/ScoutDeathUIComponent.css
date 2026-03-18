@@ -1,0 +1,45 @@
+#scout-death-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 102;
+}
+
+.scout-death-notification {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 103;
+    animation: scoutDeathFade 4s ease-out forwards;
+}
+
+.scout-death-notification .pilot-name {
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    font-size: 28px;
+    font-weight: bold;
+    color: #40c8c8;
+    letter-spacing: 4px;
+    text-shadow: 0 0 16px rgba(64, 200, 200, 0.6), 0 0 32px rgba(64, 200, 200, 0.3);
+    margin-bottom: 8px;
+}
+
+.scout-death-notification .death-text {
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    font-size: 14px;
+    color: #cc8833;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(200, 130, 50, 0.4);
+}
+
+@keyframes scoutDeathFade {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+    10% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.02); }
+}
