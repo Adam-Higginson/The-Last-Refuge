@@ -10,7 +10,7 @@ import { drawSettlementProps, drawMicroDetails, drawSettlementPropsForSlot } fro
 import { drawParticles } from './colonyParticles';
 import { getDayNightState, setGameHour } from './colonyDayNight';
 import { drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
-import { drawGridTiles, drawPathTiles, drawBuildingGlow, drawDebugOverlay, drawFigure } from './colonyGridRenderer';
+import { drawGridTiles, drawPathTiles, drawBuildingGlow, drawDebugOverlay, drawFigure, drawFireflies } from './colonyGridRenderer';
 import { getVisibleColonists } from '../colony/ColonistManager';
 import { getBuildingFootprint } from '../colony/ColonyGrid';
 import { RenderQueue, extractHitTestItems } from './RenderQueue';
@@ -242,6 +242,12 @@ export function drawColonyScene(
     }
 
     drawParticles(ctx, dtSeconds, state);
+
+    // Firefly particles near campfire during evening
+    if (sim && sim.campfireCell) {
+        const campfireScreen = gridToScreen(sim.campfireCell.gridX, sim.campfireCell.gridY, gridCentre.centreX, gridCentre.centreY);
+        drawFireflies(ctx, campfireScreen.x, campfireScreen.y, state.gameHour, t);
+    }
 
     // Debug overlay
     if (sim && sim.debugGridVisible) {

@@ -1,16 +1,31 @@
-// ColonistManager.ts — Stateless orchestrator for colonist state machines.
-// Operates on ColonySimulationComponent fields. Handles init, update, and
-// state transitions with event emission.
+// ColonistManager.ts — Slim orchestrator for colonist state machines.
+// Delegates to extracted modules for movement, location resolution, and sub-activities.
+//
+// Update Pipeline:
+//
+//   1. resolveSchedules()     — dawn stagger, shelter, schedule lookup
+//   2. updateStateTransitions() — pathfind to new location on schedule change
+//   3. updateSubActivities()    — cycle sub-activity animations within activities
+//   4. updateMovement()         — advance walking/patrol positions
 
 import { findPath } from './ColonistPathfinding';
 import { getScheduleBlock } from './ColonistSchedule';
-import { GameEvents } from '../core/GameEvents';
-import type { ColonistActivity, ColonistVisualState } from './ColonistState';
+import { spreadAroundCell, resolveLocation } from './ColonistLocationResolver';
+import { updateWalking, updatePatrol, emitActivityChanged } from './ColonistMovement';
+import {
+    resolveWorkSubActivity,
+    resolveIdleSubActivity,
+    resolveSocializingSubActivity,
+    resolveEatingSubActivity,
+} from './ColonistSubActivity';
+import type { ColonistVisualState } from './ColonistState';
 import type { ColonySimulationComponent } from '../components/ColonySimulationComponent';
-import type { ColonyGrid } from './ColonyGrid';
 import type { CrewRole } from '../components/CrewMemberComponent';
 import type { EventQueue } from '../core/EventQueue';
 import type { BuildingInstance } from '../data/buildings';
+
+// Re-export spreadAroundCell for external consumers (tests, etc.)
+export { spreadAroundCell } from './ColonistLocationResolver';
 
 const ROLE_COLOURS: Record<string, string> = {
     Soldier: '#4fa8ff',
@@ -29,29 +44,6 @@ const HAIR_COLOURS = [
     '#1a1a1a', '#3a2a1a', '#5a3a20',
     '#8a6030', '#b08040', '#2a2a2a',
 ];
-
-/**
- * Spread colonists to nearby walkable cells around a target, avoiding pixel-stacking.
- * Returns a deterministic cell based on entityId so each colonist gets a unique spot.
- */
-export function spreadAroundCell(
-    grid: ColonyGrid, targetX: number, targetY: number, entityId: number,
-): { gridX: number; gridY: number } {
-    const walkable: { gridX: number; gridY: number }[] = [];
-    for (let dy = -2; dy <= 2; dy++) {
-        for (let dx = -2; dx <= 2; dx++) {
-            if (Math.abs(dx) + Math.abs(dy) > 2) continue; // Manhattan distance ≤ 2
-            const gx = targetX + dx;
-            const gy = targetY + dy;
-            const cell = grid.getCell(gx, gy);
-            if (cell && (cell.type === 'empty' || cell.type === 'path' || cell.type === 'door')) {
-                walkable.push({ gridX: gx, gridY: gy });
-            }
-        }
-    }
-    if (walkable.length === 0) return { gridX: targetX, gridY: targetY };
-    return walkable[entityId % walkable.length];
-}
 
 function getSkinTone(id: number): string {
     return SKIN_TONES[id % SKIN_TONES.length];
@@ -95,115 +87,16 @@ export function initColonists(
             name: crew.name,
             isLeader: crew.isLeader,
             walkPhase: (crew.id * 2.3) % (Math.PI * 2),
+            subActivity: null,
+            subActivityTimer: 0,
+            subActivityPhase: 0,
+            buildingTypeId: null,
+            secondaryTarget: null,
+            returningToOrigin: false,
         };
 
         sim.colonistStates.set(crew.id, state);
     }
-}
-
-interface ResolvedLocation {
-    gridX: number;
-    gridY: number;
-    buildingSlot: number | null;
-}
-
-/** Resolve a schedule location to a grid cell. */
-function resolveLocation(
-    sim: ColonySimulationComponent,
-    location: string,
-    role: CrewRole,
-    buildings: BuildingInstance[],
-    entityId: number,
-): ResolvedLocation | null {
-    if (location === 'social_area') {
-        if (!sim.campfireCell) return null;
-        const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId);
-        return { ...spread, buildingSlot: null };
-    }
-
-    if (location === 'shelter') {
-        const shelterDoor = sim.grid.getDoors().find(d => d.slotIndex === 0);
-        if (shelterDoor) {
-            const spread = spreadAroundCell(sim.grid, shelterDoor.gridX, shelterDoor.gridY, entityId);
-            return { gridX: spread.gridX, gridY: spread.gridY, buildingSlot: 0 };
-        }
-        if (!sim.campfireCell) return null;
-        const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId);
-        return { ...spread, buildingSlot: null };
-    }
-
-    if (location === 'patrol') {
-        // Soldiers use perimeter path — handled separately
-        return null;
-    }
-
-    if (location === 'workplace') {
-        // Find a building that requires this role
-        const ROLE_BUILDINGS: Record<string, string[]> = {
-            Civilian: ['farm', 'hydroponics_bay'],
-            Engineer: ['solar_array', 'workshop', 'hydroponics_bay'],
-            Medic: ['med_bay'],
-            Scientist: ['workshop'],
-            Soldier: ['barracks'],
-        };
-        const roleBuildings = buildings.filter(b =>
-            ROLE_BUILDINGS[role]?.includes(b.typeId) && b.state === 'active',
-        );
-
-        if (roleBuildings.length > 0) {
-            // Round-robin by entity ID
-            const building = roleBuildings[entityId % roleBuildings.length];
-            const door = sim.grid.getDoors().find(d => d.slotIndex === building.slotIndex);
-            if (door) return { gridX: door.gridX, gridY: door.gridY, buildingSlot: building.slotIndex };
-
-            // Fallback: building centre
-            const center = sim.grid.getBuildingCenter(building.slotIndex);
-            if (center) return { ...center, buildingSlot: building.slotIndex };
-        }
-
-        // No building for this role — go to campfire
-        if (!sim.campfireCell) return null;
-        const fallback = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId);
-        return { ...fallback, buildingSlot: null };
-    }
-
-    return null;
-}
-
-/** Emit state change event. */
-function emitActivityChanged(
-    eventQueue: EventQueue,
-    entityId: number,
-    from: ColonistActivity,
-    to: ColonistActivity,
-    gridX: number,
-    gridY: number,
-): void {
-    eventQueue.emit({
-        type: GameEvents.COLONIST_ACTIVITY_CHANGED,
-        entityId,
-        from,
-        to,
-        gridX,
-        gridY,
-    });
-}
-
-/** Emit arrival event. */
-function emitArrived(
-    eventQueue: EventQueue,
-    entityId: number,
-    gridX: number,
-    gridY: number,
-    buildingSlot?: number,
-): void {
-    eventQueue.emit({
-        type: GameEvents.COLONIST_ARRIVED,
-        entityId,
-        gridX,
-        gridY,
-        buildingSlot,
-    });
 }
 
 /** Count other colonists already socializing or walking toward socializing. */
@@ -235,6 +128,145 @@ function anyOtherScheduledToSocialize(
     return false;
 }
 
+/** Count colonists near a given colonist for socializing sub-activity. */
+function countNearbySocializing(sim: ColonySimulationComponent, entityId: number): number {
+    const colonist = sim.colonistStates.get(entityId);
+    if (!colonist) return 0;
+    let count = 0;
+    for (const [id, c] of sim.colonistStates) {
+        if (id === entityId) continue;
+        if (c.activity !== 'socializing') continue;
+        const dx = c.gridX - colonist.gridX;
+        const dy = c.gridY - colonist.gridY;
+        if (Math.abs(dx) + Math.abs(dy) <= 3) count++;
+    }
+    return count;
+}
+
+/** Set the initial sub-activity when a colonist arrives at their destination. */
+function assignSubActivity(colonist: ColonistVisualState, sim: ColonySimulationComponent): void {
+    const elapsed = colonist.stateTimer;
+    // Clear carrying state when assigning new sub-activity
+    colonist.secondaryTarget = null;
+    colonist.returningToOrigin = false;
+
+    switch (colonist.activity) {
+        case 'working': {
+            const result = resolveWorkSubActivity(colonist.role, colonist.buildingTypeId, colonist.entityId, elapsed);
+            colonist.subActivity = result.subActivity;
+            colonist.subActivityTimer = result.duration;
+
+            // Set up carrying waypoint loop: walk to campfire/storage then back
+            if (result.subActivity === 'carrying' && sim.campfireCell) {
+                const target = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, colonist.entityId);
+                const roundX = Math.round(colonist.gridX);
+                const roundY = Math.round(colonist.gridY);
+                const pathToTarget = findPath(sim.grid, roundX, roundY, target.gridX, target.gridY);
+                if (pathToTarget && pathToTarget.length > 0) {
+                    colonist.secondaryTarget = target;
+                    colonist.returningToOrigin = false;
+                    colonist.path = pathToTarget;
+                    colonist.pathIndex = 0;
+                } else {
+                    // Can't reach secondary target — skip carrying, re-resolve
+                    const fallback = resolveWorkSubActivity(colonist.role, colonist.buildingTypeId, colonist.entityId, elapsed + 10);
+                    colonist.subActivity = fallback.subActivity === 'carrying' ? 'hammering' : fallback.subActivity;
+                    colonist.subActivityTimer = fallback.duration;
+                }
+            }
+            break;
+        }
+        case 'idle': {
+            const result = resolveIdleSubActivity(colonist.entityId, elapsed);
+            colonist.subActivity = result.subActivity;
+            colonist.subActivityTimer = result.duration;
+            break;
+        }
+        case 'socializing': {
+            const nearby = countNearbySocializing(sim, colonist.entityId);
+            const result = resolveSocializingSubActivity(colonist.entityId, elapsed, nearby);
+            colonist.subActivity = result.subActivity;
+            colonist.subActivityTimer = result.duration;
+            break;
+        }
+        case 'eating': {
+            const result = resolveEatingSubActivity(colonist.entityId);
+            colonist.subActivity = result.subActivity;
+            colonist.subActivityTimer = result.duration;
+            break;
+        }
+        default:
+            colonist.subActivity = null;
+            colonist.subActivityTimer = 0;
+    }
+    colonist.subActivityPhase = 0;
+}
+
+/** Advance a carrying colonist along their secondary target path. */
+function advanceCarryingWalk(
+    colonist: ColonistVisualState,
+    sim: ColonySimulationComponent,
+    dt: number,
+): void {
+    if (colonist.pathIndex >= colonist.path.length) {
+        // Arrived at waypoint
+        if (!colonist.returningToOrigin && colonist.secondaryTarget) {
+            // At secondary target — now path back to building
+            colonist.returningToOrigin = true;
+            const door = colonist.assignedBuildingSlot !== null
+                ? sim.grid.getDoors().find(d => d.slotIndex === colonist.assignedBuildingSlot)
+                : null;
+            if (door) {
+                const roundX = Math.round(colonist.gridX);
+                const roundY = Math.round(colonist.gridY);
+                const returnPath = findPath(sim.grid, roundX, roundY, door.gridX, door.gridY);
+                if (returnPath && returnPath.length > 0) {
+                    colonist.path = returnPath;
+                    colonist.pathIndex = 0;
+                    return;
+                }
+            }
+            // Can't path back — end carrying
+            colonist.path = [];
+            colonist.pathIndex = 0;
+            colonist.secondaryTarget = null;
+            colonist.returningToOrigin = false;
+        } else {
+            // Returned to origin — done carrying
+            colonist.path = [];
+            colonist.pathIndex = 0;
+            colonist.secondaryTarget = null;
+            colonist.returningToOrigin = false;
+        }
+        return;
+    }
+
+    // Move along path (same as walking but activity stays 'working')
+    const target = colonist.path[colonist.pathIndex];
+    const dx = target.gridX - colonist.gridX;
+    const dy = target.gridY - colonist.gridY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 0.05) {
+        colonist.gridX = target.gridX;
+        colonist.gridY = target.gridY;
+        colonist.pathIndex++;
+        return;
+    }
+
+    const moveAmount = colonist.walkSpeed * dt;
+    if (moveAmount >= dist) {
+        colonist.gridX = target.gridX;
+        colonist.gridY = target.gridY;
+        colonist.pathIndex++;
+    } else {
+        colonist.gridX += (dx / dist) * moveAmount;
+        colonist.gridY += (dy / dist) * moveAmount;
+    }
+    colonist.facingDirection = Math.atan2(dy, dx);
+    colonist.walkPhase += dt * 8;
+}
+
 /** Update all colonist state machines. */
 export function updateColonists(
     sim: ColonySimulationComponent,
@@ -258,35 +290,54 @@ export function updateColonists(
         }
         colonist.sheltered = false;
 
+        // Increment state timer
+        colonist.stateTimer += dt;
+
+        // Building demolished while working: brief confused idle then schedule fallback
+        if (colonist.activity === 'working' && colonist.assignedBuildingSlot !== null) {
+            const buildingStillExists = buildings.some(
+                b => b.slotIndex === colonist.assignedBuildingSlot && b.state === 'active',
+            );
+            if (!buildingStillExists) {
+                colonist.activity = 'idle';
+                colonist.subActivity = 'looking_around';
+                colonist.subActivityTimer = 2.5;
+                colonist.subActivityPhase = 0;
+                colonist.assignedBuildingSlot = null;
+                colonist.buildingTypeId = null;
+                colonist.secondaryTarget = null;
+                colonist.path = [];
+                colonist.pathIndex = 0;
+                emitActivityChanged(eventQueue, colonist.entityId, 'working', 'idle', colonist.gridX, colonist.gridY);
+            }
+        }
+
         // Check current schedule
         const schedule = getScheduleBlock(colonist.role, gameHour, colonist.entityId);
 
         // Handle patrol separately for soldiers
         if (schedule.activity === 'patrolling' && sim.perimeterPath.length > 0) {
-            updatePatrol(colonist, sim, dt, eventQueue);
+            updatePatrol(colonist, sim.perimeterPath, dt, eventQueue);
             continue;
         }
 
-        // Check if schedule demands a different activity
+        // --- State transitions ---
         if (colonist.activity !== 'walking' && colonist.activity !== schedule.activity) {
             // Enforce group socializing: don't socialize alone
             if (schedule.activity === 'socializing') {
                 const othersSocializing = countOthersSocializing(sim, colonist.entityId, gameHour);
                 if (othersSocializing === 0) {
-                    // No one else is socializing — check if anyone else is scheduled to
                     const othersScheduled = anyOtherScheduledToSocialize(sim, colonist.entityId, gameHour);
                     if (!othersScheduled) {
-                        // Nobody else will socialize — stay idle
                         if (colonist.activity !== 'idle') {
                             const oldActivity = colonist.activity;
                             colonist.activity = 'idle';
+                            colonist.subActivity = null;
                             emitActivityChanged(eventQueue, colonist.entityId, oldActivity, 'idle', colonist.gridX, colonist.gridY);
                         }
                         continue;
                     }
-                    // else: first-mover — another colonist is scheduled, proceed
                 }
-                // else: someone is already socializing, proceed
             }
 
             const oldActivity = colonist.activity;
@@ -302,133 +353,59 @@ export function updateColonists(
                     colonist.pathIndex = 0;
                     colonist.activity = 'walking';
                     colonist.assignedBuildingSlot = target.buildingSlot;
+                    colonist.buildingTypeId = target.buildingTypeId;
+                    colonist.subActivity = null;
+                    colonist.stateTimer = 0;
                     emitActivityChanged(eventQueue, colonist.entityId, oldActivity, 'walking', colonist.gridX, colonist.gridY);
                 } else if (path && path.length === 0) {
                     // Already at destination
                     colonist.activity = schedule.activity;
                     colonist.assignedBuildingSlot = target.buildingSlot;
+                    colonist.buildingTypeId = target.buildingTypeId;
+                    colonist.stateTimer = 0;
+                    assignSubActivity(colonist, sim);
                     emitActivityChanged(eventQueue, colonist.entityId, oldActivity, schedule.activity, colonist.gridX, colonist.gridY);
                 } else {
                     // No path — stay idle
                     if (colonist.activity !== 'idle') {
                         colonist.activity = 'idle';
+                        colonist.subActivity = null;
                         emitActivityChanged(eventQueue, colonist.entityId, oldActivity, 'idle', colonist.gridX, colonist.gridY);
                     }
                 }
             } else {
-                // No target location (or patrol without perimeter path)
                 if (colonist.activity !== 'idle') {
                     colonist.activity = 'idle';
+                    colonist.subActivity = null;
                     emitActivityChanged(eventQueue, colonist.entityId, oldActivity, 'idle', colonist.gridX, colonist.gridY);
                 }
             }
         }
 
-        // Update walking
+        // --- Walking ---
         if (colonist.activity === 'walking') {
+            const prevActivity = colonist.activity;
             updateWalking(colonist, dt, eventQueue, schedule.activity);
-        }
-    }
-}
-
-/** Advance a walking colonist along their A* path. */
-function updateWalking(
-    colonist: ColonistVisualState,
-    dt: number,
-    eventQueue: EventQueue,
-    destinationActivity: ColonistActivity,
-): void {
-    if (colonist.pathIndex >= colonist.path.length) {
-        // Arrived
-        const oldActivity = colonist.activity;
-        colonist.activity = destinationActivity;
-        colonist.path = [];
-        colonist.pathIndex = 0;
-        emitActivityChanged(eventQueue, colonist.entityId, oldActivity, destinationActivity, colonist.gridX, colonist.gridY);
-        emitArrived(eventQueue, colonist.entityId, colonist.gridX, colonist.gridY);
-        return;
-    }
-
-    const target = colonist.path[colonist.pathIndex];
-    const dx = target.gridX - colonist.gridX;
-    const dy = target.gridY - colonist.gridY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < 0.05) {
-        colonist.gridX = target.gridX;
-        colonist.gridY = target.gridY;
-        colonist.pathIndex++;
-        return;
-    }
-
-    const moveAmount = colonist.walkSpeed * dt;
-    if (moveAmount >= dist) {
-        colonist.gridX = target.gridX;
-        colonist.gridY = target.gridY;
-        colonist.pathIndex++;
-    } else {
-        colonist.gridX += (dx / dist) * moveAmount;
-        colonist.gridY += (dy / dist) * moveAmount;
-    }
-
-    // Update facing direction
-    colonist.facingDirection = Math.atan2(dy, dx);
-    colonist.walkPhase += dt * 8;
-}
-
-/** Update soldier patrol — walk the perimeter loop. */
-function updatePatrol(
-    colonist: ColonistVisualState,
-    sim: ColonySimulationComponent,
-    dt: number,
-    eventQueue: EventQueue,
-): void {
-    if (colonist.activity !== 'patrolling') {
-        const oldActivity = colonist.activity;
-        colonist.activity = 'patrolling';
-
-        // Find closest perimeter point to start
-        let bestIdx = 0;
-        let bestDist = Infinity;
-        for (let i = 0; i < sim.perimeterPath.length; i++) {
-            const p = sim.perimeterPath[i];
-            const dx = p.gridX - colonist.gridX;
-            const dy = p.gridY - colonist.gridY;
-            const d = dx * dx + dy * dy;
-            if (d < bestDist) {
-                bestDist = d;
-                bestIdx = i;
+            // If walking just completed (activity changed), assign sub-activity
+            if (prevActivity === 'walking' && colonist.activity !== 'walking') {
+                assignSubActivity(colonist, sim);
             }
         }
-        colonist.pathIndex = bestIdx;
-        emitActivityChanged(eventQueue, colonist.entityId, oldActivity, 'patrolling', colonist.gridX, colonist.gridY);
-    }
 
-    const target = sim.perimeterPath[colonist.pathIndex % sim.perimeterPath.length];
-    if (!target) return;
+        // --- Carrying walk (worker stays in 'working' activity but walks to secondary target) ---
+        if (colonist.subActivity === 'carrying' && colonist.activity === 'working' && colonist.path.length > 0) {
+            advanceCarryingWalk(colonist, sim, dt);
+        }
 
-    const dx = target.gridX - colonist.gridX;
-    const dy = target.gridY - colonist.gridY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < 0.05) {
-        colonist.gridX = target.gridX;
-        colonist.gridY = target.gridY;
-        colonist.pathIndex = (colonist.pathIndex + 1) % sim.perimeterPath.length;
-    } else {
-        const moveAmount = colonist.walkSpeed * dt;
-        if (moveAmount >= dist) {
-            colonist.gridX = target.gridX;
-            colonist.gridY = target.gridY;
-            colonist.pathIndex = (colonist.pathIndex + 1) % sim.perimeterPath.length;
-        } else {
-            colonist.gridX += (dx / dist) * moveAmount;
-            colonist.gridY += (dy / dist) * moveAmount;
+        // --- Sub-activity cycling ---
+        if (colonist.subActivity !== null && colonist.activity !== 'walking') {
+            colonist.subActivityTimer -= dt;
+            colonist.subActivityPhase += dt;
+            if (colonist.subActivityTimer <= 0) {
+                assignSubActivity(colonist, sim);
+            }
         }
     }
-
-    colonist.facingDirection = Math.atan2(dy, dx);
-    colonist.walkPhase += dt * 8;
 }
 
 /** Get colonists sorted by depth (gridX + gridY) for correct render order. */

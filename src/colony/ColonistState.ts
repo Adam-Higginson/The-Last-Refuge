@@ -11,6 +11,37 @@ export type ColonistActivity =
     | 'eating'
     | 'patrolling';
 
+// Sub-activities cycle within each top-level activity for visual variety.
+export type WorkSubActivity =
+    | 'hammering'
+    | 'carrying'
+    | 'watering'
+    | 'harvesting'
+    | 'checking_patient'
+    | 'calibrating';
+
+export type IdleSubActivity =
+    | 'standing'
+    | 'stretching'
+    | 'sitting'
+    | 'looking_around';
+
+export type SocializingSubActivity =
+    | 'chatting'
+    | 'laughing'
+    | 'gesturing'
+    | 'sitting_together';
+
+export type EatingSubActivity =
+    | 'sitting_eating'
+    | 'eating_standing';
+
+export type SubActivity =
+    | WorkSubActivity
+    | IdleSubActivity
+    | SocializingSubActivity
+    | EatingSubActivity;
+
 export interface ColonistVisualState {
     entityId: number;
     role: CrewRole;
@@ -31,4 +62,10 @@ export interface ColonistVisualState {
     name: string;
     isLeader: boolean;
     walkPhase: number;
+    subActivity: SubActivity | null;
+    subActivityTimer: number;
+    subActivityPhase: number;
+    buildingTypeId: string | null;
+    secondaryTarget: { gridX: number; gridY: number } | null;
+    returningToOrigin: boolean;
 }

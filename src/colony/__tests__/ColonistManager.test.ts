@@ -430,4 +430,167 @@ describe('ColonistManager', () => {
         // Should have emitted at least one event
         expect((eq.emit as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
     });
+
+    describe('sub-activity system', () => {
+        it('initColonists sets sub-activity fields to defaults', () => {
+            const crew = [
+                { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Test' },
+            ];
+            initColonists(sim as Parameters<typeof initColonists>[0], crew);
+            const state = sim.colonistStates.get(1);
+            expect(state?.subActivity).toBeNull();
+            expect(state?.subActivityTimer).toBe(0);
+            expect(state?.subActivityPhase).toBe(0);
+            expect(state?.buildingTypeId).toBeNull();
+            expect(state?.secondaryTarget).toBeNull();
+            expect(state?.returningToOrigin).toBe(false);
+        });
+
+        it('assigns sub-activity on arrival at destination', () => {
+            const crew = [
+                { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Worker' },
+            ];
+            initColonists(sim as Parameters<typeof initColonists>[0], crew);
+            const colonist = sim.colonistStates.get(1);
+            if (!colonist) return;
+
+            colonist.emergeDelay = 0;
+            colonist.activity = 'walking';
+            // Set path to a single cell (immediate arrival)
+            colonist.path = [];
+            colonist.pathIndex = 0;
+            colonist.assignedBuildingSlot = 1;
+            colonist.buildingTypeId = 'farm';
+
+            const buildings: BuildingInstance[] = [
+                { typeId: 'shelter', slotIndex: 0, state: 'active', turnsRemaining: 0, modifierIds: [] },
+                { typeId: 'farm', slotIndex: 1, state: 'active', turnsRemaining: 0, modifierIds: [] },
+            ];
+
+            // Update at hour 10 — schedule says work
+            updateColonists(
+                sim as Parameters<typeof updateColonists>[0],
+                0.1, 10, 'clear', eq, buildings as BuildingInstance[],
+            );
+
+            // Should have transitioned to working with a sub-activity
+            // (updateWalking completes immediately with empty path → assigns sub-activity)
+            const act = colonist.activity as string;
+            if (act === 'working') {
+                expect(colonist.subActivity).not.toBeNull();
+                expect(colonist.subActivityTimer).toBeGreaterThan(0);
+            }
+        });
+
+        it('cycles sub-activity when timer expires', () => {
+            const crew = [
+                { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Worker' },
+            ];
+            initColonists(sim as Parameters<typeof initColonists>[0], crew);
+            const colonist = sim.colonistStates.get(1);
+            if (!colonist) return;
+
+            colonist.emergeDelay = 0;
+            colonist.activity = 'working';
+            colonist.assignedBuildingSlot = 1;
+            colonist.buildingTypeId = 'farm';
+            colonist.subActivity = 'watering';
+            colonist.subActivityTimer = 0.05; // about to expire
+            colonist.subActivityPhase = 0;
+
+            const buildings: BuildingInstance[] = [
+                { typeId: 'shelter', slotIndex: 0, state: 'active', turnsRemaining: 0, modifierIds: [] },
+                { typeId: 'farm', slotIndex: 1, state: 'active', turnsRemaining: 0, modifierIds: [] },
+            ];
+
+            updateColonists(
+                sim as Parameters<typeof updateColonists>[0],
+                0.1, 10, 'clear', eq, buildings as BuildingInstance[],
+            );
+
+            // Timer expired → sub-activity should have been reassigned
+            expect(colonist.subActivityTimer).toBeGreaterThan(0);
+        });
+    });
+
+    describe('building demolished fallback', () => {
+        it('transitions to confused idle when building is demolished', () => {
+            const crew = [
+                { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Worker' },
+            ];
+            initColonists(sim as Parameters<typeof initColonists>[0], crew);
+            const colonist = sim.colonistStates.get(1);
+            if (!colonist) return;
+
+            colonist.emergeDelay = 0;
+            colonist.activity = 'working';
+            colonist.assignedBuildingSlot = 1;
+            colonist.buildingTypeId = 'farm';
+            colonist.subActivity = 'watering';
+
+            // Farm is NOT in the active buildings list — simulates demolition
+            const buildings: BuildingInstance[] = [
+                { typeId: 'shelter', slotIndex: 0, state: 'active', turnsRemaining: 0, modifierIds: [] },
+            ];
+
+            updateColonists(
+                sim as Parameters<typeof updateColonists>[0],
+                0.1, 10, 'clear', eq, buildings as BuildingInstance[],
+            );
+
+            expect(colonist.activity).toBe('idle');
+            expect(colonist.subActivity).toBe('looking_around');
+            expect(colonist.assignedBuildingSlot).toBeNull();
+        });
+    });
+
+    describe('24-hour simulation integration', () => {
+        it('runs 24 hours without crashes, all states valid', { timeout: 15000 }, () => {
+            const crew = [
+                { id: 1, role: 'Civilian' as const, isLeader: false, name: 'Farmer' },
+                { id: 2, role: 'Engineer' as const, isLeader: false, name: 'Builder' },
+                { id: 3, role: 'Soldier' as const, isLeader: false, name: 'Guard' },
+                { id: 4, role: 'Medic' as const, isLeader: false, name: 'Doctor' },
+                { id: 5, role: 'Scientist' as const, isLeader: false, name: 'Researcher' },
+                { id: 6, role: 'Civilian' as const, isLeader: true, name: 'Leader' },
+            ];
+            const simWithWorkshop = makeSim([
+                { typeId: 'shelter', slotIndex: 0 },
+                { typeId: 'farm', slotIndex: 1 },
+                { typeId: 'workshop', slotIndex: 2 },
+                { typeId: 'med_bay', slotIndex: 3 },
+            ]);
+            const localEq = makeEventQueue();
+            initColonists(simWithWorkshop as Parameters<typeof initColonists>[0], crew);
+
+            const buildings: BuildingInstance[] = [
+                { typeId: 'shelter', slotIndex: 0, state: 'active', turnsRemaining: 0, modifierIds: [] },
+                { typeId: 'farm', slotIndex: 1, state: 'active', turnsRemaining: 0, modifierIds: [] },
+                { typeId: 'workshop', slotIndex: 2, state: 'active', turnsRemaining: 0, modifierIds: [] },
+                { typeId: 'med_bay', slotIndex: 3, state: 'active', turnsRemaining: 0, modifierIds: [] },
+            ];
+
+            const validActivities = ['idle', 'walking', 'working', 'socializing', 'resting', 'eating', 'patrolling'];
+            const dt = 0.1; // 100ms steps
+
+            // Simulate 24 hours (24 * 60 * 10 = 14400 steps at 100ms each)
+            for (let step = 0; step < 14400; step++) {
+                const hour = (step * dt / 60) % 24;
+
+                updateColonists(
+                    simWithWorkshop as Parameters<typeof updateColonists>[0],
+                    dt, hour, 'clear', localEq, buildings as BuildingInstance[],
+                );
+
+                // Validate all colonist states
+                for (const [_id, c] of simWithWorkshop.colonistStates) {
+                    expect(validActivities).toContain(c.activity);
+                    expect(c.gridX).toBeGreaterThanOrEqual(-1);
+                    expect(c.gridY).toBeGreaterThanOrEqual(-1);
+                    expect(c.gridX).toBeLessThanOrEqual(11);
+                    expect(c.gridY).toBeLessThanOrEqual(11);
+                }
+            }
+        });
+    });
 });

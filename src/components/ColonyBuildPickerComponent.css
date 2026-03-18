@@ -121,6 +121,37 @@
     margin-bottom: 10px;
 }
 
+/* --- Assigned workers list --- */
+.build-picker-workers {
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px solid rgba(79, 168, 255, 0.1);
+    background: rgba(79, 168, 255, 0.03);
+}
+
+.build-picker-workers-title {
+    font-size: 10px;
+    letter-spacing: 1px;
+    opacity: 0.5;
+    margin-bottom: 6px;
+}
+
+.build-picker-worker {
+    font-size: 11px;
+    padding: 3px 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.build-picker-worker-name {
+    color: #ffffff;
+}
+
+.build-picker-worker-role {
+    opacity: 0.4;
+    font-size: 10px;
+}
+
 .build-picker-demolish {
     display: block;
     width: 100%;
