@@ -7,6 +7,7 @@ import { DateUIComponent } from '../components/DateUIComponent';
 import { ResourceBarUIComponent } from '../components/ResourceBarUIComponent';
 import { TransferScreenComponent } from '../components/TransferScreenComponent';
 import { RelationshipGraphComponent } from '../components/RelationshipGraphComponent';
+import { ResourceDeficitUIComponent } from '../components/ResourceDeficitUIComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -17,5 +18,6 @@ export function createHUD(world: World): Entity {
     entity.addComponent(new ResourceBarUIComponent());
     entity.addComponent(new TransferScreenComponent());
     entity.addComponent(new RelationshipGraphComponent());
+    entity.addComponent(new ResourceDeficitUIComponent());
     return entity;
 }
