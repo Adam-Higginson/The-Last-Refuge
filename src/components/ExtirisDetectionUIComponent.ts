@@ -18,12 +18,14 @@ import type { EventQueue, EventHandler } from '../core/EventQueue';
 export class ExtirisDetectionUIComponent extends Component {
     private eventQueue: EventQueue | null = null;
     private detectedHandler: EventHandler | null = null;
+    private scoutDetectedHandler: EventHandler | null = null;
     private turnEndHandler: EventHandler | null = null;
 
     private overlayEl: HTMLElement | null = null;
     private detectedTextEl: HTMLElement | null = null;
     private signalEl: HTMLElement | null = null;
     private colonyAlertEl: HTMLElement | null = null;
+    private scoutAlertEl: HTMLElement | null = null;
 
     /** Whether detection was already triggered this detection window. */
     private detectionActive = false;
@@ -33,6 +35,8 @@ export class ExtirisDetectionUIComponent extends Component {
     private signalFadeTimer = 0;
     /** Timer for colony alert display. */
     private colonyAlertFadeTimer = 0;
+    /** Timer for scout alert display. */
+    private scoutAlertFadeTimer = 0;
 
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
@@ -85,10 +89,29 @@ export class ExtirisDetectionUIComponent extends Component {
         `;
         document.body.appendChild(this.colonyAlertEl);
 
+        // Scout alert (amber — distinct from ship's red "DETECTED")
+        this.scoutAlertEl = document.createElement('div');
+        this.scoutAlertEl.id = 'extiris-scout-alert';
+        this.scoutAlertEl.textContent = 'SCOUT DETECTED';
+        this.scoutAlertEl.style.cssText = `
+            position: fixed; top: 180px; left: 50%; transform: translateX(-50%);
+            color: #cc8833; font-family: monospace; font-size: 22px; font-weight: bold;
+            letter-spacing: 6px; text-transform: uppercase;
+            opacity: 0; pointer-events: none; z-index: 101;
+            text-shadow: 0 0 14px rgba(200,140,40,0.5), 0 0 28px rgba(200,140,40,0.25);
+        `;
+        document.body.appendChild(this.scoutAlertEl);
+
         this.detectedHandler = (): void => {
             this.triggerDetection();
         };
         this.eventQueue.on(GameEvents.EXTIRIS_DETECTED_PLAYER, this.detectedHandler);
+
+        // Scout detection handler
+        this.scoutDetectedHandler = (): void => {
+            this.showScoutAlert();
+        };
+        this.eventQueue.on(GameEvents.EXTIRIS_DETECTED_SCOUT, this.scoutDetectedHandler);
 
         this.turnEndHandler = (): void => {
             this.onTurnEnd();
@@ -174,6 +197,12 @@ export class ExtirisDetectionUIComponent extends Component {
         this.colonyAlertFadeTimer = 3.0;
     }
 
+    private showScoutAlert(): void {
+        if (!this.scoutAlertEl) return;
+        this.scoutAlertEl.style.opacity = '1';
+        this.scoutAlertFadeTimer = 3.0;
+    }
+
     private showInterceptedSignal(reasoning: string): void {
         if (!this.signalEl) return;
 
@@ -225,11 +254,22 @@ export class ExtirisDetectionUIComponent extends Component {
                 this.colonyAlertEl.style.opacity = '0';
             }
         }
+
+        // Fade out scout alert
+        if (this.scoutAlertFadeTimer > 0) {
+            this.scoutAlertFadeTimer -= dt;
+            if (this.scoutAlertFadeTimer <= 0 && this.scoutAlertEl) {
+                this.scoutAlertEl.style.opacity = '0';
+            }
+        }
     }
 
     destroy(): void {
         if (this.eventQueue && this.detectedHandler) {
             this.eventQueue.off(GameEvents.EXTIRIS_DETECTED_PLAYER, this.detectedHandler);
+        }
+        if (this.eventQueue && this.scoutDetectedHandler) {
+            this.eventQueue.off(GameEvents.EXTIRIS_DETECTED_SCOUT, this.scoutDetectedHandler);
         }
         if (this.eventQueue && this.turnEndHandler) {
             this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
@@ -238,5 +278,6 @@ export class ExtirisDetectionUIComponent extends Component {
         this.detectedTextEl?.remove();
         this.signalEl?.remove();
         this.colonyAlertEl?.remove();
+        this.scoutAlertEl?.remove();
     }
 }

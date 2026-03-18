@@ -174,13 +174,14 @@ describe('MovementComponent', () => {
         expect(movement.displayBudget).toBe(300);
     });
 
-    it('emits turn:block when movement starts', () => {
+    it('emits turn:block with per-entity key when movement starts', () => {
         const { selectable } = createShipEntity(100, 100, 300);
         selectable.selected = true;
 
         eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 200, y: 100 });
         eventQueue.drain();
 
+        // TURN_BLOCK was queued during the RIGHT_CLICK handler — drain again
         const blocked: Array<{ type: string; key?: string }> = [];
         eventQueue.on(GameEvents.TURN_BLOCK, (event) => {
             blocked.push(event as { type: string; key?: string });
@@ -188,10 +189,10 @@ describe('MovementComponent', () => {
         eventQueue.drain();
 
         expect(blocked).toHaveLength(1);
-        expect(blocked[0].key).toBe('movement');
+        expect(blocked[0].key).toMatch(/^movement-/);
     });
 
-    it('emits turn:unblock when movement completes', () => {
+    it('emits turn:unblock with per-entity key when movement completes', () => {
         const { movement, selectable } = createShipEntity(100, 100, 300, 10000);
         selectable.selected = true;
 
@@ -200,17 +201,19 @@ describe('MovementComponent', () => {
         // Drain the turn:block event
         eventQueue.drain();
 
-        // Register handler before update emits the event
         const unblocked: Array<{ type: string; key?: string }> = [];
         eventQueue.on(GameEvents.TURN_UNBLOCK, (event) => {
             unblocked.push(event as { type: string; key?: string });
         });
 
         movement.update(1);
+        // MOVE_COMPLETE queued → drain triggers onMoveComplete → queues TURN_UNBLOCK
+        eventQueue.drain();
+        // Now drain the TURN_UNBLOCK
         eventQueue.drain();
 
         expect(unblocked.length).toBeGreaterThan(0);
-        expect(unblocked[0].key).toBe('movement');
+        expect(unblocked[0].key).toMatch(/^movement-/);
     });
 
     it('does not lerp displayBudget while moving', () => {
@@ -318,5 +321,83 @@ describe('MovementComponent', () => {
         eventQueue.drain();
 
         expect(movement.moving).toBe(false);
+    });
+
+    // --- Per-entity blocker key ---
+
+    it('uses per-entity blocker key so two entities do not collide', () => {
+        const entity1 = createShipEntity(100, 100, 300);
+        const entity2 = createShipEntity(500, 500, 300);
+        entity1.selectable.selected = true;
+        entity2.selectable.selected = true;
+
+        const blocks: Array<{ type: string; key?: string }> = [];
+        eventQueue.on(GameEvents.TURN_BLOCK, (e) => {
+            blocks.push(e as { type: string; key?: string });
+        });
+
+        // Move entity1
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 200, y: 100 });
+        eventQueue.drain();
+        eventQueue.drain();
+
+        expect(blocks).toHaveLength(2); // both entities respond
+        const keys = blocks.map(b => b.key);
+        expect(new Set(keys).size).toBe(2); // different keys
+    });
+
+    // --- Waypoint queue ---
+
+    it('appends waypoints on SHIFT_RIGHT_CLICK while moving', () => {
+        const { movement, selectable } = createShipEntity(100, 100, 300, 200);
+        selectable.selected = true;
+
+        // Start moving
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 200, y: 100 });
+        eventQueue.drain();
+        expect(movement.moving).toBe(true);
+
+        // Queue a waypoint
+        eventQueue.emit({ type: GameEvents.SHIFT_RIGHT_CLICK, x: 300, y: 100 });
+        eventQueue.drain();
+
+        expect(movement.waypointQueue).toHaveLength(1);
+        expect(movement.waypointQueue[0]).toEqual({ x: 300, y: 100 });
+    });
+
+    it('clears waypoint queue on normal right-click', () => {
+        const { movement, selectable } = createShipEntity(100, 100, 600, 10000);
+        selectable.selected = true;
+
+        // Move and queue a waypoint
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 150, y: 100 });
+        eventQueue.drain();
+        eventQueue.emit({ type: GameEvents.SHIFT_RIGHT_CLICK, x: 300, y: 100 });
+        eventQueue.drain();
+        expect(movement.waypointQueue).toHaveLength(1);
+
+        // Arrive at first target
+        movement.update(1);
+        eventQueue.drain();
+        eventQueue.drain();
+
+        // Normal right-click should clear queue
+        eventQueue.emit({ type: GameEvents.RIGHT_CLICK, x: 250, y: 100 });
+        eventQueue.drain();
+
+        expect(movement.waypointQueue).toHaveLength(0);
+    });
+
+    it('clears waypoint queue on TURN_END when not moving', () => {
+        const { movement, selectable } = createShipEntity(100, 100, 300);
+        selectable.selected = true;
+
+        // Manually add a stale waypoint
+        movement.waypointQueue.push({ x: 500, y: 500 });
+
+        eventQueue.emit({ type: GameEvents.TURN_END, turn: 2 });
+        eventQueue.drain();
+
+        expect(movement.waypointQueue).toHaveLength(0);
     });
 });

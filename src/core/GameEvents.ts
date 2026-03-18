@@ -71,6 +71,14 @@ export const GameEvents = {
     EXTIRIS_MOVE_COMPLETE: 'extiris:move:complete',
     /** Extiris detected the player ship within sensor radius. */
     EXTIRIS_DETECTED_PLAYER: 'extiris:detected:player',
+    /** A scout ship was destroyed by the Extiris. */
+    SCOUT_DESTROYED: 'scout:destroyed',
+    /** A scout ship docked with the main ship. */
+    SCOUT_DOCKED: 'scout:docked',
+    /** A shift+right-click occurred (waypoint queue). Carries world coordinates. */
+    SHIFT_RIGHT_CLICK: 'input:shift-right-click',
+    /** Extiris detected a scout within sensor radius. */
+    EXTIRIS_DETECTED_SCOUT: 'extiris:detected:scout',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -249,4 +257,26 @@ export interface ExtirisMoveCompleteEvent extends GameEvent {
 
 export interface ExtirisDetectedPlayerEvent extends GameEvent {
     type: typeof GameEvents.EXTIRIS_DETECTED_PLAYER;
+}
+
+export interface ScoutDestroyedEvent extends GameEvent {
+    type: typeof GameEvents.SCOUT_DESTROYED;
+    scoutEntityId: number;
+    pilotName: string;
+}
+
+export interface ScoutDockedEvent extends GameEvent {
+    type: typeof GameEvents.SCOUT_DOCKED;
+    scoutEntityId: number;
+}
+
+export interface ShiftRightClickEvent extends GameEvent {
+    type: typeof GameEvents.SHIFT_RIGHT_CLICK;
+    x: number;
+    y: number;
+}
+
+export interface ExtirisDetectedScoutEvent extends GameEvent {
+    type: typeof GameEvents.EXTIRIS_DETECTED_SCOUT;
+    scoutEntityId: number;
 }

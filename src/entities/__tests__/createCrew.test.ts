@@ -25,9 +25,9 @@ describe('createCrew', () => {
 
     // --- Count ---
 
-    it('generates exactly 50 crew members', () => {
+    it('generates exactly 53 crew members', () => {
         createCrew(world);
-        expect(getAllCrew()).toHaveLength(50);
+        expect(getAllCrew()).toHaveLength(53);
     });
 
     // --- Role distribution ---
@@ -37,7 +37,7 @@ describe('createCrew', () => {
         const crew = getAllCrew();
 
         const counts: Record<CrewRole, number> = {
-            Engineer: 0, Soldier: 0, Medic: 0, Scientist: 0, Civilian: 0,
+            Engineer: 0, Soldier: 0, Medic: 0, Scientist: 0, Civilian: 0, Pilot: 0,
         };
         for (const c of crew) {
             counts[c.role]++;

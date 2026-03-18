@@ -5,8 +5,10 @@ import { CrewMemberComponent } from '../../components/CrewMemberComponent';
 import {
     getCrewAtShip,
     getCrewAtColony,
+    getCrewAtScout,
     getCrewCounts,
     getShipRoleCounts,
+    getScoutLocations,
     checkShipMinimums,
     getColonyLocations,
     getLocationLabel,
@@ -114,5 +116,60 @@ describe('crewUtils', () => {
         });
         expect(label).toContain('NEWTERRA');
         expect(label).toContain('REGION 3');
+    });
+
+    // --- Scout utilities ---
+
+    it('getCrewAtScout returns pilot for given scout entity', () => {
+        const scoutEntity = world.createEntity('scoutAlpha');
+        const entity = world.createEntity('pilot');
+        const crew = entity.addComponent(new CrewMemberComponent(
+            'Lt. Kira Yossef', 33, 'Pilot', 58, ['Determined', 'Protective'],
+            'Test backstory',
+        ));
+        crew.location = { type: 'scout', scoutEntityId: scoutEntity.id };
+
+        const result = getCrewAtScout(world, scoutEntity.id);
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe(entity.id);
+    });
+
+    it('getScoutLocations returns all scout locations with crew counts', () => {
+        const scout1 = world.createEntity('scoutAlpha');
+        const scout2 = world.createEntity('scoutBeta');
+
+        const pilot1 = world.createEntity('p1');
+        const c1 = pilot1.addComponent(new CrewMemberComponent(
+            'Pilot 1', 30, 'Pilot', 55, ['Quiet', 'Analytical'], 'bg',
+        ));
+        c1.location = { type: 'scout', scoutEntityId: scout1.id };
+
+        const pilot2 = world.createEntity('p2');
+        const c2 = pilot2.addComponent(new CrewMemberComponent(
+            'Pilot 2', 25, 'Pilot', 50, ['Reckless', 'Hopeful'], 'bg',
+        ));
+        c2.location = { type: 'scout', scoutEntityId: scout2.id };
+
+        const locations = getScoutLocations(world);
+        expect(locations).toHaveLength(2);
+    });
+
+    it('getCrewCounts excludes dead crew from total', () => {
+        addCrew(world, 'alive', 'Soldier');
+        const deadEntity = world.createEntity('dead');
+        const dead = deadEntity.addComponent(new CrewMemberComponent(
+            'Dead Person', 40, 'Soldier', 50, ['Haunted', 'Quiet'], 'bg',
+        ));
+        dead.location = { type: 'dead' };
+
+        const counts = getCrewCounts(world);
+        expect(counts.ship).toBe(1);
+        expect(counts.dead).toBe(1);
+        expect(counts.total).toBe(1); // dead not in total
+    });
+
+    it('getLocationLabel returns DECEASED for dead location', () => {
+        const label = getLocationLabel(world, { type: 'dead' });
+        expect(label).toBe('DECEASED');
     });
 });

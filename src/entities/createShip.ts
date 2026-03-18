@@ -13,6 +13,7 @@ import { ShipInfoUIComponent } from '../components/ShipInfoUIComponent';
 import { VisibilitySourceComponent } from '../components/VisibilitySourceComponent';
 import { CameraComponent } from '../components/CameraComponent';
 import { ServiceLocator } from '../core/ServiceLocator';
+import { drawMovementRangeDisc } from '../utils/drawMovementRangeDisc';
 import { getPlanetConfig } from '../data/planets';
 import { FOG_DETAIL_RADIUS, FOG_BLIP_RADIUS } from '../data/constants';
 import type { World } from '../core/World';
@@ -32,18 +33,6 @@ const HULL_LENGTH = 56;
 
 /** Hull half-width at the widest point */
 const HULL_WIDTH = 32;
-
-/**
- * Interpolate ring colour from green (full budget) to red (empty budget).
- * Returns an `rgba(r, g, b, <alpha>)` string at the given alpha.
- */
-function budgetColour(ratio: number, alpha: number): string {
-    // ratio 1 = full budget (green), 0 = empty (red), 0.5 = amber
-    const r = Math.round(255 * (1 - ratio) + 80 * ratio);
-    const g = Math.round(60 * (1 - ratio) + 220 * ratio);
-    const b = Math.round(40 * (1 - ratio) + 80 * ratio);
-    return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
-}
 
 /** Draw the ship hull, engine glow, range circle, and hover highlight. */
 function drawShip(
@@ -135,46 +124,9 @@ function drawShip(
         moveConfirm.renderMarker(ctx, x, y, movement.budgetRemaining);
     }
 
-    // --- Movement range disc (anchored to turn origin, visible when selected) ---
-    // Colour transitions green → amber → red as budget depletes.
-    // Minimum radius of 12wu avoids visual noise from tiny circles.
-    const MIN_RANGE_RADIUS = 12;
-    if (selected && movement && movement.displayBudget > MIN_RANGE_RADIUS) {
-        const r = movement.displayBudget;
-        const ratio = movement.budgetMax > 0
-            ? movement.displayBudget / movement.budgetMax
-            : 0;
-
-        // Gradient fill (always centred on the ship)
-        const rangeGrad = ctx.createRadialGradient(x, y, 0, x, y, r);
-        rangeGrad.addColorStop(0, budgetColour(ratio, 0.18));
-        rangeGrad.addColorStop(0.6, budgetColour(ratio, 0.10));
-        rangeGrad.addColorStop(0.9, budgetColour(ratio, 0.05));
-        rangeGrad.addColorStop(1, budgetColour(ratio, 0));
-        ctx.fillStyle = rangeGrad;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Solid edge ring
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.strokeStyle = budgetColour(ratio, 0.45);
-        ctx.lineWidth = 6;
-        ctx.stroke();
-
-        // Soft glow bloom on the edge (only when radius is large enough
-        // for the inner radius to stay non-negative — canvas throws if < 0)
-        if (r > 32) {
-            const edgeGlow = ctx.createRadialGradient(x, y, r - 32, x, y, r + 32);
-            edgeGlow.addColorStop(0, budgetColour(ratio, 0));
-            edgeGlow.addColorStop(0.5, budgetColour(ratio, 0.10));
-            edgeGlow.addColorStop(1, budgetColour(ratio, 0));
-            ctx.fillStyle = edgeGlow;
-            ctx.beginPath();
-            ctx.arc(x, y, r + 32, 0, Math.PI * 2);
-            ctx.fill();
-        }
+    // --- Movement range disc (visible when selected) ---
+    if (selected && movement) {
+        drawMovementRangeDisc(ctx, x, y, movement.displayBudget, movement.budgetMax);
     }
 
     // --- Scan radius visualisation (only when selected, not moving) ---

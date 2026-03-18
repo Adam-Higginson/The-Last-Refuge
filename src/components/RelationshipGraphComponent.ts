@@ -22,6 +22,7 @@ const ROLE_COLOURS: Record<CrewRole, string> = {
     Medic: '#44cc66',
     Scientist: '#cc88ff',
     Civilian: '#888888',
+    Pilot: '#40c8c8',
 };
 
 // ─── Layout constants ──────────────────────────────────────────

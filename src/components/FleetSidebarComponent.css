@@ -1,0 +1,184 @@
+#fleet-sidebar {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    pointer-events: auto;
+    transition: width 0.3s ease;
+}
+
+#fleet-sidebar.collapsed {
+    width: 36px;
+}
+
+#fleet-sidebar.expanded {
+    width: 200px;
+}
+
+.fleet-strip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px;
+    background: rgba(3, 4, 10, 0.85);
+    border-right: 1px solid rgba(192, 200, 216, 0.2);
+    border-radius: 0 6px 6px 0;
+}
+
+.fleet-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+
+.fleet-dot:hover {
+    box-shadow: 0 0 6px currentColor;
+}
+
+.fleet-dot.ship-dot {
+    background: #ffffff;
+    color: #ffffff;
+}
+
+.fleet-dot.scout-dot {
+    background: #40c8c8;
+    color: #40c8c8;
+}
+
+.fleet-dot.scout-dot.destroyed {
+    background: #555;
+    color: #555;
+}
+
+.fleet-expand-btn {
+    background: none;
+    border: 1px solid rgba(192, 200, 216, 0.3);
+    color: rgba(192, 200, 216, 0.6);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 3px;
+    margin-top: 4px;
+}
+
+.fleet-expand-btn:hover {
+    color: rgba(192, 200, 216, 0.9);
+    border-color: rgba(192, 200, 216, 0.5);
+}
+
+.fleet-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    background: rgba(3, 4, 10, 0.9);
+    border-right: 1px solid rgba(192, 200, 216, 0.2);
+    border-radius: 0 6px 6px 0;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.fleet-card {
+    padding: 8px;
+    border: 1px solid rgba(192, 200, 216, 0.15);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+}
+
+.fleet-card:hover {
+    border-color: rgba(192, 200, 216, 0.4);
+}
+
+.fleet-card.ship-card {
+    border-left: 3px solid #ffffff;
+}
+
+.fleet-card.scout-card {
+    border-left: 3px solid #40c8c8;
+}
+
+.fleet-card-name {
+    font-size: 11px;
+    font-weight: bold;
+    color: rgba(220, 225, 235, 0.9);
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+}
+
+.fleet-card-meta {
+    font-size: 9px;
+    color: rgba(192, 200, 216, 0.6);
+}
+
+.fleet-card-status {
+    font-size: 9px;
+    margin-top: 3px;
+}
+
+.fleet-card-status.active {
+    color: #40c8c8;
+}
+
+.fleet-card-status.moving {
+    color: #ccaa44;
+}
+
+.fleet-card-btn {
+    background: none;
+    border: 1px solid rgba(64, 200, 200, 0.3);
+    color: rgba(64, 200, 200, 0.7);
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    font-size: 9px;
+    padding: 3px 6px;
+    cursor: pointer;
+    border-radius: 2px;
+    margin-top: 4px;
+    letter-spacing: 1px;
+}
+
+.fleet-card-btn:hover {
+    border-color: rgba(64, 200, 200, 0.6);
+    color: rgba(64, 200, 200, 1);
+}
+
+.fleet-recall-btn {
+    background: none;
+    border: 1px solid rgba(200, 140, 40, 0.3);
+    color: rgba(200, 140, 40, 0.7);
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    font-size: 9px;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.fleet-recall-btn:hover {
+    border-color: rgba(200, 140, 40, 0.6);
+    color: rgba(200, 140, 40, 1);
+}
+
+.fleet-collapse-btn {
+    background: none;
+    border: 1px solid rgba(192, 200, 216, 0.3);
+    color: rgba(192, 200, 216, 0.6);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 3px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.fleet-collapse-btn:hover {
+    color: rgba(192, 200, 216, 0.9);
+    border-color: rgba(192, 200, 216, 0.5);
+}

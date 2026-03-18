@@ -71,6 +71,13 @@ export const LEADER_ROLE_BONUSES: Record<CrewRole, LeaderBonus> = {
             { text: '+1 population capacity', sentiment: 'positive' },
         ],
     },
+    Pilot: {
+        moraleBonus: 5,
+        description: '+5 colony morale',
+        effects: [
+            { text: '+5 colony morale', sentiment: 'positive' },
+        ],
+    },
 };
 
 /** Bonuses granted by leader traits (only traits with gameplay effects). */
@@ -125,6 +132,7 @@ export const SHIP_ROLE_DESCRIPTIONS: Record<CrewRole, string> = {
     Medic: 'Treats injuries across all locations.',
     Scientist: 'No ship function yet.',
     Civilian: 'Passenger. No ship function.',
+    Pilot: 'Flies scout missions and shuttles.',
 };
 
 /** Colony role descriptions (what each role contributes in a colony). */
@@ -134,6 +142,7 @@ export const COLONY_ROLE_DESCRIPTIONS: Record<CrewRole, string> = {
     Medic: 'Colony health. 1 per 15 colonists recommended.',
     Scientist: 'No colony function yet.',
     Civilian: 'Operates Farms and basic buildings.',
+    Pilot: 'Garrison and scouting support.',
 };
 
 /** Get all bonus effect lines for a crew member if they were leader. */

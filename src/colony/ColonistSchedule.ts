@@ -64,6 +64,7 @@ const SCHEDULES: Record<CrewRole, ScheduleBlock[]> = {
     Soldier: SOLDIER_SCHEDULE,
     Medic: MEDIC_SCHEDULE,
     Scientist: SCIENTIST_SCHEDULE,
+    Pilot: SOLDIER_SCHEDULE,
 };
 
 /** Get stagger offset for a colonist (±0.5 hours, seeded by entity ID). */

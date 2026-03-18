@@ -18,12 +18,14 @@ import { createBackground } from './entities/createBackground';
 import { createStar } from './entities/createStar';
 import { createSolarSystem } from './entities/createSolarSystem';
 import { createShip } from './entities/createShip';
+import { createScout } from './entities/createScout';
 import { createFogOverlay } from './entities/createFogOverlay';
 import { createMinimap } from './entities/createMinimap';
 import { createHUD } from './entities/createHUD';
 import { createCrew } from './entities/createCrew';
 import { createExtiris } from './entities/createExtiris';
 import { CameraComponent } from './components/CameraComponent';
+import { CrewMemberComponent } from './components/CrewMemberComponent';
 import { TransformComponent } from './components/TransformComponent';
 import { AIService } from './services/AIService';
 
@@ -80,6 +82,40 @@ function boot(): void {
     createFogOverlay(world);
     createMinimap(world);
     createCrew(world);
+
+    // Create 3 scout ships with their assigned pilots
+    const shipTransformForScouts = ship.getComponent(TransformComponent);
+    const sx = shipTransformForScouts?.x ?? 0;
+    const sy = shipTransformForScouts?.y ?? 0;
+
+    const pilotAssignments: Array<{ name: string; displayName: string; pilotFullName: string; dx: number; dy: number }> = [
+        { name: 'scoutAlpha', displayName: 'Scout Alpha', pilotFullName: 'Lt. Kira Yossef', dx: -120, dy: -100 },
+        { name: 'scoutBeta', displayName: 'Scout Beta', pilotFullName: 'Cpl. Dae-Ho Lim', dx: -120, dy: 100 },
+        { name: 'scoutGamma', displayName: 'Scout Gamma', pilotFullName: 'Pvt. Nala Osei', dx: -180, dy: 0 },
+    ];
+
+    for (const pa of pilotAssignments) {
+        // Find pilot crew entity by name
+        const crewEntities = world.getEntitiesWithComponent(CrewMemberComponent);
+        const pilotEntity = crewEntities.find(e => {
+            const c = e.getComponent(CrewMemberComponent);
+            return c?.fullName === pa.pilotFullName;
+        });
+        if (!pilotEntity) continue;
+
+        const pilotCrew = pilotEntity.getComponent(CrewMemberComponent);
+        if (!pilotCrew) continue;
+
+        const scout = createScout(
+            world, pa.name, pa.displayName,
+            pilotEntity.id, pa.pilotFullName,
+            sx + pa.dx, sy + pa.dy,
+        );
+
+        // Assign pilot location to scout
+        pilotCrew.location = { type: 'scout', scoutEntityId: scout.id };
+    }
+
     createExtiris(world);
     createHUD(world);
 

@@ -14,6 +14,7 @@ import { GameModeComponent } from '../components/GameModeComponent';
 import { getEntityFogZone } from '../components/FogOfWarComponent';
 import { MinimapComponent } from '../components/MinimapComponent';
 import { MoveConfirmComponent } from '../components/MoveConfirmComponent';
+import { ScoutDataComponent } from '../components/ScoutDataComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import type { World } from '../core/World';
@@ -32,7 +33,7 @@ export class InputSystem extends System {
     private mouseY = 0;
     private pendingClick = false;
     private pendingClickIsTouch = false;
-    private pendingRightClick: { x: number; y: number } | null = null;
+    private pendingRightClick: { x: number; y: number; shiftKey: boolean } | null = null;
 
     // Pan state (mouse)
     private panButton: number | null = null;
@@ -141,7 +142,7 @@ export class InputSystem extends System {
 
         this.onContextMenu = (e: MouseEvent): void => {
             e.preventDefault();
-            this.pendingRightClick = { x: e.clientX, y: e.clientY };
+            this.pendingRightClick = { x: e.clientX, y: e.clientY, shiftKey: e.shiftKey };
         };
 
         this.onWheel = (e: WheelEvent): void => {
@@ -346,8 +347,11 @@ export class InputSystem extends System {
             const transform = entity.getComponent(TransformComponent);
             if (!selectable || !transform) continue;
 
-            // Ship and star are always interactable; other entities need fog check
-            if (entity.name !== 'arkSalvage' && entity.name !== 'star') {
+            // Ship, star, and scouts are always interactable; other entities need fog check
+            const alwaysInteractable = entity.name === 'arkSalvage'
+                || entity.name === 'star'
+                || entity.hasComponent(ScoutDataComponent);
+            if (!alwaysInteractable) {
                 if (getEntityFogZone(transform.x, transform.y) !== 'active') {
                     selectable.hovered = false;
                     continue;
@@ -390,22 +394,30 @@ export class InputSystem extends System {
 
         // Empty space click handling
         if (this.pendingClick && !clickedEntity) {
-            const ship = this.world.getEntityByName('arkSalvage');
-            const shipSel = ship?.getComponent(SelectableComponent);
-            const moveConfirm = ship?.getComponent(MoveConfirmComponent);
+            // Find selected entity with MoveConfirmComponent for two-tap-to-move
+            let moveConfirmHandled = false;
+            if (this.pendingClickIsTouch) {
+                for (const entity of entities) {
+                    const sel = entity.getComponent(SelectableComponent);
+                    const mc = entity.getComponent(MoveConfirmComponent);
+                    if (sel?.selected && mc) {
+                        mc.handleTap(worldMouse.x, worldMouse.y);
+                        moveConfirmHandled = true;
+                        break;
+                    }
+                }
+            }
 
-            if (shipSel?.selected && moveConfirm && this.pendingClickIsTouch) {
-                // Touch: two-tap confirm via MoveConfirmComponent
-                moveConfirm.handleTap(worldMouse.x, worldMouse.y);
-            } else {
+            if (!moveConfirmHandled) {
                 // Desktop left-click on empty space: deselect all
                 for (const entity of entities) {
                     const selectable = entity.getComponent(SelectableComponent);
                     if (selectable) {
                         selectable.selected = false;
                     }
+                    const mc = entity.getComponent(MoveConfirmComponent);
+                    mc?.clear();
                 }
-                moveConfirm?.clear();
             }
         }
 
@@ -422,7 +434,10 @@ export class InputSystem extends System {
                 if (!selectable || !transform) continue;
 
                 // Fog gating for right-click too
-                if (entity.name !== 'arkSalvage' && entity.name !== 'star') {
+                const alwaysRightClickable = entity.name === 'arkSalvage'
+                    || entity.name === 'star'
+                    || entity.hasComponent(ScoutDataComponent);
+                if (!alwaysRightClickable) {
                     if (getEntityFogZone(transform.x, transform.y) !== 'active') {
                         continue;
                     }
@@ -444,11 +459,19 @@ export class InputSystem extends System {
             }
 
             if (!rightClickedEntity) {
-                this.eventQueue.emit({
-                    type: GameEvents.RIGHT_CLICK,
-                    x: worldClick.x,
-                    y: worldClick.y,
-                });
+                if (this.pendingRightClick.shiftKey) {
+                    this.eventQueue.emit({
+                        type: GameEvents.SHIFT_RIGHT_CLICK,
+                        x: worldClick.x,
+                        y: worldClick.y,
+                    });
+                } else {
+                    this.eventQueue.emit({
+                        type: GameEvents.RIGHT_CLICK,
+                        x: worldClick.x,
+                        y: worldClick.y,
+                    });
+                }
             }
             this.pendingRightClick = null;
         }

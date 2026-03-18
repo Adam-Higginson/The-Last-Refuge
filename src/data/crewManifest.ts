@@ -24,7 +24,7 @@ export interface RelationshipDef {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CREW MANIFEST — 50 members
+// CREW MANIFEST — 53 members
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const CREW_MANIFEST: readonly CrewDef[] = [
@@ -88,6 +88,11 @@ export const CREW_MANIFEST: readonly CrewDef[] = [
     { name: 'Amina Yusuf', age: 43, role: 'Civilian', morale: 49, traits: ['Determined', 'Empathetic'], backstory: 'Mediated disputes between rival refugee factions on Keth-7 when the occupation turned neighbours against each other. She knows that survival means keeping people talking, even when they would rather fight.' },
     { name: 'Felix Strand', age: 37, role: 'Civilian', morale: 53, traits: ['Resourceful', 'Stubborn'], backstory: 'Ran a salvage operation on Keth-7, recovering usable materials from Extiris bombardment sites. He sees value in what others discard and has turned that instinct into the ESV-7\'s supply chain backbone.' },
     { name: 'Iris Thorne', age: 29, role: 'Civilian', morale: 51, traits: ['Quiet', 'Hopeful'], backstory: 'Kept a written journal through the entire Keth-7 occupation, documenting daily life under Extiris rule. She writes aboard the ESV-7 too — recording names, stories, small moments of kindness — because someone has to remember.' },
+
+    // ─── PILOTS (3) ──────────────────────────────────────────────────────
+    { name: 'Lt. Kira Yossef', age: 33, role: 'Pilot', morale: 58, traits: ['Determined', 'Protective'], backstory: 'Former Keth-7 resistance wing commander who led the fighter escort during the evacuation. She personally shot down four Extiris interceptors in the upper atmosphere while civilian transports climbed to orbit. She sleeps with one hand on the cockpit release lever — old habits die hard.' },
+    { name: 'Cpl. Dae-Ho Lim', age: 30, role: 'Pilot', morale: 55, traits: ['Quiet', 'Analytical'], backstory: 'Flew evacuation shuttles under fire when the Keth-7 spaceport was bombed. Calm under pressure to an unnerving degree — his heartrate flatlined during the worst of it while everyone else was screaming. He calculates risk the way other people breathe.' },
+    { name: 'Pvt. Nala Osei', age: 21, role: 'Pilot', morale: 52, traits: ['Reckless', 'Hopeful'], backstory: 'The youngest pilot in the Keth-7 resistance, she flew unarmed recon missions through Extiris patrol routes at sixteen. She learned to fly by stealing simulator time at the resistance base and never looked back. She believes speed is the only prayer worth saying.' },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -379,4 +384,20 @@ export const RELATIONSHIP_MANIFEST: readonly RelationshipDef[] = [
         descAB: 'Sarai is kind and steady — she reminds her of home', descBA: 'Asha protects people like it is breathing — inspiring' },
     { from: 'Pvt. Talia Doss', to: 'Tomas Sarr Jr.', type: 'Close Bond', level: 50,
         descAB: 'Sarr is the same age — they grew up in the same corridor', descBA: 'Talia chose to fight so others would not have to — he respects that' },
+
+    // ─── PILOT RELATIONSHIPS ─────────────────────────────────────────────
+    { from: 'Lt. Kira Yossef', to: 'Commander Soren Vael', type: 'Close Bond', level: 72,
+        descAB: 'Vael held the ground so her pilots could get airborne — she owes him the sky', descBA: 'Yossef is the best pilot he has ever served with — her wing saved the evacuation' },
+    { from: 'Lt. Kira Yossef', to: 'Cpl. Dae-Ho Lim', type: 'Mentor/Protege', level: 68,
+        descAB: 'Lim has ice in his veins — she trusts him to fly the missions she cannot', descBA: 'Yossef taught him that flying is not about the ship but the people behind you' },
+    { from: 'Lt. Kira Yossef', to: 'Pvt. Nala Osei', type: 'Mentor/Protege', level: 65,
+        descAB: 'Osei is fearless and raw — she sees herself at that age and it terrifies her', descBA: 'Yossef is the only commander who never told her she was too young to fly' },
+    { from: 'Cpl. Dae-Ho Lim', to: 'Dr. Yael Chen', type: 'Close Bond', level: 55,
+        descAB: 'Chen stitched his shoulder after a crash landing — she did not flinch', descBA: 'Lim brings her tea after bad shifts without being asked — small kindnesses matter' },
+    { from: 'Pvt. Nala Osei', to: 'Mira Chen', type: 'Close Bond', level: 60,
+        descAB: 'Mira is the only other person her age who understands what fighting costs', descBA: 'Osei flies like she has nothing to lose — it reminds her of herself at sixteen' },
+    { from: 'Pvt. Nala Osei', to: 'Pvt. Talia Doss', type: 'Close Bond', level: 58,
+        descAB: 'Doss enlisted young like her — they share that weight', descBA: 'Osei flies the missions she cannot — she admires that courage' },
+    { from: 'Cpl. Dae-Ho Lim', to: 'Sgt. Marcus Webb', type: 'Close Bond', level: 50,
+        descAB: 'Webb plans retreats the way he plans flight paths — methodical and honest', descBA: 'Lim is the steadiest hand on the ship — he trusts that calm' },
 ];

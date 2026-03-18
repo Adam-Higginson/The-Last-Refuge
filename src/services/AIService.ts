@@ -6,7 +6,7 @@ export interface ExtirisStatePayload {
     turn: number;
     self: { x: number; y: number; movementBudget: number; sensorRadius: number };
     visibleEntities: Array<{
-        type: 'planet' | 'ship' | 'star';
+        type: 'planet' | 'ship' | 'star' | 'scout';
         name: string;
         x: number;
         y: number;
