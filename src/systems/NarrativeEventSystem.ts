@@ -55,19 +55,25 @@ export class NarrativeEventSystem extends System {
     private async checkEvents(turn: number): Promise<void> {
         if (this.showing) return;
 
-        const event = this.selectEvent(turn);
-        if (!event) return;
-
-        this.showing = true;
+        let blocked = false;
         try {
+            const event = this.selectEvent(turn);
+            if (!event) return;
+
+            this.showing = true;
+            this.eventQueue.emit({ type: GameEvents.TURN_BLOCK, key: 'narrative' });
+            blocked = true;
+
             const choiceIndex = await this.showEvent(event, turn);
             if (choiceIndex >= 0 && event.choices && event.choices[choiceIndex]) {
                 await this.applyOutcome(event, choiceIndex, turn);
             }
         } catch (err) {
-            console.warn('NarrativeEventSystem: error during event', event.id, err);
+            console.warn('NarrativeEventSystem: error during checkEvents', err);
         } finally {
-            this.eventQueue.emit({ type: GameEvents.TURN_UNBLOCK, key: 'narrative' });
+            if (blocked) {
+                this.eventQueue.emit({ type: GameEvents.TURN_UNBLOCK, key: 'narrative' });
+            }
             this.showing = false;
         }
     }
@@ -189,8 +195,6 @@ export class NarrativeEventSystem extends System {
             };
         });
 
-        this.eventQueue.emit({ type: GameEvents.TURN_BLOCK, key: 'narrative' });
-
         const choiceIndex = await this.narrativeModal.show({
             title: event.title,
             body: event.body,
@@ -208,17 +212,17 @@ export class NarrativeEventSystem extends System {
         const state = this.getEventState();
 
         // Multi-cost atomicity: verify ALL costs before ANY deduct
-        if (choice.cost && resources) {
-            const allAffordable = choice.cost.every(c => resources.canAfford(c.resource, c.amount));
-            if (allAffordable) {
-                for (const c of choice.cost) {
-                    resources.deduct(c.resource, c.amount);
-                }
+        const allAffordable = !choice.cost || !resources ||
+            choice.cost.every(c => resources.canAfford(c.resource, c.amount));
+
+        if (choice.cost && resources && allAffordable) {
+            for (const c of choice.cost) {
+                resources.deduct(c.resource, c.amount);
             }
         }
 
-        // Apply gains
-        if (choice.gain && resources) {
+        // Apply gains only if costs were paid (or no costs required)
+        if (choice.gain && resources && allAffordable) {
             for (const g of choice.gain) {
                 resources.add(g.resource, g.amount);
             }

@@ -292,10 +292,8 @@ describe('NarrativeEventSystem', () => {
 
         // Materials should not be deducted (can't afford)
         expect(resources.resources.materials.current).toBe(5);
-        // But gains still apply (they're separate from costs per plan)
-        // Actually, re-reading the plan: "Multi-cost atomicity: verify ALL costs with canAfford before ANY deduct"
-        // If can't afford, no deduction happens. Gains still happen.
-        expect(resources.resources.food.current).toBe(startFood + 30);
+        // Gains should also not apply when costs can't be paid
+        expect(resources.resources.food.current).toBe(startFood);
     });
 
     // --- Condition function throws ---
