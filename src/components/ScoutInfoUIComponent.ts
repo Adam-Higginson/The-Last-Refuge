@@ -67,7 +67,7 @@ export class ScoutInfoUIComponent extends Component {
         if (!data) return;
 
         this.panel.innerHTML = `
-            <button class="scout-panel-close" id="scout-panel-close" type="button">&times;</button>
+            <button class="panel-close-btn" id="scout-panel-close" type="button" title="Close">&times;</button>
             <div class="scout-panel-name">${data.displayName.toUpperCase()}</div>
             <div class="scout-panel-pilot">Pilot: ${data.pilotName}</div>
             <hr class="scout-panel-divider">
@@ -83,8 +83,9 @@ export class ScoutInfoUIComponent extends Component {
                 <span>WAYPOINTS</span>
                 <span class="scout-panel-stat-value" id="scout-stat-waypoints">${movement?.waypointQueue.length ?? 0}</span>
             </div>
-            <button class="scout-panel-btn" id="scout-centre-btn" type="button">CENTRE ON SCOUT</button>
-            <button class="scout-panel-btn" id="scout-clear-waypoints-btn" type="button">CLEAR WAYPOINTS</button>
+            <hr class="scout-panel-divider">
+            <button class="hud-btn" id="scout-centre-btn" type="button">CENTRE ON SCOUT</button>
+            <button class="hud-btn" id="scout-clear-waypoints-btn" type="button">CLEAR WAYPOINTS</button>
         `;
 
         this.wireEvents(world, scout);

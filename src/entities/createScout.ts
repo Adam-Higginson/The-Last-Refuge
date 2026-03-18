@@ -40,14 +40,14 @@ function drawTrail(
     if (positions.length === 0) return;
 
     ctx.save();
-    ctx.setLineDash([8, 12]);
-    ctx.lineWidth = 2;
+    ctx.setLineDash([12, 10]);
+    ctx.lineWidth = 3;
 
     for (let i = 0; i < positions.length; i++) {
         const pos = positions[i];
         const nextPos = i < positions.length - 1 ? positions[i + 1] : { x: currentX, y: currentY };
 
-        const alpha = 0.08 + (i / positions.length) * 0.15;
+        const alpha = 0.12 + (i / positions.length) * 0.23;
         ctx.beginPath();
         ctx.moveTo(pos.x, pos.y);
         ctx.lineTo(nextPos.x, nextPos.y);
@@ -350,7 +350,7 @@ function updateTrail(scoutData: ScoutDataComponent, x: number, y: number): void 
     const last = trail.length > 0 ? trail[trail.length - 1] : null;
 
     // Only add if position changed significantly
-    if (!last || Math.abs(x - last.x) > 10 || Math.abs(y - last.y) > 10) {
+    if (!last || Math.abs(x - last.x) > 5 || Math.abs(y - last.y) > 5) {
         trail.push({ x, y });
         if (trail.length > SCOUT_TRAIL_LENGTH) {
             trail.shift();

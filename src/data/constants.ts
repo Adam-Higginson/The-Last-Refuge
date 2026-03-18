@@ -68,4 +68,4 @@ export const SCOUT_FOG_BLIP_RADIUS = 600;
 export const SCOUT_KILL_RADIUS = 100;
 
 /** Number of past positions to show in scout movement trail. */
-export const SCOUT_TRAIL_LENGTH = 5;
+export const SCOUT_TRAIL_LENGTH = 12;
