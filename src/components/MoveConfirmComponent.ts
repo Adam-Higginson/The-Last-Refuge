@@ -1,8 +1,8 @@
-// MoveConfirmComponent.ts — Two-tap move confirmation for touch input.
-// When the ship is selected and the player taps empty space, this component
-// shows a pending move marker. A second tap near the marker confirms the move.
-// Tapping elsewhere repositions the marker. Renders a dotted line, pulsing ring,
-// and a screen-space "TAP TO MOVE" label.
+// MoveConfirmComponent.ts — Two-click move confirmation for all input methods.
+// When a movable entity is selected and the player clicks empty space, this component
+// shows a pending move marker. A second click near the marker confirms the move.
+// Clicking elsewhere repositions the marker. Renders a dotted line, pulsing ring,
+// and a screen-space "CONFIRM MOVE" label.
 
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
@@ -33,7 +33,7 @@ export class MoveConfirmComponent extends Component {
         // Create DOM label element
         this.label = document.createElement('div');
         this.label.className = 'move-confirm-label';
-        this.label.textContent = 'TAP TO MOVE';
+        this.label.textContent = 'CONFIRM MOVE';
         this.label.style.cssText = `
             position: fixed;
             pointer-events: none;
@@ -57,7 +57,7 @@ export class MoveConfirmComponent extends Component {
         this.eventQueue.on(GameEvents.ENTITY_CLICK, this.deselectedHandler);
     }
 
-    /** Called by InputSystem when a touch tap lands on empty space while ship is selected */
+    /** Called by InputSystem when a click/tap lands on empty space while entity is selected */
     handleTap(worldX: number, worldY: number): void {
         const movement = this.entity.getComponent(MovementComponent);
         if (!movement || movement.moving) return;

@@ -55,7 +55,7 @@ describe('createScout', () => {
         expect(selectable?.hitRadius).toBe(SCOUT_HIT_RADIUS);
     });
 
-    it('has MoveConfirmComponent for mobile support', () => {
+    it('has MoveConfirmComponent for move confirmation', () => {
         const scout = createScout(world, 'scoutAlpha', 'Scout Alpha', 1, 'Lt. Kira Yossef', 0, 0);
         expect(scout.getComponent(MoveConfirmComponent)).toBeTruthy();
     });

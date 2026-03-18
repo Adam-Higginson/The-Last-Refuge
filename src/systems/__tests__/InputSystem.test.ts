@@ -5,6 +5,8 @@ import { ServiceLocator } from '../../core/ServiceLocator';
 import { GameEvents } from '../../core/GameEvents';
 import { InputSystem } from '../InputSystem';
 import { CameraComponent } from '../../components/CameraComponent';
+import { MoveConfirmComponent } from '../../components/MoveConfirmComponent';
+import { MovementComponent } from '../../components/MovementComponent';
 import { SelectableComponent } from '../../components/SelectableComponent';
 import { TransformComponent } from '../../components/TransformComponent';
 
@@ -592,6 +594,99 @@ describe('InputSystem', () => {
         fireCanvas('mouseup', { button: 1, clientX: 230, clientY: 200 } as Partial<MouseEvent>);
 
         expect(panSpy).not.toHaveBeenCalled();
+    });
+
+    // --- Two-click move confirmation tests ---
+
+    it('routes mouse click on empty space to MoveConfirmComponent when movable entity is selected', () => {
+        const system = new InputSystem();
+        system.init(world);
+
+        const entity = world.createEntity('ship');
+        entity.addComponent(new TransformComponent(100, 100));
+        const selectable = entity.addComponent(new SelectableComponent(20));
+        selectable.selected = true;
+        const movement = entity.addComponent(new MovementComponent(500, 200));
+        movement.moving = false;
+        const mc = entity.addComponent(new MoveConfirmComponent());
+        const handleTapSpy = vi.spyOn(mc, 'handleTap');
+
+        // Click on empty space (far from entity)
+        simulateMouseMove(500, 500);
+        simulateClick();
+        system.update(16);
+
+        expect(handleTapSpy).toHaveBeenCalledWith(500, 500);
+        // Entity should still be selected (not deselected)
+        expect(selectable.selected).toBe(true);
+    });
+
+    it('toggles selection off when clicking already-selected entity', () => {
+        const system = new InputSystem();
+        system.init(world);
+
+        const entity = world.createEntity('ship');
+        entity.addComponent(new TransformComponent(100, 100));
+        const selectable = entity.addComponent(new SelectableComponent(20));
+        const mc = entity.addComponent(new MoveConfirmComponent());
+        const clearSpy = vi.spyOn(mc, 'clear');
+
+        // Select the entity
+        simulateMouseMove(100, 100);
+        simulateClick();
+        system.update(16);
+        expect(selectable.selected).toBe(true);
+
+        // Click it again — should deselect
+        simulateClick();
+        system.update(16);
+        expect(selectable.selected).toBe(false);
+        expect(clearSpy).toHaveBeenCalled();
+    });
+
+    it('does not deselect when clicking empty space while ship has MoveConfirmComponent', () => {
+        const system = new InputSystem();
+        system.init(world);
+
+        const entity = world.createEntity('ship');
+        entity.addComponent(new TransformComponent(100, 100));
+        const selectable = entity.addComponent(new SelectableComponent(20));
+        selectable.selected = true;
+        const movement = entity.addComponent(new MovementComponent(500, 200));
+        movement.moving = true; // ship is moving — handleTap returns early but moveConfirmHandled is true
+        entity.addComponent(new MoveConfirmComponent());
+
+        // Click on empty space
+        simulateMouseMove(500, 500);
+        simulateClick();
+        system.update(16);
+
+        // Should still be selected because moveConfirmHandled prevents deselect
+        expect(selectable.selected).toBe(true);
+    });
+
+    it('right-click still emits RIGHT_CLICK directly (bypasses two-click)', () => {
+        const system = new InputSystem();
+        system.init(world);
+
+        const entity = world.createEntity('ship');
+        entity.addComponent(new TransformComponent(100, 100));
+        const selectable = entity.addComponent(new SelectableComponent(20));
+        selectable.selected = true;
+        entity.addComponent(new MoveConfirmComponent());
+
+        simulateRightClick(500, 500);
+        system.update(16);
+
+        const emittedEvents: Array<{ type: string; x?: number; y?: number }> = [];
+        eventQueue.on(GameEvents.RIGHT_CLICK, (event) => {
+            emittedEvents.push(event as { type: string; x?: number; y?: number });
+        });
+        eventQueue.drain();
+
+        expect(emittedEvents).toHaveLength(1);
+        expect(emittedEvents[0].x).toBe(500);
+        expect(emittedEvents[0].y).toBe(500);
     });
 
     it('shows grabbing cursor during pan', () => {

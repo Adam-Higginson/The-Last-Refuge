@@ -33,7 +33,6 @@ export class InputSystem extends System {
     private mouseX = 0;
     private mouseY = 0;
     private pendingClick = false;
-    private pendingClickIsTouch = false;
     private pendingRightClick: { x: number; y: number; modifierKey: boolean } | null = null;
 
     // Pan state (mouse)
@@ -139,7 +138,6 @@ export class InputSystem extends System {
             // Suppress click if the user was panning (dragged past threshold)
             if (!this.panMoved) {
                 this.pendingClick = true;
-                this.pendingClickIsTouch = false;
             }
             this.panMoved = false;
         };
@@ -302,7 +300,6 @@ export class InputSystem extends System {
             if (!this.touchMoved && this.isSystemMode()) {
                 e.preventDefault();
                 this.pendingClick = true;
-                this.pendingClickIsTouch = true;
             }
 
             this.isTouchPanning = false;
@@ -408,14 +405,21 @@ export class InputSystem extends System {
                 anythingHovered = true;
                 hoveredCursor = selectable.cursorStyle;
 
-                // Handle left-click: select entity and emit click event
+                // Handle left-click: toggle selection on already-selected, otherwise select
                 if (this.pendingClick) {
                     clickedEntity = true;
-                    // Select this entity, deselect all others
-                    for (const other of entities) {
-                        const otherSel = other.getComponent(SelectableComponent);
-                        if (otherSel) {
-                            otherSel.selected = other === entity;
+                    if (selectable.selected) {
+                        // Toggle off: deselect and clear move marker
+                        selectable.selected = false;
+                        const mc = entity.getComponent(MoveConfirmComponent);
+                        mc?.clear();
+                    } else {
+                        // Select this entity, deselect all others
+                        for (const other of entities) {
+                            const otherSel = other.getComponent(SelectableComponent);
+                            if (otherSel) {
+                                otherSel.selected = other === entity;
+                            }
                         }
                     }
                     this.eventQueue.emit({
@@ -433,15 +437,13 @@ export class InputSystem extends System {
         if (this.pendingClick && !clickedEntity) {
             // Find selected entity with MoveConfirmComponent for two-tap-to-move
             let moveConfirmHandled = false;
-            if (this.pendingClickIsTouch) {
-                for (const entity of entities) {
-                    const sel = entity.getComponent(SelectableComponent);
-                    const mc = entity.getComponent(MoveConfirmComponent);
-                    if (sel?.selected && mc) {
-                        mc.handleTap(worldMouse.x, worldMouse.y);
-                        moveConfirmHandled = true;
-                        break;
-                    }
+            for (const entity of entities) {
+                const sel = entity.getComponent(SelectableComponent);
+                const mc = entity.getComponent(MoveConfirmComponent);
+                if (sel?.selected && mc) {
+                    mc.handleTap(worldMouse.x, worldMouse.y);
+                    moveConfirmHandled = true;
+                    break;
                 }
             }
 
