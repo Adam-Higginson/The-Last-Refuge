@@ -32,6 +32,23 @@
     color: #ffffff;
 }
 
+/* --- Step text (assignment guidance) --- */
+.transfer-step-text {
+    color: #ffcc00;
+    font-size: 13px;
+    letter-spacing: 1px;
+    flex: 1;
+    text-align: center;
+}
+
+.transfer-step-text.done {
+    color: #66bb6a;
+}
+
+.transfer-step-text strong {
+    color: #ffffff;
+}
+
 /* --- Main layout --- */
 .transfer-main {
     display: flex;
@@ -85,6 +102,31 @@
 @keyframes pulse-green {
     0%, 100% { border-color: rgba(102, 187, 106, 0.4); }
     50% { border-color: rgba(102, 187, 106, 0.8); }
+}
+
+.location-card.assign-target {
+    border-color: rgba(212, 160, 32, 0.6);
+    background: rgba(212, 160, 32, 0.08);
+    position: relative;
+}
+
+.location-card.assign-target::after {
+    content: '\2190 ASSIGN HERE';
+    display: block;
+    font-size: 9px;
+    color: #d4a020;
+    letter-spacing: 1px;
+    margin-top: 6px;
+}
+
+.location-card.assign-target.transfer-target {
+    border-color: #66bb6a;
+    background: rgba(102, 187, 106, 0.1);
+}
+
+.location-card.assign-target.transfer-target::after {
+    content: '\2190 TAP TO ASSIGN';
+    color: #66bb6a;
 }
 
 .location-name {
