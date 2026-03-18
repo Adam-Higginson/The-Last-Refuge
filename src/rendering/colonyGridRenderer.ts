@@ -188,7 +188,8 @@ export function drawFigure(
     ctx.fillStyle = '#ffffff';
     ctx.font = `${Math.round(5 * s)}px "Share Tech Mono", "Courier New", monospace`;
     ctx.textAlign = 'center';
-    ctx.fillText(colonist.name, x, y - 14 * s + bob);
+    const firstName = colonist.name.split(' ')[0];
+    ctx.fillText(firstName, x, y - 14 * s + bob);
     ctx.globalAlpha = 1;
 
     // Leader star
