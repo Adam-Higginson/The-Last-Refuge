@@ -1450,9 +1450,7 @@ function collectBuildingSlotData(
         } else {
             const pos = sim.grid.getBuildingPosition(i);
             if (pos) {
-                // For empty slots, use max footprint (3x3) so the slot marker is centred
-                // where any building type would render — prevents position shift on build.
-                const footprint = building ? getBuildingFootprint(building.typeId) : { w: 3, h: 3 };
+                const footprint = building ? getBuildingFootprint(building.typeId) : { w: 2, h: 2 };
                 screenPos = gridToScreen(pos.gx + footprint.w / 2, pos.gy + footprint.h / 2, centreX, centreY);
             } else {
                 continue;
