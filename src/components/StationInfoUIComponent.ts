@@ -14,6 +14,7 @@ import { TransformComponent } from './TransformComponent';
 import { VisibilitySourceComponent } from './VisibilitySourceComponent';
 import { ResourceComponent } from './ResourceComponent';
 import { STATION_FOG_BLIP_RADIUS } from '../data/constants';
+import type { ConfirmModal } from '../ui/ConfirmModal';
 import type { World } from '../core/World';
 
 export class StationInfoUIComponent extends Component {
@@ -152,7 +153,23 @@ export class StationInfoUIComponent extends Component {
 
         this.panel.querySelector('#station-repair-btn')?.addEventListener('click', () => {
             const repair = this.entity.getComponent(StationRepairComponent);
-            repair?.startRepair();
+            const data = this.entity.getComponent(StationDataComponent);
+            if (!repair || !data) return;
+
+            try {
+                const confirmModal = ServiceLocator.get<ConfirmModal>('confirmModal');
+                void confirmModal.show({
+                    title: 'Begin Repairs',
+                    body: `Repair the Keth Mining Relay?\n\nCost: ${data.repairCost} Materials\nTime: ${data.repairTurnsTotal} turns`,
+                    confirmLabel: 'Begin Repairs',
+                    cancelLabel: 'Cancel',
+                }).then((confirmed) => {
+                    if (confirmed) repair.startRepair();
+                });
+            } catch {
+                // Fallback: start directly if modal service unavailable
+                repair.startRepair();
+            }
         });
     }
 

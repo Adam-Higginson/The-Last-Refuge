@@ -71,14 +71,14 @@ export const SCOUT_KILL_RADIUS = 100;
 export const SCOUT_TRAIL_LENGTH = 12;
 
 // ─── Station constants ──────────────────────────────────────────────────
-/** Station orbit radius — same as Dust (world units). */
-export const STATION_ORBIT_RADIUS = 3600;
+/** Station orbit radius — distance from Dust's centre (world units). Moon-like orbit. */
+export const STATION_ORBIT_RADIUS = 200;
 
-/** Station orbit speed — must match Dust's keplerSpeed(2400) ≈ 0.067 rad/turn. */
-export const STATION_ORBIT_SPEED = 0.067;
+/** Station orbit speed — faster than planet orbit for visible moon-like motion (rad/turn). */
+export const STATION_ORBIT_SPEED = 0.15;
 
-/** Station starting angle — ~1.2 rad ahead of Dust's startAngle (5.4). */
-export const STATION_START_ANGLE = 5.4 + 1.2;
+/** Station starting angle around Dust (radians). */
+export const STATION_START_ANGLE = 0;
 
 /** Station hit radius for hover/click detection (world units). */
 export const STATION_HIT_RADIUS = 60;

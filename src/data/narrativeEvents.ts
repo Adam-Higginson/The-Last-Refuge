@@ -112,7 +112,7 @@ Your navigator marks the coordinates. It may prove useful — if you survive lon
         title: 'FAINT SIGNAL',
         body: `Long-range sensors have picked up a faint automated signal from somewhere in Dust's orbital zone. It's weak — an old transponder, repeating on a loop. Could be debris. Could be something worth finding.
 
-Your navigator marks the bearing. A scout could reach it.`,
+Your navigator marks the bearing — **ahead of Dust in its orbit**. A scout could reach it.`,
         category: 'story',
         condition: (ctx): boolean => ctx.turn >= 3 && !ctx.flags.has('station_discovered'),
         once: true,
