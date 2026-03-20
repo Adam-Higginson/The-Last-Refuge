@@ -27,6 +27,7 @@ interface MockElement {
     removeEventListener(evt: string, fn: (...args: unknown[]) => void): void;
     click(): void;
     closest(selector: string): MockElement | null;
+    querySelector(_selector: string): MockElement | null;
 }
 
 function createMockElement(id: string): MockElement {
@@ -54,6 +55,9 @@ function createMockElement(id: string): MockElement {
         },
         click(): void {
             for (const fn of listeners['click'] ?? []) fn();
+        },
+        querySelector(_selector: string): MockElement | null {
+            return null;
         },
         closest(_selector: string): MockElement | null {
             return null;

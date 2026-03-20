@@ -13,7 +13,12 @@ import { TransformComponent } from './TransformComponent';
 import { CameraComponent } from './CameraComponent';
 import { TransferScreenComponent } from './TransferScreenComponent';
 import { RelationshipGraphComponent } from './RelationshipGraphComponent';
+import { EngineStateComponent } from './EngineStateComponent';
+import { EngineRepairComponent } from './EngineRepairComponent';
+import { EventStateComponent } from './EventStateComponent';
+import { ResourceComponent } from './ResourceComponent';
 import { getCrewCounts } from '../utils/crewUtils';
+import type { ConfirmModal } from '../ui/ConfirmModal';
 import type { World } from '../core/World';
 
 export type PanelView = 'overview' | 'manifest' | 'detail';
@@ -35,6 +40,9 @@ export class ShipInfoUIComponent extends Component {
     private rangeFill: HTMLElement | null = null;
     private rangeText: HTMLElement | null = null;
     private overviewSection: HTMLElement | null = null;
+
+    private lastEngineState: string | null = null;
+    private lastRepairTurns = -1;
 
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
@@ -74,6 +82,10 @@ export class ShipInfoUIComponent extends Component {
     private buildPanelHTML(): void {
         if (!this.panel) return;
 
+        const engineStatusSection = this.buildEngineStatusSection();
+        const engineData = this.entity.getComponent(EngineStateComponent);
+        const engineOnline = !engineData || engineData.engineState === 'online';
+
         this.panel.innerHTML = `
             <button class="panel-close-btn" id="ship-panel-close" type="button" title="Close">&times;</button>
             <div class="view-section active" id="ship-overview-section">
@@ -93,11 +105,14 @@ export class ShipInfoUIComponent extends Component {
                 <div class="crew-count" id="ship-crew-count">
                     <span class="crew-dot"></span>
                 </div>
+                ${engineStatusSection}
+                ${engineOnline ? `
                 <div class="ship-range-section">
                     <span class="ship-range-label">RANGE</span>
                     <div class="ship-range-bar"><div class="ship-range-fill" id="ship-range-fill"></div></div>
                     <span class="ship-range-text" id="ship-range-text">300 / 300</span>
                 </div>
+                ` : ''}
                 <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px">
                     <button class="hud-btn" id="ship-crew-roster-btn" type="button">CREW ROSTER</button>
                     <button class="hud-btn" id="ship-relationships-btn" type="button">RELATIONSHIPS</button>
@@ -186,6 +201,26 @@ export class ShipInfoUIComponent extends Component {
                 this.cancelRename();
             }
         });
+
+        // Engine repair button
+        this.panel.querySelector('#engine-repair-btn')?.addEventListener('click', () => {
+            const repair = this.entity.getComponent(EngineRepairComponent);
+            const engineData = this.entity.getComponent(EngineStateComponent);
+            if (!repair || !engineData) return;
+            try {
+                const confirmModal = ServiceLocator.get<ConfirmModal>('confirmModal');
+                void confirmModal.show({
+                    title: 'Begin Engine Repair',
+                    body: `Repair the ESV-7's drive core?\n\nCost: ${engineData.repairCost} Materials\nTime: ${engineData.repairTurnsTotal} turns`,
+                    confirmLabel: 'Begin Repairs',
+                    cancelLabel: 'Cancel',
+                }).then((confirmed) => {
+                    if (confirmed) repair.startRepair();
+                });
+            } catch {
+                repair.startRepair();
+            }
+        });
     }
 
     update(_dt: number): void {
@@ -217,11 +252,30 @@ export class ShipInfoUIComponent extends Component {
             }
         }
 
+        // Detect engine state changes and rebuild panel when needed
+        if (this.panelOpen && this.activeView === 'overview') {
+            const engineData = this.entity.getComponent(EngineStateComponent);
+            if (engineData) {
+                const stateChanged = this.lastEngineState !== engineData.engineState;
+                const turnsChanged = this.lastRepairTurns !== engineData.repairTurnsRemaining;
+                if (stateChanged || turnsChanged) {
+                    this.lastEngineState = engineData.engineState;
+                    this.lastRepairTurns = engineData.repairTurnsRemaining;
+                    this.buildPanelHTML();
+                }
+            }
+        }
+
         // Update range display and crew count when panel is open and on overview
         if (this.panelOpen && this.activeView === 'overview') {
-            const movement = this.entity.getComponent(MovementComponent);
-            if (movement) {
-                this.updateRangeDisplay(movement.budgetRemaining, movement.budgetMax);
+            const engineData = this.entity.getComponent(EngineStateComponent);
+            const engineOnline = !engineData || engineData.engineState === 'online';
+
+            if (engineOnline) {
+                const movement = this.entity.getComponent(MovementComponent);
+                if (movement) {
+                    this.updateRangeDisplay(movement.budgetRemaining, movement.budgetMax);
+                }
             }
 
             const crewCountEl = document.getElementById('ship-crew-count');
@@ -231,6 +285,76 @@ export class ShipInfoUIComponent extends Component {
                 crewCountEl.innerHTML = `<span class="crew-dot"></span>${counts.ship} SOULS ABOARD`;
             }
         }
+    }
+
+    private buildEngineStatusSection(): string {
+        const engineData = this.entity.getComponent(EngineStateComponent);
+        if (!engineData) return '';
+
+        if (engineData.engineState === 'offline') {
+            let world: World;
+            try {
+                world = ServiceLocator.get<World>('world');
+            } catch {
+                return '';
+            }
+
+            const gameState = world.getEntityByName('gameState');
+            const eventState = gameState?.getComponent(EventStateComponent);
+            const stationRepaired = eventState?.hasFlag('station_repaired') ?? false;
+
+            if (!stationRepaired) {
+                return `
+                    <hr class="divider">
+                    <div style="color: #c66; font-weight: bold; margin-bottom: 4px;">&#9888; ENGINES OFFLINE</div>
+                    <div class="lore-text">Repair the Keth relay to begin diagnostics</div>
+                `;
+            }
+
+            // Station is repaired — show repair controls
+            const resources = gameState?.getComponent(ResourceComponent);
+            const canAfford = resources?.canAfford('materials', engineData.repairCost) ?? false;
+
+            return `
+                <hr class="divider">
+                <div style="color: #ca6; font-weight: bold; margin-bottom: 8px;">ENGINE REPAIR</div>
+                <div class="station-panel-stat" style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>COST</span>
+                    <span>${engineData.repairCost} Materials</span>
+                </div>
+                <div class="station-panel-stat" style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                    <span>TIME</span>
+                    <span>${engineData.repairTurnsTotal} turns</span>
+                </div>
+                <button class="hud-btn" id="engine-repair-btn" type="button"
+                    ${canAfford ? '' : 'disabled'}>BEGIN ENGINE REPAIR</button>
+                ${!canAfford ? `<div class="station-repair-hint" style="color: #886; font-size: 11px; margin-top: 4px;">Need ${engineData.repairCost} materials</div>` : ''}
+            `;
+        }
+
+        if (engineData.engineState === 'repairing') {
+            const done = engineData.repairTurnsTotal - engineData.repairTurnsRemaining;
+            const pct = (done / engineData.repairTurnsTotal) * 100;
+            return `
+                <hr class="divider">
+                <div style="color: #ca6; font-weight: bold; margin-bottom: 8px;">ENGINE REPAIR</div>
+                <div class="station-panel-progress">
+                    <div class="station-progress-bar">
+                        <div class="station-progress-fill" style="width: ${pct}%"></div>
+                    </div>
+                    <div class="station-progress-label">${done} / ${engineData.repairTurnsTotal} TURNS</div>
+                </div>
+            `;
+        }
+
+        if (engineData.engineState === 'online') {
+            return `
+                <hr class="divider">
+                <div style="color: #6a6;">&#9679; ENGINES OPERATIONAL</div>
+            `;
+        }
+
+        return '';
     }
 
     private openPanel(): void {
