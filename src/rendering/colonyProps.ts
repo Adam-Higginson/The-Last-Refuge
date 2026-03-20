@@ -3,9 +3,26 @@
 // plus scattered ambient details that make the colony feel lived-in.
 
 import { getBuildingType } from '../data/buildings';
+import { BUILDING_PROP_CONFIG } from '../data/buildingVisuals';
 import { getDayNightState } from './colonyDayNight';
+import { gridToScreen } from './isometric';
+import type { ColonyGrid } from '../colony/ColonyGrid';
 import type { Region } from '../components/RegionDataComponent';
 import type { ColonySlotRect } from './drawColonyScene';
+
+/** Map from prop type name to its draw function. */
+const PROP_DRAW_MAP: Record<string, (ctx: CanvasRenderingContext2D, x: number, y: number, seedOrT: number, extra?: boolean) => void> = {
+    crates: drawCrates,
+    barrel: drawBarrel,
+    toolRack: drawToolRack,
+    anvil: drawAnvil,
+    supplyCrate: drawSupplyCrate,
+    waterTrough: drawWaterTrough,
+    flagPole: (ctx, x, y, t) => drawFlagPole(ctx, x, y, t),
+    controlBox: drawControlBox,
+    waterTank: drawWaterTank,
+    campfire: (ctx, x, y, t) => drawCampfire(ctx, x, y, t, false),
+};
 
 // =========================================================================
 // Building-adjacent contextual props
@@ -17,7 +34,10 @@ export function drawSettlementPropsForSlot(
     region: Region,
     rect: ColonySlotRect,
     t: number,
-    gameHour = 10,
+    gameHour: number,
+    grid: ColonyGrid | null,
+    centreX: number,
+    centreY: number,
 ): void {
     if (!rect.occupied) return;
 
@@ -27,46 +47,32 @@ export function drawSettlementPropsForSlot(
     const dayNight = getDayNightState(gameHour);
     const isNight = dayNight.ambientLight < 0.3;
 
-    const cx = rect.x + rect.width / 2;
-    const cy = rect.y + rect.height * 0.55;
     const seed = rect.slotIndex * 17.3 + region.id * 7.1;
-
     const bt = getBuildingType(building.typeId);
 
-    switch (building.typeId) {
-        case 'storage_depot':
-            drawCrates(ctx, cx + 25, cy + 8, seed);
-            drawBarrel(ctx, cx - 28, cy + 5, seed + 3);
-            break;
-        case 'workshop':
-            drawToolRack(ctx, cx + 22, cy + 3, seed);
-            drawAnvil(ctx, cx - 20, cy + 10, seed + 1);
-            break;
-        case 'shelter':
-            drawCampfire(ctx, cx - 45, cy + 25, t, isNight);
-            drawSupplyCrate(ctx, cx + 40, cy + 15, seed);
-            break;
-        case 'farm':
-            drawWaterTrough(ctx, cx + 30, cy + 5, seed);
-            break;
-        case 'med_bay':
-            drawSupplyCrate(ctx, cx + 24, cy + 8, seed);
-            break;
-        case 'barracks':
-            drawFlagPole(ctx, cx - 22, cy - 5, t);
-            break;
-        case 'solar_array':
-            drawControlBox(ctx, cx + 20, cy + 10, seed);
-            break;
-        case 'hydroponics_bay':
-            drawWaterTank(ctx, cx - 25, cy + 8, seed);
-            break;
-        default:
-            break;
+    const config = BUILDING_PROP_CONFIG[building.typeId];
+    if (config && grid) {
+        const pos = grid.getBuildingPosition(rect.slotIndex);
+        if (pos) {
+            for (const prop of config.props) {
+                const screen = gridToScreen(
+                    pos.gx + prop.gridOffsetX,
+                    pos.gy + prop.gridOffsetY,
+                    centreX,
+                    centreY,
+                );
+                const drawFn = PROP_DRAW_MAP[prop.type];
+                if (drawFn) {
+                    drawFn(ctx, screen.x, screen.y, seed + prop.seedOffset);
+                }
+            }
+        }
     }
 
     // Generic lantern near every building (visible at night)
     if (isNight && bt.id !== 'shelter') {
+        const cx = rect.x + rect.width / 2;
+        const cy = rect.y + rect.height * 0.55;
         drawLantern(ctx, cx + Math.sin(seed) * 15, cy + 15, t);
     }
 }
@@ -77,10 +83,13 @@ export function drawSettlementProps(
     region: Region,
     slotRects: ColonySlotRect[],
     t: number,
-    gameHour = 10,
+    gameHour: number,
+    grid: ColonyGrid | null,
+    centreX: number,
+    centreY: number,
 ): void {
     for (const rect of slotRects) {
-        drawSettlementPropsForSlot(ctx, region, rect, t, gameHour);
+        drawSettlementPropsForSlot(ctx, region, rect, t, gameHour, grid, centreX, centreY);
     }
 }
 
