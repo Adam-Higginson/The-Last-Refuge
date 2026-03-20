@@ -328,6 +328,8 @@ describe('NarrativeEventSystem', () => {
         eventState.markSeen('station_signal_hint');
         eventState.markSeen('station_found');
         eventState.markSeen('station_online');
+        eventState.markSeen('engine_diagnostic');
+        eventState.markSeen('engines_online');
 
         // All events seen — no events should fire, and no errors
         system.update(0);
