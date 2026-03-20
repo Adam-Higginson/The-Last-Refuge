@@ -81,6 +81,12 @@ export const GameEvents = {
     EXTIRIS_DETECTED_SCOUT: 'extiris:detected:scout',
     /** A narrative event was shown and a choice was made. */
     NARRATIVE_SHOWN: 'narrative:shown',
+    /** The abandoned station was discovered by a visibility source. */
+    STATION_DISCOVERED: 'station:discovered',
+    /** Station repair has been initiated. */
+    STATION_REPAIR_STARTED: 'station:repair:started',
+    /** Station repair is complete. */
+    STATION_REPAIRED: 'station:repaired',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -287,4 +293,16 @@ export interface NarrativeShownEvent extends GameEvent {
     id: string;
     /** Index of the choice made, or -1 for continue-only events. */
     choiceIndex: number;
+}
+
+export interface StationDiscoveredEvent extends GameEvent {
+    type: typeof GameEvents.STATION_DISCOVERED;
+}
+
+export interface StationRepairStartedEvent extends GameEvent {
+    type: typeof GameEvents.STATION_REPAIR_STARTED;
+}
+
+export interface StationRepairedEvent extends GameEvent {
+    type: typeof GameEvents.STATION_REPAIRED;
 }

@@ -1,0 +1,125 @@
+#station-info-panel {
+    top: 80px;
+    right: 0;
+    width: 280px;
+    padding: 20px;
+    border-left: 1px solid rgba(212, 160, 64, 0.2);
+    border-bottom: 1px solid rgba(212, 160, 64, 0.2);
+    transform: translateX(100%);
+    transition: transform 0.25s ease-out;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+#station-info-panel.open {
+    transform: translateX(0);
+}
+
+.station-panel-name {
+    font-size: 15px;
+    font-weight: bold;
+    color: #d4a040;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+}
+
+.station-panel-subtitle {
+    font-size: 11px;
+    color: rgba(192, 200, 216, 0.5);
+    margin-bottom: 12px;
+}
+
+.station-panel-divider {
+    border: none;
+    border-top: 1px solid rgba(212, 160, 64, 0.15);
+    margin: 8px 0;
+}
+
+.station-panel-stat {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: rgba(192, 200, 216, 0.6);
+    margin-bottom: 4px;
+}
+
+.station-panel-stat-value {
+    color: rgba(220, 225, 235, 0.9);
+}
+
+.station-panel-lore {
+    font-size: 11px;
+    font-style: italic;
+    color: rgba(192, 200, 216, 0.4);
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.station-panel-progress {
+    margin: 8px 0;
+}
+
+.station-progress-bar {
+    width: 100%;
+    height: 12px;
+    background: rgba(212, 160, 64, 0.1);
+    border: 1px solid rgba(212, 160, 64, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.station-progress-fill {
+    height: 100%;
+    background: #d4a040;
+    transition: width 0.3s ease;
+}
+
+.station-progress-label {
+    font-size: 10px;
+    color: rgba(212, 160, 64, 0.8);
+    text-align: center;
+}
+
+.station-status-operational {
+    color: #40c840;
+    font-size: 12px;
+    font-weight: bold;
+    margin: 8px 0;
+}
+
+.station-sensor-info {
+    font-size: 10px;
+    color: rgba(192, 200, 216, 0.5);
+    margin-bottom: 8px;
+}
+
+.station-repair-btn {
+    width: 100%;
+    padding: 8px 0;
+    background: rgba(212, 160, 64, 0.15);
+    border: 1px solid rgba(212, 160, 64, 0.4);
+    color: #d4a040;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    transition: background 0.2s;
+}
+
+.station-repair-btn:hover:not(:disabled) {
+    background: rgba(212, 160, 64, 0.25);
+}
+
+.station-repair-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.station-repair-hint {
+    font-size: 9px;
+    color: rgba(192, 200, 216, 0.35);
+    text-align: center;
+    margin-bottom: 8px;
+}

@@ -9,6 +9,7 @@ import { TransformComponent } from '../components/TransformComponent';
 import { FogOfWarComponent, TileVisibility } from '../components/FogOfWarComponent';
 import { PlanetDataComponent } from '../components/PlanetDataComponent';
 import { ScoutDataComponent } from '../components/ScoutDataComponent';
+import { StationDataComponent } from '../components/StationDataComponent';
 import { MinimapComponent } from '../components/MinimapComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
@@ -116,6 +117,26 @@ function drawMinimap(
         ctx.beginPath();
         ctx.arc(scoutPos.x, scoutPos.y, 2, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    // --- Station (amber dot when discovered) ---
+    const station = world.getEntityByName('kethRelay');
+    if (station) {
+        const stationData = station.getComponent(StationDataComponent);
+        const stationTransform = station.getComponent(TransformComponent);
+        if (stationData?.discovered && stationTransform) {
+            const stationPos = minimap.worldToMinimap(stationTransform.x, stationTransform.y);
+            ctx.fillStyle = '#d4a040';
+            ctx.beginPath();
+            ctx.arc(stationPos.x, stationPos.y, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Faint amber glow
+            ctx.fillStyle = 'rgba(212, 160, 64, 0.2)';
+            ctx.beginPath();
+            ctx.arc(stationPos.x, stationPos.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
     // --- Viewport rectangle ---
