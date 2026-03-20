@@ -15,7 +15,7 @@ import { drawRelationshipOverlays, drawThoughtBubble } from './colonyRelationshi
 import { getVisibleColonists } from '../colony/ColonistManager';
 import { resolveThought } from '../colony/ColonistThoughts';
 import { CrewMemberComponent } from '../components/CrewMemberComponent';
-import { getBuildingFootprint } from '../colony/ColonyGrid';
+import { getBuildingFootprint, ColonyGrid } from '../colony/ColonyGrid';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { RenderQueue, extractHitTestItems } from './RenderQueue';
 import type { WeatherInfo } from './colonyWeather';
@@ -225,7 +225,7 @@ export function drawColonyScene(
         const selectedColonistDepth = computeSelectedColonistDepth(colonists, state.selectedColonistId);
 
         const queue = new RenderQueue();
-        registerBuildings(queue, slotData, region, t, state, selectedColonistDepth);
+        registerBuildings(queue, slotData, region, t, state, selectedColonistDepth, sim.grid, gridCentre);
         registerColonists(queue, colonists, gridCentre, t, state, slotData);
         registerEmptySlots(queue, slotData, state);
 
@@ -274,7 +274,7 @@ export function drawColonyScene(
         state.lastColonistPositions = [];
     } else {
         // No sim — draw props the old way (just empty slots)
-        drawSettlementProps(ctx, region, slotRects, t, state.gameHour);
+        drawSettlementProps(ctx, region, slotRects, t, state.gameHour, null, gridCentre.centreX, gridCentre.centreY);
         state.lastSlotRects = slotRects;
     }
 
@@ -1450,7 +1450,9 @@ function collectBuildingSlotData(
         } else {
             const pos = sim.grid.getBuildingPosition(i);
             if (pos) {
-                const footprint = building ? getBuildingFootprint(building.typeId) : { w: 2, h: 2 };
+                // For empty slots, use max footprint (3x3) so the slot marker is centred
+                // where any building type would render — prevents position shift on build.
+                const footprint = building ? getBuildingFootprint(building.typeId) : { w: 3, h: 3 };
                 screenPos = gridToScreen(pos.gx + footprint.w / 2, pos.gy + footprint.h / 2, centreX, centreY);
             } else {
                 continue;
@@ -1566,6 +1568,8 @@ function registerBuildings(
     t: number,
     state: ColonySceneStateComponent,
     selectedColonistDepth: number | null,
+    grid: ColonyGrid,
+    gridCentre: { centreX: number; centreY: number },
 ): void {
     for (const data of slotData) {
         if (!data.building) continue;
@@ -1593,7 +1597,7 @@ function registerBuildings(
             screenY: data.screenPos.y,
             label: `props:${data.building.typeId}`,
             draw: (ctx) => {
-                drawSettlementPropsForSlot(ctx, region, data.rect, t, state.gameHour);
+                drawSettlementPropsForSlot(ctx, region, data.rect, t, state.gameHour, grid, gridCentre.centreX, gridCentre.centreY);
             },
         });
     }

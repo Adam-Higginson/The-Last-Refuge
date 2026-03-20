@@ -24,6 +24,7 @@ export class ColonyBuildPickerComponent extends Component {
     private picker: HTMLElement | null = null;
     private lastSelectedSlot: number | null = null;
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
+    private placementInProgress = false;
     private onDocClick: ((e: MouseEvent) => void) | null = null;
 
     init(): void {
@@ -212,14 +213,23 @@ export class ColonyBuildPickerComponent extends Component {
     }
 
     private async confirmBuild(buildingId: BuildingId, regionId: number): Promise<void> {
+        if (this.placementInProgress) return;
+        this.placementInProgress = true;
+
         const bt = getBuildingType(buildingId);
         const modal = ServiceLocator.get<ConfirmModal>('confirmModal');
         const proceed = await modal.show({
             title: 'BUILD',
             body: `Build ${bt.name}?\n\nCost: ${bt.materialCost} Materials\nTime: ${bt.buildTime} turn(s)\n${bt.energyPerTurn > 0 ? `Energy: -${bt.energyPerTurn}/turn\n` : ''}${bt.description}`,
         });
-        if (!proceed) return;
-        if (!this.entity) return;
+        if (!proceed) {
+            this.placementInProgress = false;
+            return;
+        }
+        if (!this.entity) {
+            this.placementInProgress = false;
+            return;
+        }
 
         const buildingComp = this.entity.getComponent(ColonyBuildingComponent);
         if (buildingComp) {
@@ -248,10 +258,12 @@ export class ColonyBuildPickerComponent extends Component {
                 }
             }
         }
+        this.placementInProgress = false;
         this.closePicker();
     }
 
     private closePicker(): void {
+        this.placementInProgress = false;
         if (this.picker) {
             this.picker.classList.remove('open');
         }
