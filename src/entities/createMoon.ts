@@ -4,7 +4,7 @@
 import { ServiceLocator } from '../core/ServiceLocator';
 import { TransformComponent } from '../components/TransformComponent';
 import { RenderComponent } from '../components/RenderComponent';
-import { MoonOrbitComponent } from '../components/MoonOrbitComponent';
+import { OrbitComponent } from '../components/OrbitComponent';
 import { GameModeComponent } from '../components/GameModeComponent';
 import { CameraComponent } from '../components/CameraComponent';
 import { getEntityFogZone } from '../components/FogOfWarComponent';
@@ -127,13 +127,12 @@ export function createMoon(world: World, parentPlanet: Entity): Entity {
     entity.addComponent(new TransformComponent(startX, startY));
 
     // Orbit around parent planet
-    const moonOrbit = new MoonOrbitComponent(
-        parentPlanet,
-        MOON_ORBIT_RADIUS,
-        MOON_ORBIT_SPEED,
-        MOON_START_ANGLE,
-    );
-    entity.addComponent(moonOrbit);
+    const orbit = new OrbitComponent(parentX, parentY, MOON_ORBIT_RADIUS, MOON_ORBIT_SPEED);
+    orbit.angle = MOON_START_ANGLE;
+    orbit.targetAngle = MOON_START_ANGLE;
+    orbit.startAngle = MOON_START_ANGLE;
+    orbit.parentEntityId = parentPlanet.id;
+    entity.addComponent(orbit);
 
     // Render — only in system view, respects fog of war
     entity.addComponent(new RenderComponent('world', (ctx, x, y) => {
