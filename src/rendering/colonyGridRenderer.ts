@@ -181,10 +181,13 @@ export function resolveHitTarget(
 
     if (hits.length === 0) return null;
 
-    // Sort: highest depth first, then nearest centre as tiebreak
+    // Sort: empty-slot vs empty-slot → nearest centre wins (prevent isometric
+    // hitRect overlap from stealing clicks between adjacent slots).
+    // Everything else → highest depth wins (occlusion: frontmost entity wins).
     hits.sort((a, b) => {
-        if (b.item.depth !== a.item.depth) return b.item.depth - a.item.depth;
-        return a.distSq - b.distSq;
+        const bothEmptySlots = a.item.kind === 'empty-slot' && b.item.kind === 'empty-slot';
+        if (bothEmptySlots) return a.distSq - b.distSq;
+        return b.item.depth - a.item.depth;
     });
 
     const winner = hits[0].item;
