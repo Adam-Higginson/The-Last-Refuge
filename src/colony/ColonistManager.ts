@@ -56,19 +56,24 @@ function getHairColour(id: number): string {
     return HAIR_COLOURS[(id * 3 + 7) % HAIR_COLOURS.length];
 }
 
+/** Max colonists allowed per activity anchor cell before overflow. */
+const MAX_CLUSTER_SIZE = 6;
+
 /** Initialise colonist visual states from crew entities. */
 export function initColonists(
     sim: ColonySimulationComponent,
     crewEntities: { id: number; role: CrewRole; isLeader: boolean; name: string }[],
 ): void {
     sim.colonistStates.clear();
+    sim.occupiedPositions.clear();
 
     for (const crew of crewEntities) {
         // Start at shelter door or near grid centre, spread out to avoid stacking
         const shelterDoor = sim.grid.getDoors().find(d => d.slotIndex === 0);
         const baseX = shelterDoor ? shelterDoor.gridX : 5;
         const baseY = shelterDoor ? shelterDoor.gridY : 5;
-        const spawn = spreadAroundCell(sim.grid, baseX, baseY, crew.id);
+        const spawn = spreadAroundCell(sim.grid, baseX, baseY, crew.id, sim.occupiedPositions);
+        sim.occupiedPositions.add(`${spawn.gridX},${spawn.gridY}`);
 
         const state: ColonistVisualState = {
             entityId: crew.id,
@@ -295,6 +300,47 @@ function advanceCarryingWalk(
     colonist.walkPhase += dt * 8;
 }
 
+/** Count how many colonists share the same target anchor cell (before spreading). */
+function countColonistsAtAnchor(
+    sim: ColonySimulationComponent, anchorX: number, anchorY: number, excludeId: number,
+): number {
+    let count = 0;
+    for (const [id, c] of sim.colonistStates) {
+        if (id === excludeId) continue;
+        // Count colonists that are near this anchor (within 2 cells Manhattan)
+        if (Math.abs(c.gridX - anchorX) + Math.abs(c.gridY - anchorY) <= 2) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/** Find a random walkable cell within 2 cells of an anchor for overflow colonists. */
+function findOverflowCell(
+    sim: ColonySimulationComponent, anchorX: number, anchorY: number, entityId: number,
+): { gridX: number; gridY: number } {
+    const walkable: { gridX: number; gridY: number }[] = [];
+    for (let dy = -3; dy <= 3; dy++) {
+        for (let dx = -3; dx <= 3; dx++) {
+            if (Math.abs(dx) + Math.abs(dy) <= 2) continue; // Skip cells near the anchor
+            if (Math.abs(dx) + Math.abs(dy) > 4) continue; // Stay close-ish
+            const gx = anchorX + dx;
+            const gy = anchorY + dy;
+            const cell = sim.grid.getCell(gx, gy);
+            if (cell && (cell.type === 'empty' || cell.type === 'path' || cell.type === 'door')) {
+                if (!sim.occupiedPositions.has(`${gx},${gy}`)) {
+                    walkable.push({ gridX: gx, gridY: gy });
+                }
+            }
+        }
+    }
+    if (walkable.length === 0) {
+        // Absolute fallback: use spreadAroundCell without occupied filtering
+        return spreadAroundCell(sim.grid, anchorX, anchorY, entityId);
+    }
+    return walkable[entityId % walkable.length];
+}
+
 /** Update all colonist state machines. */
 export function updateColonists(
     sim: ColonySimulationComponent,
@@ -305,6 +351,14 @@ export function updateColonists(
     buildings: BuildingInstance[],
     world?: World,
 ): void {
+    // Clear and rebuild occupied positions from current colonist locations
+    sim.occupiedPositions.clear();
+    for (const [_cid, c] of sim.colonistStates) {
+        if (!c.sheltered) {
+            sim.occupiedPositions.add(`${Math.round(c.gridX)},${Math.round(c.gridY)}`);
+        }
+    }
+
     for (const [_id, colonist] of sim.colonistStates) {
         // Dawn stagger: wait for emerge delay
         if (colonist.emergeDelay > 0) {
@@ -381,7 +435,18 @@ export function updateColonists(
             }
 
             const oldActivity = colonist.activity;
-            const target = resolveLocation(sim, schedule.location, colonist.role, buildings, colonist.entityId, world);
+            let target = resolveLocation(sim, schedule.location, colonist.role, buildings, colonist.entityId, world, sim.occupiedPositions);
+
+            // Enforce max cluster size: if too many colonists near this anchor, overflow
+            if (target) {
+                const anchorX = target.gridX;
+                const anchorY = target.gridY;
+                const clusterCount = countColonistsAtAnchor(sim, anchorX, anchorY, colonist.entityId);
+                if (clusterCount >= MAX_CLUSTER_SIZE) {
+                    const overflow = findOverflowCell(sim, anchorX, anchorY, colonist.entityId);
+                    target = { ...overflow, buildingSlot: null, buildingTypeId: null };
+                }
+            }
 
             if (target) {
                 const roundX = Math.round(colonist.gridX);
@@ -396,6 +461,8 @@ export function updateColonists(
                     colonist.buildingTypeId = target.buildingTypeId;
                     colonist.subActivity = null;
                     colonist.stateTimer = 0;
+                    // Reserve the destination cell for this colonist
+                    sim.occupiedPositions.add(`${target.gridX},${target.gridY}`);
                     emitActivityChanged(eventQueue, colonist.entityId, oldActivity, 'walking', colonist.gridX, colonist.gridY);
                 } else if (path && path.length === 0) {
                     // Already at destination
@@ -403,6 +470,7 @@ export function updateColonists(
                     colonist.assignedBuildingSlot = target.buildingSlot;
                     colonist.buildingTypeId = target.buildingTypeId;
                     colonist.stateTimer = 0;
+                    sim.occupiedPositions.add(`${target.gridX},${target.gridY}`);
                     assignSubActivity(colonist, sim, world);
                     emitActivityChanged(eventQueue, colonist.entityId, oldActivity, schedule.activity, colonist.gridX, colonist.gridY);
                 } else {

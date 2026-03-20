@@ -23,6 +23,7 @@ export class ColonySimulationComponent extends Component {
     colonistStates: Map<number, ColonistVisualState> = new Map();
     campfireCell: { gridX: number; gridY: number } | null = null;
     perimeterPath: { gridX: number; gridY: number }[] = [];
+    occupiedPositions: Set<string> = new Set();
     debugGridVisible = false;
 
     private eventQueue: EventQueue | null = null;

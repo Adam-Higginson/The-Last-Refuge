@@ -12,6 +12,7 @@ function makeSim(buildings: { typeId: string; slotIndex: number }[] = []): {
     colonistStates: Map<number, ColonistVisualState>;
     campfireCell: { gridX: number; gridY: number } | null;
     perimeterPath: { gridX: number; gridY: number }[];
+    occupiedPositions: Set<string>;
 } {
     const grid = new ColonyGrid();
     const region = {
@@ -38,6 +39,7 @@ function makeSim(buildings: { typeId: string; slotIndex: number }[] = []): {
         colonistStates: new Map(),
         campfireCell: network.campfireCell,
         perimeterPath: network.perimeterPath,
+        occupiedPositions: new Set<string>(),
     };
 }
 
