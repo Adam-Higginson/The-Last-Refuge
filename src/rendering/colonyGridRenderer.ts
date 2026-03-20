@@ -191,5 +191,5 @@ export function resolveHitTarget(
     });
 
     const winner = hits[0].item;
-    return { kind: winner.kind, entityId: winner.entityId, slotIndex: winner.slotIndex };
+    return { kind: winner.kind as HitResult['kind'], entityId: winner.entityId, slotIndex: winner.slotIndex };
 }

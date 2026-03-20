@@ -25,14 +25,15 @@ const BUILDING_FOOTPRINTS: Record<string, { w: number; h: number }> = {
 };
 
 /** Pre-defined building positions for up to 6 buildings on a 10x10 grid.
+ *  Arranged in a ring around grid centre (5,5) for a circular colony layout.
  *  All positions allow up to 3x3 footprints within bounds. */
 const BUILDING_POSITIONS: { gx: number; gy: number }[] = [
-    { gx: 2, gy: 1 },   // slot 0 — shelter, upper-centre-left
-    { gx: 6, gy: 1 },   // slot 1 — upper-centre-right
-    { gx: 1, gy: 4 },   // slot 2 — mid-left
-    { gx: 5, gy: 4 },   // slot 3 — mid-right
-    { gx: 2, gy: 7 },   // slot 4 — lower-centre-left
-    { gx: 6, gy: 7 },   // slot 5 — lower-centre-right
+    { gx: 4, gy: 1 },   // slot 0 — top (shelter)
+    { gx: 7, gy: 2 },   // slot 1 — upper-right
+    { gx: 7, gy: 5 },   // slot 2 — lower-right
+    { gx: 4, gy: 7 },   // slot 3 — bottom
+    { gx: 1, gy: 5 },   // slot 4 — lower-left
+    { gx: 1, gy: 2 },   // slot 5 — upper-left
 ];
 
 export function getBuildingFootprint(typeId: string): { w: number; h: number } {

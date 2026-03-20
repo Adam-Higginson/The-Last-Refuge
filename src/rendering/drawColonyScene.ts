@@ -215,7 +215,7 @@ export function drawColonyScene(
 
     // Micro-details (campfire ring, barrels, signposts) sit on the ground plane
     // beneath all depth-sorted entities — draw before the RenderQueue pass.
-    drawMicroDetails(ctx, w, h, region, t, slotRects, state.gameHour);
+    drawMicroDetails(ctx, w, h, region, t, slotRects, state.gameHour, sim?.campfireCell ?? null, gridCentre);
 
     if (sim) {
         const colonists = getVisibleColonists(sim);

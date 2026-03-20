@@ -106,6 +106,8 @@ export function drawMicroDetails(
     t: number,
     slotRects?: ColonySlotRect[],
     gameHour = 10,
+    campfireCell: { gridX: number; gridY: number } | null = null,
+    gridCentre: { centreX: number; centreY: number } | null = null,
 ): void {
     if (!slotRects || region.buildings.length === 0) return;
 
@@ -113,7 +115,7 @@ export function drawMicroDetails(
     if (occupiedSlots.length === 0) return;
 
     ctx.save();
-    drawMicroDetailsForSlots(ctx, region, t, occupiedSlots, gameHour);
+    drawMicroDetailsForSlots(ctx, region, t, occupiedSlots, gameHour, campfireCell, gridCentre);
     ctx.restore();
 }
 
@@ -124,6 +126,8 @@ export function drawMicroDetailsForSlots(
     t: number,
     occupiedSlots: ColonySlotRect[],
     gameHour = 10,
+    campfireCell: { gridX: number; gridY: number } | null = null,
+    gridCentre: { centreX: number; centreY: number } | null = null,
 ): void {
     const dayNight = getDayNightState(gameHour);
     const isNight = dayNight.ambientLight < 0.3;
@@ -146,8 +150,12 @@ export function drawMicroDetailsForSlots(
         }
     }
 
-    // Campfire ring — between non-shelter buildings, or offset from shelter
-    if (nonShelterSlots.length >= 1) {
+    // Campfire ring — use grid-based position if available
+    if (campfireCell && gridCentre) {
+        const screen = gridToScreen(campfireCell.gridX, campfireCell.gridY, gridCentre.centreX, gridCentre.centreY);
+        drawCampfireRing(ctx, screen.x, screen.y, t, isNight);
+    } else if (nonShelterSlots.length >= 1) {
+        // Fallback: screen-space heuristic when no grid data available
         const slot = nonShelterSlots[0];
         const shelter = occupiedSlots.find(s => s.slotIndex === 0);
         if (shelter) {
