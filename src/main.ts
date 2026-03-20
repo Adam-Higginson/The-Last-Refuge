@@ -19,6 +19,7 @@ import { createStar } from './entities/createStar';
 import { createSolarSystem } from './entities/createSolarSystem';
 import { createShip } from './entities/createShip';
 import { createScout } from './entities/createScout';
+import { createMoon } from './entities/createMoon';
 import { createFogOverlay } from './entities/createFogOverlay';
 import { createMinimap } from './entities/createMinimap';
 import { createHUD } from './entities/createHUD';
@@ -31,6 +32,7 @@ import { TransformComponent } from './components/TransformComponent';
 import { AIService } from './services/AIService';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { NarrativeModal } from './ui/NarrativeModal';
+import { EventSummaryOverlay } from './ui/EventSummaryOverlay';
 import { NarrativeEventSystem } from './systems/NarrativeEventSystem';
 
 function boot(): void {
@@ -61,6 +63,7 @@ function boot(): void {
     // Register modal services
     ServiceLocator.register('confirmModal', new ConfirmModal());
     ServiceLocator.register('narrativeModal', new NarrativeModal());
+    ServiceLocator.register('eventSummaryOverlay', new EventSummaryOverlay());
 
     // Load API key: localStorage override > build-time env > no key (deterministic)
     try {
@@ -87,6 +90,13 @@ function boot(): void {
     createBackground(world);
     createStar(world);
     createSolarSystem(world);
+
+    // Create moon orbiting New Terra
+    const newTerra = world.getEntityByName('newTerra');
+    if (newTerra) {
+        createMoon(world, newTerra);
+    }
+
     const ship = createShip(world);
     createFogOverlay(world);
     createMinimap(world);

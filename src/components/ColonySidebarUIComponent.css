@@ -43,6 +43,11 @@
     #colony-sidebar.open {
         transform: translateY(0);
     }
+
+    .colony-sidebar-btn--end-turn {
+        padding: 14px;
+        min-height: 48px;
+    }
 }
 
 .colony-sidebar-name {
@@ -127,6 +132,30 @@
 .colony-sidebar-btn:hover {
     background: rgba(79, 168, 255, 0.25);
     color: #ffffff;
+}
+
+.colony-sidebar-btn--end-turn {
+    background: #1a1a1a;
+    border: 1px solid #d4a44a;
+    color: #d4a44a;
+    font-weight: bold;
+    font-size: 13px;
+    letter-spacing: 2px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.colony-sidebar-btn--end-turn:hover {
+    background: #2a2a1a;
+    border-color: #e8b85a;
+    color: #e8b85a;
+}
+
+.colony-sidebar-btn--end-turn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: #666;
+    color: #666;
 }
 
 .colony-sidebar-btn--back {

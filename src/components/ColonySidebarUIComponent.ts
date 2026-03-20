@@ -15,7 +15,7 @@ import { ResourceComponent } from './ResourceComponent';
 import { TransferScreenComponent } from './TransferScreenComponent';
 import { getBuildingType } from '../data/buildings';
 import { getCrewAtColony } from '../utils/crewUtils';
-import type { ResourceDeficitEvent } from '../core/GameEvents';
+import type { ResourceDeficitEvent, TurnBlockEvent, TurnUnblockEvent, TurnEndEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { World } from '../core/World';
 import type { ResourceType } from '../data/resources';
@@ -38,6 +38,12 @@ export class ColonySidebarUIComponent extends Component {
     private activeRegionId: number | null = null;
     private deficitHandler: EventHandler | null = null;
     private turnEndHandler: EventHandler | null = null;
+    private turnBlockHandler: EventHandler | null = null;
+    private turnUnblockHandler: EventHandler | null = null;
+    private endTurnBtn: HTMLButtonElement | null = null;
+    private onEndTurnClick: (() => void) | null = null;
+    private blockers = new Set<string>();
+    private currentTurn = 1;
     /** Resources currently in deficit this turn. */
     private deficitResources: Set<ResourceType> = new Set();
 
@@ -50,6 +56,7 @@ export class ColonySidebarUIComponent extends Component {
         // Build static DOM once — wrapped in a container so crew detail can toggle it
         this.panel.innerHTML = `
             <div id="colony-sidebar-info">
+                <button class="colony-sidebar-btn colony-sidebar-btn--end-turn" id="colony-sidebar-end-turn">END TURN 1</button>
                 <div class="colony-sidebar-name" data-ref="name"></div>
                 <div class="colony-sidebar-biome" data-ref="biome"></div>
                 <hr class="colony-sidebar-divider">
@@ -98,6 +105,30 @@ export class ColonySidebarUIComponent extends Component {
             this.eventQueue?.emit({ type: GameEvents.COLONY_VIEW_EXIT });
         });
 
+        // End Turn button
+        this.endTurnBtn = this.panel.querySelector('#colony-sidebar-end-turn') as HTMLButtonElement | null;
+        this.onEndTurnClick = (): void => {
+            if (this.blockers.size > 0) return;
+            this.eventQueue?.emit({ type: GameEvents.TURN_ADVANCE, skipAnimations: true });
+            if (this.endTurnBtn) {
+                this.endTurnBtn.disabled = true;
+                this.endTurnBtn.textContent = 'RESOLVING...';
+            }
+        };
+        this.endTurnBtn?.addEventListener('click', this.onEndTurnClick);
+
+        // Track blockers for End Turn button state
+        this.turnBlockHandler = (event): void => {
+            const { key } = event as TurnBlockEvent;
+            if (key) this.blockers.add(key);
+        };
+        this.turnUnblockHandler = (event): void => {
+            const { key } = event as TurnUnblockEvent;
+            if (key) this.blockers.delete(key);
+        };
+        this.eventQueue.on(GameEvents.TURN_BLOCK, this.turnBlockHandler);
+        this.eventQueue.on(GameEvents.TURN_UNBLOCK, this.turnUnblockHandler);
+
         // Subscribe to deficit events
         this.deficitHandler = (event): void => {
             const e = event as ResourceDeficitEvent;
@@ -105,8 +136,14 @@ export class ColonySidebarUIComponent extends Component {
         };
         this.eventQueue.on(GameEvents.RESOURCE_DEFICIT, this.deficitHandler);
 
-        this.turnEndHandler = (): void => {
+        this.turnEndHandler = (event): void => {
+            const { turn } = event as TurnEndEvent;
+            this.currentTurn = turn;
             this.deficitResources.clear();
+            if (this.endTurnBtn) {
+                this.endTurnBtn.disabled = false;
+                this.endTurnBtn.textContent = `END TURN ${this.currentTurn}`;
+            }
         };
         this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
     }
@@ -178,6 +215,11 @@ export class ColonySidebarUIComponent extends Component {
             }
         }
 
+        // Update End Turn button state based on blockers
+        if (this.endTurnBtn && !this.endTurnBtn.textContent?.startsWith('RESOLVING')) {
+            this.endTurnBtn.disabled = this.blockers.size > 0;
+        }
+
         if (!this.isOpen) {
             this.panel.classList.add('open');
             this.isOpen = true;
@@ -214,11 +256,20 @@ export class ColonySidebarUIComponent extends Component {
     }
 
     destroy(): void {
+        if (this.endTurnBtn && this.onEndTurnClick) {
+            this.endTurnBtn.removeEventListener('click', this.onEndTurnClick);
+        }
         if (this.eventQueue && this.deficitHandler) {
             this.eventQueue.off(GameEvents.RESOURCE_DEFICIT, this.deficitHandler);
         }
         if (this.eventQueue && this.turnEndHandler) {
             this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
+        }
+        if (this.eventQueue && this.turnBlockHandler) {
+            this.eventQueue.off(GameEvents.TURN_BLOCK, this.turnBlockHandler);
+        }
+        if (this.eventQueue && this.turnUnblockHandler) {
+            this.eventQueue.off(GameEvents.TURN_UNBLOCK, this.turnUnblockHandler);
         }
         if (this.panel) {
             this.panel.classList.remove('open');
