@@ -8,6 +8,7 @@ import { ColonyViewTransitionComponent } from '../components/ColonyViewTransitio
 import { FogOfWarComponent } from '../components/FogOfWarComponent';
 import { ResourceComponent } from '../components/ResourceComponent';
 import { EventStateComponent } from '../components/EventStateComponent';
+import { EventSummaryComponent } from '../components/EventSummaryComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -19,5 +20,6 @@ export function createGameState(world: World): Entity {
     entity.addComponent(new FogOfWarComponent());
     entity.addComponent(new ResourceComponent());
     entity.addComponent(new EventStateComponent());
+    entity.addComponent(new EventSummaryComponent());
     return entity;
 }
