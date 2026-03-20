@@ -105,4 +105,65 @@ Your navigator marks the coordinates. It may prove useful — if you survive lon
         condition: (): boolean => false,
         once: true,
     },
+
+    // --- Event 4: Faint Signal hint (story, turn >= 3, suppressed if discovered) ---
+    {
+        id: 'station_signal_hint',
+        title: 'FAINT SIGNAL',
+        body: `Long-range sensors have picked up a faint automated signal from somewhere in Dust's orbital zone. It's weak — an old transponder, repeating on a loop. Could be debris. Could be something worth finding.
+
+Your navigator marks the bearing — **ahead of Dust in its orbit**. A scout could reach it.`,
+        category: 'story',
+        condition: (ctx): boolean => ctx.turn >= 3 && !ctx.flags.has('station_discovered'),
+        once: true,
+    },
+
+    // --- Event 5: Station discovered (story, flag-gated) ---
+    {
+        id: 'station_found',
+        title: 'KETH MINING RELAY',
+        body: `Your scout's sensors illuminate a structure drifting in Dust's orbit — a Keth mining relay, gutted but intact. The hull bears scorch marks from an Extiris sweep, but the core systems might still function.
+
+If you could repair it, this relay could extend your sensor range... and perhaps more.`,
+        category: 'story',
+        condition: (ctx): boolean => ctx.flags.has('station_discovered'),
+        once: true,
+    },
+
+    // --- Event 6: Station repaired (story, flag-gated, chains to Extiris) ---
+    {
+        id: 'station_online',
+        title: 'THE SIGNAL',
+        body: `The relay's systems flicker to life. Power flows through conduits that haven't carried current in years. Navigation beacons. Sensor arrays. Communication relays.
+
+Then your engineer's face goes pale. The relay has already broadcast — an automated distress signal, transmitted on a frequency you recognise. An Extiris frequency.
+
+Whatever heard it... now knows you're here.`,
+        category: 'story',
+        condition: (ctx): boolean => ctx.flags.has('station_repaired'),
+        once: true,
+        choices: [
+            {
+                label: 'Acknowledged',
+                outcome: 'Commander Vael stares at the sensor readout for a long moment. "We knew this was a risk. Now we prepare." The crew begins fortifying what they can.',
+                flag: 'signal_broadcast',
+                chainEventId: 'extiris_arrival',
+                chainDelay: 2,
+            },
+        ],
+    },
+
+    // --- Event 7: Extiris arrival (chain-only, spawns the Extiris) ---
+    {
+        id: 'extiris_arrival',
+        title: 'THE HUNTER',
+        body: `Something has answered the signal.
+
+Long-range sensors detect a single vessel entering the system from deep space — moving with the cold precision of an Extiris hunter. It does not hail. It does not slow.
+
+It is searching.`,
+        category: 'story',
+        condition: (): boolean => false,
+        once: true,
+    },
 ];

@@ -137,8 +137,9 @@ describe('NarrativeEventSystem', () => {
     // --- Deck draw at turn 3 ---
 
     it('shows supply_cache on turn 3 via deck draw', async () => {
-        // Mark intro as seen
+        // Mark intro and station story events as seen so deck draw fires
         eventState.markSeen('intro_escape');
+        eventState.markSeen('station_signal_hint');
         system.update(0);
         await flush();
         mockModal.show.mockClear();
@@ -157,6 +158,7 @@ describe('NarrativeEventSystem', () => {
     it('does not show same event twice when once=true', async () => {
         eventState.markSeen('intro_escape');
         eventState.markSeen('supply_cache');
+        eventState.markSeen('station_signal_hint');
         system.update(0);
         await flush();
         mockModal.show.mockClear();
@@ -172,6 +174,7 @@ describe('NarrativeEventSystem', () => {
 
     it('applies costs and gains when choice is made', async () => {
         eventState.markSeen('intro_escape');
+        eventState.markSeen('station_signal_hint');
         // Mock modal to return choice 0 (investigate)
         mockModal.show.mockResolvedValue(0);
 
@@ -192,6 +195,7 @@ describe('NarrativeEventSystem', () => {
 
     it('sets flag when choice with flag is made', async () => {
         eventState.markSeen('intro_escape');
+        eventState.markSeen('station_signal_hint');
         mockModal.show.mockResolvedValue(0);
 
         system.update(0);
@@ -206,6 +210,7 @@ describe('NarrativeEventSystem', () => {
 
     it('queues chain event when choice has chainEventId', async () => {
         eventState.markSeen('intro_escape');
+        eventState.markSeen('station_signal_hint');
         mockModal.show.mockResolvedValue(0);
 
         system.update(0);
@@ -248,6 +253,7 @@ describe('NarrativeEventSystem', () => {
     it('chain event does NOT fire before its trigger turn', async () => {
         eventState.markSeen('intro_escape');
         eventState.markSeen('supply_cache');
+        eventState.markSeen('station_signal_hint');
 
         system.update(0);
         await flush();
@@ -293,6 +299,7 @@ describe('NarrativeEventSystem', () => {
 
     it('does not deduct any cost if one resource is insufficient', async () => {
         eventState.markSeen('intro_escape');
+        eventState.markSeen('station_signal_hint');
         mockModal.show.mockResolvedValue(0);
 
         // Set materials to 5 (below the 10 cost)
@@ -318,6 +325,9 @@ describe('NarrativeEventSystem', () => {
         eventState.markSeen('intro_escape');
         eventState.markSeen('supply_cache');
         eventState.markSeen('cache_findings');
+        eventState.markSeen('station_signal_hint');
+        eventState.markSeen('station_found');
+        eventState.markSeen('station_online');
 
         // All events seen — no events should fire, and no errors
         system.update(0);
@@ -380,6 +390,7 @@ describe('NarrativeEventSystem', () => {
 
     it('emits NARRATIVE_SHOWN after choice is applied', async () => {
         eventState.markSeen('intro_escape');
+        eventState.markSeen('station_signal_hint');
         mockModal.show.mockResolvedValue(1); // ignore choice
 
         const shownSpy = vi.fn();
@@ -402,6 +413,7 @@ describe('NarrativeEventSystem', () => {
 
     it('passes disabled flag for unaffordable choices', async () => {
         eventState.markSeen('intro_escape');
+        eventState.markSeen('station_signal_hint');
         resources.resources.materials.current = 5; // below 10 cost
 
         system.update(0);
@@ -420,6 +432,7 @@ describe('NarrativeEventSystem', () => {
 
     it('shows outcome text after choice', async () => {
         eventState.markSeen('intro_escape');
+        eventState.markSeen('station_signal_hint');
         mockModal.show.mockResolvedValue(0);
 
         system.update(0);

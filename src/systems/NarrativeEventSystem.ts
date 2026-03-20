@@ -26,8 +26,10 @@ export class NarrativeEventSystem extends System {
     private eventQueue!: EventQueue;
     private narrativeModal!: NarrativeModal;
     private turnEndHandler!: EventHandler;
+    private stationDiscoveredHandler!: EventHandler;
     private needsInitialCheck = true;
     private showing = false;
+    private lastTurn = 1;
 
     init(world: World): void {
         super.init(world);
@@ -36,9 +38,16 @@ export class NarrativeEventSystem extends System {
 
         this.turnEndHandler = (event): void => {
             const turn = (event as TurnEndEvent).turn;
+            this.lastTurn = turn;
             void this.checkEvents(turn);
         };
         this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
+
+        // Trigger immediate narrative check on station discovery
+        this.stationDiscoveredHandler = (): void => {
+            void this.checkEvents(this.lastTurn);
+        };
+        this.eventQueue.on(GameEvents.STATION_DISCOVERED, this.stationDiscoveredHandler);
     }
 
     update(_dt: number): void {
@@ -50,6 +59,7 @@ export class NarrativeEventSystem extends System {
 
     destroy(): void {
         this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
+        this.eventQueue.off(GameEvents.STATION_DISCOVERED, this.stationDiscoveredHandler);
     }
 
     private async checkEvents(turn: number): Promise<void> {
@@ -68,6 +78,14 @@ export class NarrativeEventSystem extends System {
             if (choiceIndex >= 0 && event.choices && event.choices[choiceIndex]) {
                 await this.applyOutcome(event, choiceIndex, turn);
             }
+
+            // Emit NARRATIVE_SHOWN for all events (not just ones with choices)
+            // so listeners (e.g. Extiris spawn) can react to chain-only events
+            this.eventQueue.emit({
+                type: GameEvents.NARRATIVE_SHOWN,
+                id: event.id,
+                choiceIndex,
+            });
         } catch (err) {
             console.warn('NarrativeEventSystem: error during checkEvents', err);
         } finally {
@@ -240,12 +258,6 @@ export class NarrativeEventSystem extends System {
             await this.narrativeModal.showOutcome(choice.outcome);
         }
 
-        // Emit event
-        this.eventQueue.emit({
-            type: GameEvents.NARRATIVE_SHOWN,
-            id: event.id,
-            choiceIndex,
-        });
     }
 
     private getEventState(): EventStateComponent | null {

@@ -4,11 +4,13 @@
 // Syncs TransformComponent position from orbit parameters each tick.
 // Blocks turn advancement per-entity while animating.
 // Orbit centre and radius are in world coordinates (fixed, no resize handling).
+// Optional parentEntityId enables satellite orbits — centre tracks the parent's position.
 
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { TransformComponent } from './TransformComponent';
+import type { World } from '../core/World';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
 /** Duration of the orbit animation in seconds */
@@ -28,6 +30,9 @@ export class OrbitComponent extends Component {
     angle: number;           // current visual position in orbit (radians)
     speed: number;           // radians per turn
 
+    // --- Optional parent entity for satellite orbits ---
+    parentEntityId: number | null = null;
+
     // --- Animation state for smooth interpolation ---
     targetAngle: number;     // destination angle after turn advance
     startAngle: number;      // angle at start of animation
@@ -37,6 +42,7 @@ export class OrbitComponent extends Component {
 
     private eventQueue: EventQueue | null = null;
     private turnEndHandler: EventHandler | null = null;
+    private world: World | null = null;
 
     constructor(centreX: number, centreY: number, radius: number, speed: number) {
         super();
@@ -55,6 +61,7 @@ export class OrbitComponent extends Component {
 
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
+        this.world = ServiceLocator.get<World>('world');
 
         this.turnEndHandler = (): void => {
             // If already animating, snap to the current target first
@@ -97,6 +104,18 @@ export class OrbitComponent extends Component {
                     type: GameEvents.TURN_UNBLOCK,
                     key: `orbit:${this.entity.id}`,
                 });
+            }
+        }
+
+        // Track parent entity position for satellite orbits
+        if (this.parentEntityId !== null && this.world) {
+            const parent = this.world.getEntity(this.parentEntityId);
+            if (parent) {
+                const parentTransform = parent.getComponent(TransformComponent);
+                if (parentTransform) {
+                    this.centreX = parentTransform.x;
+                    this.centreY = parentTransform.y;
+                }
             }
         }
 
