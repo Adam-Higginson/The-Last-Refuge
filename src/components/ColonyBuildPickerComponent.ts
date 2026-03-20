@@ -101,7 +101,7 @@ export class ColonyBuildPickerComponent extends Component {
     private showBuildMenu(
         region: { buildings: { typeId: string; slotIndex: number; state: string; turnsRemaining: number }[]; buildingSlots: number },
         regionId: number,
-        _slotIndex: number,
+        slotIndex: number,
     ): void {
         if (!this.picker) return;
 
@@ -143,7 +143,7 @@ export class ColonyBuildPickerComponent extends Component {
         for (const item of this.picker.querySelectorAll('.build-picker-item:not(.build-picker-item--disabled)')) {
             item.addEventListener('click', () => {
                 const buildingId = (item as HTMLElement).dataset.buildingId as BuildingId;
-                this.confirmBuild(buildingId, regionId);
+                this.confirmBuild(buildingId, regionId, slotIndex);
             });
         }
     }
@@ -212,7 +212,7 @@ export class ColonyBuildPickerComponent extends Component {
         });
     }
 
-    private async confirmBuild(buildingId: BuildingId, regionId: number): Promise<void> {
+    private async confirmBuild(buildingId: BuildingId, regionId: number, slotIndex: number): Promise<void> {
         if (this.placementInProgress) return;
         this.placementInProgress = true;
 
@@ -233,7 +233,7 @@ export class ColonyBuildPickerComponent extends Component {
 
         const buildingComp = this.entity.getComponent(ColonyBuildingComponent);
         if (buildingComp) {
-            const success = buildingComp.startConstruction(regionId, buildingId);
+            const success = buildingComp.startConstruction(regionId, buildingId, slotIndex);
             if (success) {
                 // Dust burst at the new building's position
                 const regionData = this.entity.getComponent(RegionDataComponent);
