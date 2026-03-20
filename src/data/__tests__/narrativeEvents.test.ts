@@ -92,4 +92,71 @@ describe('narrativeEvents', () => {
         const findings = NARRATIVE_EVENTS.find(e => e.id === 'cache_findings');
         expect(findings?.category).toBe('story');
     });
+
+    // --- station_signal_hint ---
+
+    it('station_signal_hint fires on turn >= 3 when station not discovered', () => {
+        const hint = NARRATIVE_EVENTS.find(e => e.id === 'station_signal_hint');
+        expect(hint).toBeDefined();
+        expect(hint?.condition(makeContext({ turn: 2 }))).toBe(false);
+        expect(hint?.condition(makeContext({ turn: 3 }))).toBe(true);
+        expect(hint?.condition(makeContext({ turn: 10 }))).toBe(true);
+    });
+
+    it('station_signal_hint suppressed when station_discovered flag set', () => {
+        const hint = NARRATIVE_EVENTS.find(e => e.id === 'station_signal_hint');
+        expect(hint?.condition(makeContext({ turn: 5, flags: new Set(['station_discovered']) }))).toBe(false);
+    });
+
+    it('station_signal_hint is a story event with no choices', () => {
+        const hint = NARRATIVE_EVENTS.find(e => e.id === 'station_signal_hint');
+        expect(hint?.category).toBe('story');
+        expect(hint?.choices).toBeUndefined();
+    });
+
+    // --- station_found ---
+
+    it('station_found requires station_discovered flag', () => {
+        const found = NARRATIVE_EVENTS.find(e => e.id === 'station_found');
+        expect(found).toBeDefined();
+        expect(found?.condition(makeContext({ flags: new Set() }))).toBe(false);
+        expect(found?.condition(makeContext({ flags: new Set(['station_discovered']) }))).toBe(true);
+    });
+
+    it('station_found is a story event with no choices', () => {
+        const found = NARRATIVE_EVENTS.find(e => e.id === 'station_found');
+        expect(found?.category).toBe('story');
+        expect(found?.choices).toBeUndefined();
+    });
+
+    // --- station_online ---
+
+    it('station_online requires station_repaired flag', () => {
+        const online = NARRATIVE_EVENTS.find(e => e.id === 'station_online');
+        expect(online).toBeDefined();
+        expect(online?.condition(makeContext({ flags: new Set() }))).toBe(false);
+        expect(online?.condition(makeContext({ flags: new Set(['station_repaired']) }))).toBe(true);
+    });
+
+    it('station_online has exactly 1 choice with chainEventId', () => {
+        const online = NARRATIVE_EVENTS.find(e => e.id === 'station_online');
+        expect(online?.choices).toHaveLength(1);
+        expect(online?.choices?.[0].chainEventId).toBe('extiris_arrival');
+        expect(online?.choices?.[0].chainDelay).toBe(2);
+        expect(online?.choices?.[0].flag).toBe('signal_broadcast');
+    });
+
+    // --- extiris_arrival ---
+
+    it('extiris_arrival has condition that always returns false (chain-only)', () => {
+        const arrival = NARRATIVE_EVENTS.find(e => e.id === 'extiris_arrival');
+        expect(arrival).toBeDefined();
+        expect(arrival?.condition(makeContext())).toBe(false);
+        expect(arrival?.condition(makeContext({ turn: 100, flags: new Set(['station_repaired', 'signal_broadcast']) }))).toBe(false);
+    });
+
+    it('extiris_arrival is a story event', () => {
+        const arrival = NARRATIVE_EVENTS.find(e => e.id === 'extiris_arrival');
+        expect(arrival?.category).toBe('story');
+    });
 });

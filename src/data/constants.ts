@@ -69,3 +69,28 @@ export const SCOUT_KILL_RADIUS = 100;
 
 /** Number of past positions to show in scout movement trail. */
 export const SCOUT_TRAIL_LENGTH = 12;
+
+// ─── Station constants ──────────────────────────────────────────────────
+/** Station orbit radius — distance from Dust's centre (world units). Moon-like orbit. */
+export const STATION_ORBIT_RADIUS = 200;
+
+/** Station orbit speed — faster than planet orbit for visible moon-like motion (rad/turn). */
+export const STATION_ORBIT_SPEED = 0.15;
+
+/** Station starting angle around Dust (radians). */
+export const STATION_START_ANGLE = 0;
+
+/** Station hit radius for hover/click detection (world units). */
+export const STATION_HIT_RADIUS = 60;
+
+/** Turns required to repair the station. */
+export const STATION_REPAIR_TURNS = 8;
+
+/** Material cost to begin station repair. */
+export const STATION_REPAIR_COST = 40;
+
+/** Station detail visibility radius when repaired (world units). */
+export const STATION_FOG_DETAIL_RADIUS = 400;
+
+/** Station blip visibility radius when repaired (world units). */
+export const STATION_FOG_BLIP_RADIUS = 800;

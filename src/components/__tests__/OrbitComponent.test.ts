@@ -23,6 +23,7 @@ describe('OrbitComponent', () => {
         eventQueue = new EventQueue();
         ServiceLocator.register('eventQueue', eventQueue);
         world = new World();
+        ServiceLocator.register('world', world);
     });
 
     it('begins animation on turn:end event', () => {
@@ -222,5 +223,56 @@ describe('OrbitComponent', () => {
 
         expect(orbit.angle).toBe(0);
         expect(orbit.animating).toBe(false);
+    });
+
+    it('tracks parent entity position when parentEntityId is set', () => {
+        const parent = world.createEntity('parent');
+        const parentTransform = parent.addComponent(new TransformComponent(100, 200));
+
+        const child = world.createEntity('child');
+        const orbit = child.addComponent(new OrbitComponent(100, 200, 50, 0.1));
+        child.addComponent(new TransformComponent(0, 0));
+        orbit.parentEntityId = parent.id;
+        orbit.init();
+
+        // Move parent
+        parentTransform.x = 300;
+        parentTransform.y = 400;
+
+        orbit.update(1 / 60);
+
+        expect(orbit.centreX).toBe(300);
+        expect(orbit.centreY).toBe(400);
+    });
+
+    it('handles deleted parent entity gracefully', () => {
+        const child = world.createEntity('child');
+        const orbit = child.addComponent(new OrbitComponent(100, 200, 50, 0.1));
+        child.addComponent(new TransformComponent(0, 0));
+        orbit.parentEntityId = 9999; // non-existent entity
+        orbit.init();
+
+        // Should not throw — centreX/Y remain unchanged
+        orbit.update(1 / 60);
+
+        expect(orbit.centreX).toBe(100);
+        expect(orbit.centreY).toBe(200);
+    });
+
+    it('handles parent without TransformComponent gracefully', () => {
+        const parent = world.createEntity('noTransform');
+        // No TransformComponent added
+
+        const child = world.createEntity('child');
+        const orbit = child.addComponent(new OrbitComponent(50, 60, 30, 0.1));
+        child.addComponent(new TransformComponent(0, 0));
+        orbit.parentEntityId = parent.id;
+        orbit.init();
+
+        // Should not throw — centreX/Y remain unchanged
+        orbit.update(1 / 60);
+
+        expect(orbit.centreX).toBe(50);
+        expect(orbit.centreY).toBe(60);
     });
 });

@@ -9,6 +9,8 @@ import { TransformComponent } from '../components/TransformComponent';
 import { FogOfWarComponent, TileVisibility } from '../components/FogOfWarComponent';
 import { PlanetDataComponent } from '../components/PlanetDataComponent';
 import { ScoutDataComponent } from '../components/ScoutDataComponent';
+import { StationDataComponent } from '../components/StationDataComponent';
+import { EventStateComponent } from '../components/EventStateComponent';
 import { MinimapComponent } from '../components/MinimapComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
@@ -116,6 +118,48 @@ function drawMinimap(
         ctx.beginPath();
         ctx.arc(scoutPos.x, scoutPos.y, 2, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    // --- Station (signal blip when hinted, amber dot when discovered) ---
+    const station = world.getEntityByName('kethRelay');
+    if (station) {
+        const stationData = station.getComponent(StationDataComponent);
+        const stationTransform = station.getComponent(TransformComponent);
+        const eventState = gameState?.getComponent(EventStateComponent);
+
+        if (stationData?.discovered && stationTransform) {
+            const stationPos = minimap.worldToMinimap(stationTransform.x, stationTransform.y);
+            ctx.fillStyle = '#d4a040';
+            ctx.beginPath();
+            ctx.arc(stationPos.x, stationPos.y, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Faint amber glow
+            ctx.fillStyle = 'rgba(212, 160, 64, 0.2)';
+            ctx.beginPath();
+            ctx.arc(stationPos.x, stationPos.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (eventState?.hasSeen('station_signal_hint') && !stationData?.discovered && stationTransform) {
+            // Teal signal blip — hint seen but station not yet discovered
+            const stationPos = minimap.worldToMinimap(stationTransform.x, stationTransform.y);
+            const t = performance.now();
+
+            // Teal dot
+            ctx.fillStyle = '#50c8b4';
+            ctx.beginPath();
+            ctx.arc(stationPos.x, stationPos.y, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pulsing ripple ring
+            const phase = (t % 2000) / 2000;
+            const rippleRadius = 4 + phase * 4;
+            const rippleAlpha = 0.4 * (1 - phase);
+            ctx.beginPath();
+            ctx.arc(stationPos.x, stationPos.y, rippleRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(80, 200, 180, ${rippleAlpha.toFixed(3)})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
     }
 
     // --- Viewport rectangle ---
