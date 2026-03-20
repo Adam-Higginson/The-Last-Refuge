@@ -11,7 +11,7 @@ import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { TransformComponent } from './TransformComponent';
 import { animateMovement } from '../utils/animateMovement';
-import type { RightClickEvent, ModifierRightClickEvent } from '../core/GameEvents';
+import type { RightClickEvent, ModifierRightClickEvent, TurnEndEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
 /** Speed at which displayBudget lerps toward budgetRemaining (units/sec) */
@@ -71,7 +71,24 @@ export class MovementComponent extends Component {
             this.handleModifierRightClick(x, y);
         };
 
-        this.turnEndHandler = (): void => {
+        this.turnEndHandler = (event): void => {
+            const { skipAnimations } = event as TurnEndEvent;
+
+            // If skipAnimations and currently moving, teleport to destination
+            if (skipAnimations && this.moving && this.targetX !== null && this.targetY !== null) {
+                const transform = this.entity.getComponent(TransformComponent);
+                if (transform) {
+                    transform.x = this.targetX;
+                    transform.y = this.targetY;
+                }
+                this.moving = false;
+                this.targetX = null;
+                this.targetY = null;
+                this.waypointQueue = [];
+                this.entity.emit({ type: GameEvents.MOVE_COMPLETE, entityId: this.entity.id });
+                this.entity.emit({ type: GameEvents.TURN_UNBLOCK, key: this.blockerKey });
+            }
+
             this.budgetRemaining = this.budgetMax;
             this.displayBudget = this.budgetMax;
             this.turnOriginX = null;

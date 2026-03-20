@@ -89,12 +89,16 @@ export const GameEvents = {
 
 export interface TurnAdvanceEvent extends GameEvent {
     type: typeof GameEvents.TURN_ADVANCE;
+    /** When true, movement animations should teleport to destination (colony view turns). */
+    skipAnimations?: boolean;
 }
 
 export interface TurnEndEvent extends GameEvent {
     type: typeof GameEvents.TURN_END;
     /** The new turn number after advancement. */
     turn: number;
+    /** When true, movement animations should teleport to destination (colony view turns). */
+    skipAnimations?: boolean;
 }
 
 export interface TurnBlockEvent extends GameEvent {

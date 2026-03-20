@@ -6,7 +6,7 @@
 import { System } from '../core/System';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
-import type { TurnBlockEvent, TurnUnblockEvent } from '../core/GameEvents';
+import type { TurnAdvanceEvent, TurnBlockEvent, TurnUnblockEvent } from '../core/GameEvents';
 import type { World } from '../core/World';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
@@ -48,11 +48,12 @@ export class TurnSystem extends System {
             }
         };
 
-        this.turnAdvanceHandler = (): void => {
+        this.turnAdvanceHandler = (event): void => {
             if (this.blockers.size > 0) return;
 
+            const { skipAnimations } = event as TurnAdvanceEvent;
             this.currentTurn++;
-            this.eventQueue.emit({ type: GameEvents.TURN_END, turn: this.currentTurn });
+            this.eventQueue.emit({ type: GameEvents.TURN_END, turn: this.currentTurn, skipAnimations });
         };
 
         this.eventQueue.on(GameEvents.TURN_ADVANCE, this.turnAdvanceHandler);
