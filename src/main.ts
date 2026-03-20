@@ -24,6 +24,7 @@ import { createMinimap } from './entities/createMinimap';
 import { createHUD } from './entities/createHUD';
 import { createCrew } from './entities/createCrew';
 import { createExtiris } from './entities/createExtiris';
+import { createStation } from './entities/createStation';
 import { CameraComponent } from './components/CameraComponent';
 import { CrewMemberComponent } from './components/CrewMemberComponent';
 import { TransformComponent } from './components/TransformComponent';
@@ -124,8 +125,17 @@ function boot(): void {
         pilotCrew.location = { type: 'scout', scoutEntityId: scout.id };
     }
 
-    createExtiris(world);
+    createStation(world);
     createHUD(world);
+
+    // Spawn Extiris dynamically when the 'extiris_arrival' narrative fires
+    eventQueue.on(GameEvents.NARRATIVE_SHOWN, (event) => {
+        const e = event as import('./core/GameEvents').NarrativeShownEvent;
+        if (e.id !== 'extiris_arrival') return;
+        // Guard against double-spawn
+        if (world.getEntityByName('extiris')) return;
+        createExtiris(world);
+    });
 
     // Centre camera on the ship's starting position
     const camera = cameraEntity.getComponent(CameraComponent);
