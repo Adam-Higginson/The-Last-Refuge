@@ -7,7 +7,8 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { TransformComponent } from './TransformComponent';
 import type { Entity } from '../core/Entity';
-import type { EventQueue, EventHandler } from '../core/EventQueue';
+import type { TurnEndEvent } from '../core/GameEvents';
+import type { EventQueue, EventHandler, GameEvent } from '../core/EventQueue';
 
 /** Duration of the orbit animation in seconds */
 const MOON_ORBIT_ANIM_DURATION = 0.5;
@@ -52,13 +53,26 @@ export class MoonOrbitComponent extends Component {
     init(): void {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
 
-        this.turnEndHandler = (): void => {
+        this.turnEndHandler = (event: GameEvent): void => {
+            const { skipAnimations } = event as TurnEndEvent;
+
             if (this.animating) {
                 this.angle = this.targetAngle;
             }
 
+            const newTarget = this.angle + this.speed;
+
+            // Skip animation when colony-view turn (moon not visible)
+            if (skipAnimations) {
+                this.angle = newTarget;
+                this.targetAngle = newTarget;
+                this.startAngle = newTarget;
+                this.animating = false;
+                return;
+            }
+
             this.startAngle = this.angle;
-            this.targetAngle = this.angle + this.speed;
+            this.targetAngle = newTarget;
             this.animElapsed = 0;
             this.animating = true;
 
