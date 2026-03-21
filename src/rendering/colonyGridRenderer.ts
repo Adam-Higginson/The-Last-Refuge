@@ -19,7 +19,7 @@ export function drawGridTiles(
     centreY: number,
 ): void {
     ctx.save();
-    ctx.globalAlpha = 0.06;
+    ctx.globalAlpha = 0.03;
 
     for (let gy = 0; gy < COLONY_GRID_SIZE; gy++) {
         for (let gx = 0; gx < COLONY_GRID_SIZE; gx++) {
@@ -30,7 +30,7 @@ export function drawGridTiles(
             if (cell.type === 'empty') continue;
 
             const screen = gridToScreen(gx, gy, centreX, centreY);
-            drawIsometricTile(ctx, screen.x, screen.y, 'rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)');
+            drawIsometricTile(ctx, screen.x, screen.y, 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.12)');
         }
     }
 
@@ -53,11 +53,11 @@ export function drawPathTiles(
 
             if (cell.type === 'path' || cell.type === 'door') {
                 const screen = gridToScreen(gx, gy, centreX, centreY);
-                ctx.globalAlpha = 0.35;
-                drawIsometricTile(ctx, screen.x, screen.y, 'rgba(120, 100, 70, 0.5)');
+                ctx.globalAlpha = 0.12;
+                drawIsometricTile(ctx, screen.x, screen.y, 'rgba(90, 80, 60, 0.4)');
                 // Subtle dirt texture line
-                ctx.globalAlpha = 0.15;
-                drawIsometricTile(ctx, screen.x, screen.y, 'rgba(90, 75, 50, 0.3)', 'rgba(140, 120, 80, 0.4)');
+                ctx.globalAlpha = 0.06;
+                drawIsometricTile(ctx, screen.x, screen.y, 'rgba(70, 60, 45, 0.3)', 'rgba(110, 95, 65, 0.2)');
             }
         }
     }
@@ -143,36 +143,61 @@ export interface HitResult {
 }
 
 /**
- * Depth-aware hit-testing: iterate items highest-depth-first (closest to camera),
- * first hit wins. Buildings use rect check, colonists use radius check.
+ * Depth-aware hit-testing with nearest-centre tiebreak for overlapping slots.
+ *
+ * Iterate highest-depth-first so frontmost entities win (building occludes colonist
+ * behind it). When multiple items at the SAME depth have overlapping hitRects,
+ * the one whose centre is closest to the click wins. This prevents isometric
+ * hitRect overlap from stealing clicks intended for adjacent empty slots.
  */
 export function resolveHitTarget(
     items: readonly HitTestItem[],
     clickX: number,
     clickY: number,
 ): HitResult | null {
-    // Iterate highest depth first (nearest to camera wins)
-    for (let i = items.length - 1; i >= 0; i--) {
-        const item = items[i];
+    // Collect all hits with their distance-to-centre
+    const hits: Array<{ item: HitTestItem; distSq: number }> = [];
 
-        // Skip props — not clickable
+    for (const item of items) {
         if (item.kind === 'prop') continue;
 
         if (item.hitRadius) {
-            // Radius-based check (colonists)
             const dx = clickX - item.screenX;
             const dy = clickY - item.screenY;
             if (dx * dx + dy * dy <= item.hitRadius * item.hitRadius) {
-                return { kind: item.kind, entityId: item.entityId, slotIndex: item.slotIndex };
+                hits.push({ item, distSq: dx * dx + dy * dy });
             }
         } else if (item.hitRect) {
-            // Rect-based check (buildings, empty slots)
             const r = item.hitRect;
             if (clickX >= r.x && clickX <= r.x + r.width &&
                 clickY >= r.y && clickY <= r.y + r.height) {
-                return { kind: item.kind, entityId: item.entityId, slotIndex: item.slotIndex };
+                const cx = r.x + r.width / 2;
+                const cy = r.y + r.height / 2;
+                const distSq = (clickX - cx) * (clickX - cx) + (clickY - cy) * (clickY - cy);
+                hits.push({ item, distSq });
             }
         }
     }
-    return null;
+
+    if (hits.length === 0) return null;
+
+    // Sort priority:
+    //   1. Colonists always beat empty-slots (you never want to click "through"
+    //      a visible person to select a build slot)
+    //   2. Empty-slot vs empty-slot → nearest centre wins (prevent isometric
+    //      hitRect overlap from stealing clicks between adjacent slots)
+    //   3. Everything else → highest depth wins (occlusion: building in front
+    //      of colonist, overlapping colonists)
+    const KIND_PRIORITY: Record<string, number> = { colonist: 2, building: 1, 'empty-slot': 0 };
+    hits.sort((a, b) => {
+        const pa = KIND_PRIORITY[a.item.kind] ?? 0;
+        const pb = KIND_PRIORITY[b.item.kind] ?? 0;
+        if (pa !== pb) return pb - pa;
+        const bothEmptySlots = a.item.kind === 'empty-slot' && b.item.kind === 'empty-slot';
+        if (bothEmptySlots) return a.distSq - b.distSq;
+        return b.item.depth - a.item.depth;
+    });
+
+    const winner = hits[0].item;
+    return { kind: winner.kind as HitResult['kind'], entityId: winner.entityId, slotIndex: winner.slotIndex };
 }
