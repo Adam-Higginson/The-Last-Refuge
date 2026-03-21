@@ -11,7 +11,8 @@ const FIGURE_SCALE = 1.8;
 
 /** Hair style index from entity ID (deterministic). */
 function getHairStyle(entityId: number): number {
-    return entityId % 4;
+    // 7 styles: 0-5 have hair, 6 is bald (~14% chance)
+    return entityId % 7;
 }
 
 /** Build height modifier from entity ID (deterministic, range 0.9-1.1). */
@@ -135,10 +136,11 @@ export function drawFigure(
     }
 
     // Body — role-coloured clothing (width affected by morale posture)
+    // Drawn lower to avoid overlap with head circle (which creates a "smile" artifact)
     const bodyWidth = 2.5 * s * posture.bodyWidthMult;
     ctx.fillStyle = colonist.colour;
     ctx.beginPath();
-    ctx.ellipse(x, y - 5 * s + bob + yOffset + moraleHeadY * 0.5, bodyWidth, 3.5 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y - 4 * s + bob + yOffset + moraleHeadY * 0.5, bodyWidth, 3 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Role-based accessories (subtle, drawn on top of body)
@@ -204,41 +206,51 @@ function drawHairStyle(
 
     switch (style) {
         case 0: {
-            // Short — small semicircle on top of head
+            // Short crop — small semicircle cap
             ctx.beginPath();
             ctx.arc(headX, headY - 0.5 * s, 2 * s, Math.PI * 0.85, Math.PI * 0.15, true);
             ctx.fill();
             break;
         }
         case 1: {
-            // Long — larger arc extending below ears
+            // Fuller — wider semicircle, slightly higher
             ctx.beginPath();
-            ctx.arc(headX, headY - 0.3 * s, 2.4 * s, Math.PI * 0.95, Math.PI * 0.05, true);
+            ctx.arc(headX, headY - 0.8 * s, 2.3 * s, Math.PI * 0.9, Math.PI * 0.1, true);
             ctx.fill();
-            // Side extensions below ears
-            ctx.fillRect(headX - 2.2 * s, headY - 0.5 * s, 1 * s, 2.5 * s);
-            ctx.fillRect(headX + 1.2 * s, headY - 0.5 * s, 1 * s, 2.5 * s);
             break;
         }
         case 2: {
-            // Bald — no hair drawn
+            // Swept — offset semicircle, looks parted
+            ctx.beginPath();
+            ctx.arc(headX + 0.5 * s, headY - 0.6 * s, 2.1 * s, Math.PI * 0.9, Math.PI * 0.15, true);
+            ctx.fill();
             break;
         }
         case 3: {
-            // Tied-back — small cap with tail line to one side
-            ctx.beginPath();
-            ctx.arc(headX, headY - 0.5 * s, 2 * s, Math.PI * 0.8, Math.PI * 0.2, true);
-            ctx.fill();
-            // Tail line
-            ctx.strokeStyle = colonist.hairColour;
-            ctx.lineWidth = 1 * s;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(headX + 1.8 * s, headY - 0.3 * s);
-            ctx.lineTo(headX + 3 * s, headY + 0.8 * s);
-            ctx.stroke();
+            // Flat top — small rectangular cap
+            ctx.fillRect(headX - 1.8 * s, headY - 2.8 * s, 3.6 * s, 1.2 * s);
             break;
         }
+        case 4: {
+            // Poofy — slightly taller semicircle cap
+            ctx.beginPath();
+            ctx.arc(headX, headY - 1 * s, 2.2 * s, Math.PI * 0.9, Math.PI * 0.1, true);
+            ctx.fill();
+            break;
+        }
+        case 5: {
+            // Tight cap — thin arc close to head
+            ctx.beginPath();
+            ctx.arc(headX, headY - 0.3 * s, 2.1 * s, Math.PI * 0.8, Math.PI * 0.2, true);
+            ctx.fill();
+            break;
+        }
+        case 6: {
+            // Bald — no hair
+            break;
+        }
+        default:
+            break;
     }
 }
 
