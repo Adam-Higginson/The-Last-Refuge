@@ -10,7 +10,7 @@ import { drawSettlementProps, drawMicroDetails, drawSettlementPropsForSlot } fro
 import { drawParticles } from './colonyParticles';
 import { getDayNightState, setGameHour } from './colonyDayNight';
 import { drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
-import { drawGridTiles, drawPathTiles, drawBuildingGlow, drawDebugOverlay, drawFigure, drawFireflies } from './colonyGridRenderer';
+import { drawGridTiles, drawBuildingGlow, drawDebugOverlay, drawFigure, drawFireflies } from './colonyGridRenderer';
 import { drawRelationshipOverlays, drawThoughtBubble } from './colonyRelationshipRenderer';
 import { getVisibleColonists } from '../colony/ColonistManager';
 import { resolveThought } from '../colony/ColonistThoughts';
