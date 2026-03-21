@@ -10,6 +10,8 @@ import { GameEvents } from '../core/GameEvents';
 import { DateUIComponent } from './DateUIComponent';
 import { RelationshipGraphComponent } from './RelationshipGraphComponent';
 import { ExtirisRespawnComponent } from './ExtirisRespawnComponent';
+import { IntelComponent } from './IntelComponent';
+import { ExtirisAIComponent } from './ExtirisAIComponent';
 import type { World } from '../core/World';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { TurnBlockEvent, TurnUnblockEvent } from '../core/GameEvents';
@@ -21,6 +23,7 @@ export class HUDUIComponent extends Component {
     private endTurnBtn: HTMLButtonElement | null = null;
     private aiHuntingEl: HTMLElement | null = null;
     private dormantEl: HTMLElement | null = null;
+    private intelEl: HTMLElement | null = null;
 
     private socialBtn: HTMLButtonElement | null = null;
 
@@ -107,6 +110,25 @@ export class HUDUIComponent extends Component {
             document.body.appendChild(this.dormantEl);
         }
 
+        // Intel fragment counter
+        if (typeof document.createElement === 'function') {
+            this.intelEl = document.createElement('div');
+            this.intelEl.id = 'hud-intel';
+            this.intelEl.style.cssText = `
+                position: fixed; top: 92px; left: 50%; transform: translateX(-50%);
+                color: #4fa8ff; font-family: monospace; font-size: 11px;
+                letter-spacing: 1.5px; text-transform: uppercase;
+                opacity: 0; transition: opacity 0.3s ease;
+                pointer-events: auto; cursor: default;
+                text-shadow: 0 0 6px rgba(79,168,255,0.3);
+            `;
+            document.body.appendChild(this.intelEl);
+
+            this.intelEl.addEventListener('click', () => {
+                this.handleCountermeasureClick();
+            });
+        }
+
         this.aiPhaseStartHandler = (): void => {
             if (this.aiHuntingEl) this.aiHuntingEl.style.opacity = '1';
         };
@@ -132,6 +154,9 @@ export class HUDUIComponent extends Component {
 
         // Update Extiris dormant timer display
         this.updateDormantTimer();
+
+        // Update intel display
+        this.updateIntelDisplay();
     }
 
     private updateButtonState(): void {
@@ -140,6 +165,75 @@ export class HUDUIComponent extends Component {
             this.endTurnBtn.classList.add('disabled');
         } else {
             this.endTurnBtn.classList.remove('disabled');
+        }
+    }
+
+    private updateIntelDisplay(): void {
+        if (!this.intelEl) return;
+
+        try {
+            const world = ServiceLocator.get<World>('world');
+            const gameState = world.getEntityByName('gameState');
+            const intel = gameState?.getComponent(IntelComponent);
+            if (!intel || intel.fragments === 0) {
+                this.intelEl.style.opacity = '0';
+                return;
+            }
+
+            if (intel.fragments >= 3) {
+                // Check if there are active adaptations to counter
+                const extiris = world.getEntityByName('extiris');
+                const ai = extiris?.getComponent(ExtirisAIComponent);
+                const hasAdaptations = ai && ai.memory.activeAdaptations.length > 0;
+
+                if (hasAdaptations) {
+                    this.intelEl.textContent = `INTEL: ${intel.fragments}/3 \u2014 [COUNTERMEASURE AVAILABLE]`;
+                    this.intelEl.style.color = '#50e080';
+                    this.intelEl.style.cursor = 'pointer';
+                } else {
+                    this.intelEl.textContent = `INTEL: ${intel.fragments} fragments`;
+                    this.intelEl.style.color = '#4fa8ff';
+                    this.intelEl.style.cursor = 'default';
+                }
+            } else {
+                this.intelEl.textContent = `INTEL: ${intel.fragments}/3 fragments`;
+                this.intelEl.style.color = '#4fa8ff';
+                this.intelEl.style.cursor = 'default';
+            }
+            this.intelEl.style.opacity = '1';
+        } catch {
+            // World not available
+        }
+    }
+
+    private handleCountermeasureClick(): void {
+        try {
+            const world = ServiceLocator.get<World>('world');
+            const gameState = world.getEntityByName('gameState');
+            const intel = gameState?.getComponent(IntelComponent);
+            if (!intel || intel.fragments < 3) return;
+
+            const extiris = world.getEntityByName('extiris');
+            const ai = extiris?.getComponent(ExtirisAIComponent);
+            if (!ai || ai.memory.activeAdaptations.length === 0) return;
+
+            // Remove the first active adaptation (auto-pick for simplicity)
+            const removed = ai.memory.activeAdaptations.shift();
+            intel.fragments -= 3;
+            intel.countermeasuresUsed++;
+
+            if (removed && this.eventQueue) {
+                this.eventQueue.emit({
+                    type: GameEvents.INTEL_COUNTERMEASURE,
+                    removedAdaptation: removed,
+                });
+            }
+
+            if (localStorage.getItem('combat-debug') === 'true') {
+                console.log(`[Combat] Countermeasure used: removed adaptation '${removed}'. ${intel.fragments} fragments remaining.`);
+            }
+        } catch {
+            // World not available
         }
     }
 
@@ -186,6 +280,9 @@ export class HUDUIComponent extends Component {
         }
         if (this.dormantEl) {
             this.dormantEl.remove();
+        }
+        if (this.intelEl) {
+            this.intelEl.remove();
         }
     }
 }

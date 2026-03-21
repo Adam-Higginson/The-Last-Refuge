@@ -71,6 +71,7 @@ export class CrisisModal {
     private assignments: Map<number, number> = new Map(); // slotIndex → entityId
     private sacrificeCrewId: number | null = null;
     private selectedCrewId: number | null = null;
+    private sacrificeDisabled = false;
 
     // Resolve callbacks
     private resolveAssignment: ((result: CrisisModalResult) => void) | null = null;
@@ -87,12 +88,13 @@ export class CrisisModal {
      * Show the crisis modal for crew assignment.
      * Returns when the player commits their crew assignments.
      */
-    show(card: CrisisCard, crew: CrewEntry[]): Promise<CrisisModalResult> {
+    show(card: CrisisCard, crew: CrewEntry[], sacrificeDisabled = false): Promise<CrisisModalResult> {
         this.card = card;
         this.availableCrew = crew;
         this.assignments = new Map();
         this.sacrificeCrewId = null;
         this.selectedCrewId = null;
+        this.sacrificeDisabled = sacrificeDisabled;
 
         this.ensureDOM();
         this.renderCrisisView(card);
@@ -290,25 +292,32 @@ export class CrisisModal {
 
         const slotsHtml = card.skillSlots.map((slot, i) => {
             const icon = SKILL_ICONS[slot.skill];
-            const isSacrifice = false; // sacrifice slot is separate
-            return `<div class="crisis-slot${isSacrifice ? ' sacrifice' : ''}" data-slot="${i}">
+            const penaltyHtml = slot.penalty
+                ? `<div class="crisis-slot-adaptation">\u26A0 ADAPTED ${slot.penalty}</div>`
+                : '';
+            return `<div class="crisis-slot" data-slot="${i}">
                 <div class="crisis-slot-header">
                     <span class="crisis-slot-icon">${icon}</span>
                     <span class="crisis-slot-skill">${slot.skill.toUpperCase()}</span>
                 </div>
                 <div class="crisis-slot-label">${this.escapeHtml(slot.label)}</div>
+                ${penaltyHtml}
                 <div class="crisis-slot-empty">click to assign</div>
             </div>`;
         }).join('');
 
-        // Add sacrifice slot
-        const sacrificeHtml = `<div class="crisis-slot sacrifice" data-slot="sacrifice">
+        // Add sacrifice slot (disabled if Extiris has debris_analysis adaptation)
+        const sacDisabledClass = this.sacrificeDisabled ? ' disabled' : '';
+        const sacText = this.sacrificeDisabled
+            ? 'BLOCKED \u2014 Extiris has adapted to this tactic'
+            : 'costs a life \u2014 destroys Extiris';
+        const sacrificeHtml = `<div class="crisis-slot sacrifice${sacDisabledClass}" data-slot="sacrifice">
             <div class="crisis-slot-header">
                 <span class="crisis-slot-icon">\u2620</span>
                 <span class="crisis-slot-skill">SACRIFICE</span>
             </div>
             <div class="crisis-slot-label">Ram the hunter</div>
-            <div class="crisis-slot-empty">costs a life — destroys Extiris</div>
+            <div class="crisis-slot-empty">${sacText}</div>
         </div>`;
 
         const crewHtml = this.availableCrew.map(entry => {
@@ -425,6 +434,8 @@ export class CrisisModal {
     }
 
     private handleSacrificeSlotClick(): void {
+        if (this.sacrificeDisabled) return;
+
         if (this.sacrificeCrewId !== null) {
             // Unassign sacrifice
             this.sacrificeCrewId = null;
@@ -619,7 +630,12 @@ export class CrisisModal {
                 score += getRelationshipModifier(entry.crew, otherId);
             }
 
-            total += score;
+            // Adaptation penalty
+            if (slot.penalty) {
+                score += slot.penalty;
+            }
+
+            total += Math.max(0, score);
         }
 
         return total;
