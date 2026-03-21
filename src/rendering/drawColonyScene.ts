@@ -4,10 +4,13 @@
 import { RegionDataComponent } from '../components/RegionDataComponent';
 import { ColonySceneStateComponent } from '../components/ColonySceneStateComponent';
 import { ColonySimulationComponent } from '../components/ColonySimulationComponent';
+import { AdaptiveQualityComponent } from '../components/AdaptiveQualityComponent';
+import type { QualityFlags } from '../components/AdaptiveQualityComponent';
 import { getBuildingType } from '../data/buildings';
 import { drawBuilding } from './colonyBuildingSprites';
 import { drawSettlementProps, drawMicroDetails, drawSettlementPropsForSlot } from './colonyProps';
 import { drawParticles } from './colonyParticles';
+import { ParticlePool } from './ParticlePool';
 import { getDayNightState, setGameHour } from './colonyDayNight';
 import { drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
 import { drawGridTiles, drawBuildingGlow, drawDebugOverlay, drawFigure, drawFireflies } from './colonyGridRenderer';
@@ -138,6 +141,13 @@ export function drawColonyScene(
 
     registerDebugKeys(state);
 
+    // Adaptive quality flags — renderers can check these to skip expensive effects
+    const qualityComp = entity.getComponent(AdaptiveQualityComponent);
+    const qualityFlags: QualityFlags = qualityComp?.flags ?? {
+        shadows: true, haze: true, smoke: true,
+        breathPuffs: true, puddles: true, windParticles: true,
+    };
+
     const vt = state.viewTransform;
     const w = vt.canvasW;
     const h = vt.canvasH;
@@ -210,7 +220,18 @@ export function drawColonyScene(
     }
 
     const { slotData, slotRects } = collectBuildingSlotData(region, sim, gridCentre);
-    drawBuildingShadows(ctx, region, slotRects, dayNight);
+
+    // Directional shadows for buildings and colonists (replaces old per-entity shadows)
+    const colonistsForShadows = sim ? getVisibleColonists(sim) : [];
+    if (qualityFlags.shadows) {
+        drawDirectionalShadows(ctx, colonistsForShadows, slotRects, dayNight, gridCentre);
+    }
+
+    // Campfire glow on the ground at night
+    if (sim && sim.campfireCell) {
+        const campfireGlowScreen = gridToScreen(sim.campfireCell.gridX, sim.campfireCell.gridY, gridCentre.centreX, gridCentre.centreY);
+        drawCampfireGlow(ctx, campfireGlowScreen.x, campfireGlowScreen.y, dayNight, t);
+    }
 
     // Micro-details (campfire ring, barrels, signposts) sit on the ground plane
     // beneath all depth-sorted entities — draw before the RenderQueue pass.
@@ -279,6 +300,11 @@ export function drawColonyScene(
 
     drawParticles(ctx, dtSeconds, state);
 
+    // Smoke particles from buildings (workshop chimney, campfire)
+    if (qualityFlags.smoke) {
+        drawSmokeParticles(ctx, dtSeconds, state, weather, region, slotRects, sim, gridCentre);
+    }
+
     // Firefly particles near campfire during evening
     if (sim && sim.campfireCell) {
         const campfireScreen = gridToScreen(sim.campfireCell.gridX, sim.campfireCell.gridY, gridCentre.centreX, gridCentre.centreY);
@@ -299,10 +325,20 @@ export function drawColonyScene(
     drawAmbientOverlay(ctx, w, h, dayNight);
     drawEmergencyOverlay(ctx, w, h, state.emergencyIntensity);
 
+    // Atmospheric haze — depth gradient, drawn before weather so rain sits on top
+    if (qualityFlags.haze) {
+        drawAtmosphericHaze(ctx, w, h, dayNight, weather, state);
+    }
+
     // Weather effects drawn AFTER ambient overlay so rain is visible on dark nights
     drawWeatherEffects(ctx, w, h, t, state);
     drawColonyLabel(ctx, w, region);
     drawTimeIndicator(ctx, w, dayNight, weather);
+
+    // Adaptive quality debug overlay (Q key)
+    if (qualityComp?.debugVisible) {
+        drawQualityDebugOverlay(ctx, h, qualityComp);
+    }
 
     return slotRects;
 }
@@ -341,31 +377,75 @@ function drawSky(
     const pulse = 0.85 + 0.15 * Math.sin(t / 3000);
     const weatherDim = 1 - weather.overcastAmount * 1.2;
 
-    if (dayNight.celestialHeight > -0.15 && weatherDim > 0.05) {
-        const sunR = dayNight.phase === 'night' ? w * 0.03 : w * 0.05;
+    // Moon — drawn independently of sun visibility, arcs across the night sky
+    if (dayNight.phase === 'night' && weatherDim > 0.05) {
+        const mr = w * 0.025;
+        const moonNorm = ((dayNight.hour - 20) / 9 + 1) % 1;
+        const moonX = w * (0.15 + moonNorm * 0.7);
+        const moonY = horizonY * (0.6 - Math.sin(moonNorm * Math.PI) * 0.45);
+        ctx.save();
+        ctx.globalAlpha = dayNight.starAlpha * 0.8;
+
+        // Moon body — gray gradient (matches Luna entity)
+        const bodyGrad = ctx.createRadialGradient(
+            moonX - mr * 0.3, moonY - mr * 0.3, mr * 0.1,
+            moonX, moonY, mr,
+        );
+        bodyGrad.addColorStop(0, '#bbbbcc');
+        bodyGrad.addColorStop(1, '#888899');
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, mr, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Craters — darker spots clipped to moon circle
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, mr, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = '#666677';
+        ctx.beginPath();
+        ctx.ellipse(moonX - mr * 0.3, moonY - mr * 0.2, mr * 0.2, mr * 0.15, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(moonX + mr * 0.25, moonY + mr * 0.3, mr * 0.15, mr * 0.12, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(moonX + mr * 0.1, moonY - mr * 0.1, mr * 0.1, mr * 0.08, 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Shadow on one side
+        const shadowGrad = ctx.createRadialGradient(
+            moonX + mr * 0.4, moonY + mr * 0.2, mr * 0.2,
+            moonX + mr * 0.4, moonY + mr * 0.2, mr * 1.1,
+        );
+        shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+        shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = shadowGrad;
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, mr, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Soft glow around moon
+        const moonGlow = ctx.createRadialGradient(moonX, moonY, mr, moonX, moonY, mr * 4);
+        moonGlow.addColorStop(0, 'rgba(200, 210, 230, 0.08)');
+        moonGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = moonGlow;
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, mr * 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Sun — only visible when above horizon
+    if (dayNight.celestialHeight > -0.15 && weatherDim > 0.05 && dayNight.phase !== 'night') {
+        const sunR = w * 0.05;
         const horizonFade = dayNight.celestialHeight < 0
             ? 1 + dayNight.celestialHeight / 0.15
             : 1;
 
-        if (dayNight.phase === 'night') {
-            const moonNorm = ((dayNight.hour - 20) / 9 + 1) % 1;
-            const moonX = w * (0.15 + moonNorm * 0.7);
-            const moonY = horizonY * (0.6 - Math.sin(moonNorm * Math.PI) * 0.45);
-            ctx.save();
-            ctx.globalAlpha = dayNight.starAlpha * 0.7;
-            ctx.fillStyle = 'rgba(200, 210, 230, 1)';
-            ctx.beginPath();
-            ctx.arc(moonX, moonY, sunR, 0, Math.PI * 2);
-            ctx.fill();
-            const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, sunR * 4);
-            moonGlow.addColorStop(0, 'rgba(200, 210, 230, 0.1)');
-            moonGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = moonGlow;
-            ctx.beginPath();
-            ctx.arc(moonX, moonY, sunR * 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        } else {
+        {
             ctx.save();
             ctx.globalAlpha = horizonFade * weatherDim;
             const bloomR = sunR * 3;
@@ -1287,34 +1367,93 @@ function drawForegroundTrees(
 
 // --- Building shadows ---
 
-function drawBuildingShadows(
+/** Draw directional shadow ellipses under every colonist and building. */
+function drawDirectionalShadows(
     ctx: CanvasRenderingContext2D,
-    _region: Region,
+    colonists: ColonistVisualState[],
     slotRects: ColonySlotRect[],
     dayNight: DayNightState,
+    gridCentre: { centreX: number; centreY: number },
 ): void {
-    if (dayNight.phase === 'night') return;
+    // Skip entirely in deep night — no visible shadow
+    if (dayNight.ambientLight < 0.05) return;
 
-    const shadowAlpha = 0.15 + dayNight.ambientLight * 0.1;
-    const shadowOffsetX = Math.cos(dayNight.shadowAngle) * 4 * dayNight.shadowLength;
-    const shadowOffsetY = Math.sin(dayNight.shadowAngle) * 2 * dayNight.shadowLength;
+    const isNight = dayNight.phase === 'night';
+    const shadowAlpha = isNight ? 0.08 : 0.15 + dayNight.ambientLight * 0.1;
 
     ctx.save();
     ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+    ctx.globalAlpha = shadowAlpha;
 
+    const cosAngle = Math.cos(dayNight.shadowAngle);
+    const sinAngle = Math.sin(dayNight.shadowAngle);
+
+    // Colonist shadows
+    for (const colonist of colonists) {
+        const screen = gridToScreen(colonist.gridX, colonist.gridY, gridCentre.centreX, gridCentre.centreY);
+        const radiusX = 6 * dayNight.shadowLength;
+        const radiusY = 3;
+        const offsetX = cosAngle * 8 * dayNight.shadowLength;
+        const offsetY = sinAngle * 4 * dayNight.shadowLength;
+
+        if (!isFinite(radiusX) || radiusX <= 0) continue;
+
+        ctx.beginPath();
+        ctx.ellipse(screen.x + offsetX, screen.y + offsetY, radiusX, radiusY, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Building shadows
     for (const rect of slotRects) {
         if (!rect.occupied) continue;
 
-        ctx.globalAlpha = shadowAlpha;
-        const sx = rect.x + rect.width / 2 + shadowOffsetX;
-        const sy = rect.y + rect.height * 0.5 + shadowOffsetY;
-        const shadowW = TILE_WIDTH * 0.45;
-        const shadowH = TILE_HEIGHT * 0.3;
+        const radiusX = 20 * dayNight.shadowLength;
+        const radiusY = 8;
+        const offsetX = cosAngle * 15 * dayNight.shadowLength;
+        const offsetY = sinAngle * 15 * dayNight.shadowLength;
+
+        if (!isFinite(radiusX) || radiusX <= 0) continue;
+
+        const sx = rect.x + rect.width / 2 + offsetX;
+        const sy = rect.y + rect.height * 0.5 + offsetY;
 
         ctx.beginPath();
-        ctx.ellipse(sx, sy + 10, shadowW, shadowH, dayNight.shadowAngle * 0.1, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy, radiusX, radiusY, 0, 0, Math.PI * 2);
         ctx.fill();
     }
+
+    ctx.restore();
+}
+
+/** Draw a warm campfire glow on the ground at night. */
+function drawCampfireGlow(
+    ctx: CanvasRenderingContext2D,
+    campfireScreenX: number,
+    campfireScreenY: number,
+    dayNight: DayNightState,
+    t: number,
+): void {
+    // Only draw when it's getting dark (dusk/night)
+    if (dayNight.ambientLight >= 0.5) return;
+
+    const intensity = 1 - dayNight.ambientLight * 2;
+    const radius = 50 * (0.95 + 0.05 * Math.sin(t / 150));
+
+    if (!isFinite(radius) || radius <= 0) return;
+
+    const grad = ctx.createRadialGradient(
+        campfireScreenX, campfireScreenY, 0,
+        campfireScreenX, campfireScreenY, radius,
+    );
+    const innerAlpha = 0.15 * intensity;
+    grad.addColorStop(0, `rgba(255, 180, 80, ${innerAlpha.toFixed(3)})`);
+    grad.addColorStop(1, 'rgba(255, 180, 80, 0)');
+
+    ctx.save();
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(campfireScreenX, campfireScreenY, radius, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
 }
 
@@ -1394,6 +1533,37 @@ function drawTimeIndicator(
     ctx.font = '11px "Share Tech Mono", "Courier New", monospace';
     ctx.textAlign = 'right';
     ctx.fillText(`${timeStr}${weatherIcon}`, w - 16, 55);
+    ctx.restore();
+}
+
+// --- Quality debug overlay (bottom-left) ---
+
+function drawQualityDebugOverlay(
+    ctx: CanvasRenderingContext2D,
+    h: number,
+    qualityComp: AdaptiveQualityComponent,
+): void {
+    const text = qualityComp.getDebugText();
+    ctx.save();
+    ctx.font = '10px monospace';
+    const metrics = ctx.measureText(text);
+    const padding = 6;
+    const boxW = metrics.width + padding * 2;
+    const boxH = 16 + padding * 2;
+    const boxX = 8;
+    const boxY = h - boxH - 8;
+
+    // Semi-transparent background
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+
+    // Text
+    ctx.globalAlpha = 1.0;
+    ctx.fillStyle = '#00ff88';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, boxX + padding, boxY + boxH / 2);
     ctx.restore();
 }
 
@@ -1783,6 +1953,139 @@ function drawColonyLabel(ctx: CanvasRenderingContext2D, w: number, region: Regio
     ctx.textAlign = 'center';
     ctx.fillText(`COLONY — ${region.biome.toUpperCase()}`, w / 2, 55);
     ctx.globalAlpha = 1.0;
+}
+
+// --- Smoke particles from buildings ---
+
+const SMOKE_POOL_SIZE = 64;
+const SMOKE_SPAWN_INTERVAL = 0.3; // seconds between spawns per source
+
+/** Spawn, update, and draw smoke particles from active buildings. */
+function drawSmokeParticles(
+    ctx: CanvasRenderingContext2D,
+    dt: number,
+    state: ColonySceneStateComponent,
+    weather: WeatherInfo,
+    region: Region,
+    slotRects: ColonySlotRect[],
+    sim: ColonySimulationComponent | null,
+    gridCentre: { centreX: number; centreY: number },
+): void {
+    // Lazily initialise the smoke pool
+    if (!state.smokePool) {
+        state.smokePool = new ParticlePool(SMOKE_POOL_SIZE);
+    }
+
+    const pool = state.smokePool;
+
+    // Accumulate spawn timer
+    state.smokeSpawnTimer += dt;
+
+    // Spawn smoke from active sources
+    if (state.smokeSpawnTimer >= SMOKE_SPAWN_INTERVAL) {
+        state.smokeSpawnTimer -= SMOKE_SPAWN_INTERVAL;
+
+        // Workshop chimneys — dark grey smoke
+        for (const building of region.buildings) {
+            if (building.typeId === 'workshop') {
+                const slotRect = slotRects.find(r => r.slotIndex === building.slotIndex);
+                if (slotRect) {
+                    // Chimney top: centre-right of the building, above the roof
+                    const chimneyX = slotRect.x + slotRect.width * 0.6 + (Math.random() - 0.5) * 4;
+                    const chimneyY = slotRect.y - 2 + (Math.random() - 0.5) * 2;
+                    pool.spawn({
+                        x: chimneyX,
+                        y: chimneyY,
+                        vx: 0,
+                        vy: -(15 + Math.random() * 10),
+                        life: 1,
+                        maxLife: 1.5 + Math.random(),
+                        size: 2 + Math.random() * 2,
+                        alpha: 0.2,
+                        color: '#555',
+                    });
+                }
+            }
+        }
+
+        // Campfire — light grey smoke
+        if (sim && sim.campfireCell) {
+            const campfireScreen = gridToScreen(
+                sim.campfireCell.gridX, sim.campfireCell.gridY,
+                gridCentre.centreX, gridCentre.centreY,
+            );
+            pool.spawn({
+                x: campfireScreen.x + (Math.random() - 0.5) * 4,
+                y: campfireScreen.y - 5 + (Math.random() - 0.5) * 2,
+                vx: 0,
+                vy: -(15 + Math.random() * 10),
+                life: 1,
+                maxLife: 1.5 + Math.random(),
+                size: 2 + Math.random() * 2,
+                alpha: 0.2,
+                color: '#999',
+            });
+        }
+    }
+
+    // Compute wind drift from weather
+    const windX = Math.sin(weather.windAngle) * weather.windIntensity * 30;
+    const windY = 0; // Vertical wind component not needed — smoke already rises
+
+    pool.update(dt, windX, windY);
+    pool.draw(ctx);
+}
+
+// --- Atmospheric haze gradient ---
+
+/** Screen-space haze gradient — transparent at bottom, slightly foggy at top. */
+function drawAtmosphericHaze(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    dayNight: DayNightState,
+    weather: WeatherInfo,
+    state: ColonySceneStateComponent,
+): void {
+    // Determine fog colour based on time of day
+    let fogR: number, fogG: number, fogB: number;
+    if (dayNight.phase === 'night') {
+        // Cool blue at night
+        fogR = 10; fogG = 15; fogB = 30;
+    } else if (dayNight.phase === 'dawn') {
+        // Warm haze at dawn
+        fogR = 140; fogG = 130; fogB = 100;
+    } else if (dayNight.phase === 'dusk') {
+        // Warm-cool transition at dusk
+        fogR = 100; fogG = 80; fogB = 70;
+    } else {
+        // Neutral day haze
+        fogR = 120; fogG = 130; fogB = 140;
+    }
+
+    const fogColor = `${fogR},${fogG},${fogB}`;
+
+    // Alpha: higher in rain, lower in clear weather
+    const maxAlpha = weather.rainIntensity > 0
+        ? 0.12 + weather.rainIntensity * 0.13  // 0.12 → 0.25 with rain
+        : 0.12;
+
+    // Cache the gradient — only recreate when fog colour changes
+    if (state.hazeFogColor !== fogColor) {
+        state.hazeFogColor = fogColor;
+        const grad = ctx.createLinearGradient(0, h, 0, 0);
+        grad.addColorStop(0, `rgba(${fogColor}, 0)`);
+        grad.addColorStop(1, `rgba(${fogColor}, 1)`);
+        state.hazeGradient = grad;
+    }
+
+    if (state.hazeGradient) {
+        ctx.save();
+        ctx.globalAlpha = maxAlpha;
+        ctx.fillStyle = state.hazeGradient;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+    }
 }
 
 // --- Transition drawing ---

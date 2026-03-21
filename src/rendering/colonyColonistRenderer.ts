@@ -38,7 +38,7 @@ export function drawFigure(
     t: number,
     isWalking: boolean,
     isSelected: boolean = false,
-    nearbyBuildingPos?: { x: number; y: number },
+    _nearbyBuildingPos?: { x: number; y: number },
 ): void {
     const s = FIGURE_SCALE;
 
@@ -65,20 +65,6 @@ export function drawFigure(
         ctx.ellipse(x, y + 1 * s, 5 * s, 2 * s, 0, 0, Math.PI * 2);
         ctx.fill();
     }
-
-    // Shadow
-    const baseShadowRx = 3 * s;
-    let shadowRx = baseShadowRx;
-    if (nearbyBuildingPos) {
-        const dx = nearbyBuildingPos.x - x;
-        const dist = Math.abs(dx);
-        const stretch = Math.max(0, 1 - dist / 100) * 0.5;
-        shadowRx = baseShadowRx * (1 + stretch);
-    }
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-    ctx.beginPath();
-    ctx.ellipse(x, y + 1 * s, shadowRx, 1 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
 
     // Sitting: draw legs folded forward
     if (isSitting) {
