@@ -246,7 +246,8 @@ export function drawColonyScene(
 
         const queue = new RenderQueue();
         registerBuildings(queue, slotData, region, t, state, selectedColonistDepth, sim.grid, gridCentre);
-        registerColonists(queue, colonists, gridCentre, t, state, slotData);
+        const isNight = qualityFlags.breathPuffs && dayNight.ambientLight < 0.3;
+        registerColonists(queue, colonists, gridCentre, t, state, slotData, isNight);
         registerEmptySlots(queue, slotData, state);
 
         queue.sort();
@@ -1808,6 +1809,7 @@ function registerColonists(
     t: number,
     state: ColonySceneStateComponent,
     slotData: BuildingSlotData[],
+    isNight: boolean,
 ): void {
     for (const colonist of colonists) {
         const screen = gridToScreen(colonist.gridX, colonist.gridY, gridCentre.centreX, gridCentre.centreY);
@@ -1833,7 +1835,7 @@ function registerColonists(
                     return dx < TILE_WIDTH * 1.5 && dy < TILE_HEIGHT * 2;
                 });
 
-                drawFigure(ctx, screen.x, screen.y, colonist, t, isWalking, isSelected, nearbyBuildings.length > 0 ? nearbyBuildings[0].screenPos : undefined);
+                drawFigure(ctx, screen.x, screen.y, colonist, t, isWalking, isSelected, nearbyBuildings.length > 0 ? nearbyBuildings[0].screenPos : undefined, isNight);
             },
         });
 
