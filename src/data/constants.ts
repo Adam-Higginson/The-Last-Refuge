@@ -67,6 +67,9 @@ export const SCOUT_FOG_BLIP_RADIUS = 600;
 /** Extiris catch distance to destroy a scout (world units). */
 export const SCOUT_KILL_RADIUS = 100;
 
+/** Distance at which an Extiris encounter triggers with a scout (world units). */
+export const ENCOUNTER_RADIUS = 300;
+
 /** Number of past positions to show in scout movement trail. */
 export const SCOUT_TRAIL_LENGTH = 12;
 

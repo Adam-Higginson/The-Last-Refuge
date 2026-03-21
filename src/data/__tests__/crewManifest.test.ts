@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { CREW_MANIFEST, RELATIONSHIP_MANIFEST } from '../crewManifest';
-import type { CrewRole, Trait, RelationshipType } from '../../components/CrewMemberComponent';
+import type { CrewRole, PersonalityTrait, RelationshipType } from '../../components/CrewMemberComponent';
 
 const VALID_ROLES: CrewRole[] = ['Engineer', 'Soldier', 'Medic', 'Scientist', 'Civilian', 'Pilot'];
-const VALID_TRAITS: Trait[] = [
+const VALID_TRAITS: PersonalityTrait[] = [
     'Stubborn', 'Empathetic', 'Reckless', 'Analytical',
     'Protective', 'Haunted', 'Resourceful', 'Quiet',
     'Hopeful', 'Grieving', 'Determined',

@@ -9,7 +9,7 @@ import { SelectableComponent } from '../../components/SelectableComponent';
 import { MoveConfirmComponent } from '../../components/MoveConfirmComponent';
 import { VisibilitySourceComponent } from '../../components/VisibilitySourceComponent';
 import { ScoutDataComponent } from '../../components/ScoutDataComponent';
-import { ScoutDestructionComponent } from '../../components/ScoutDestructionComponent';
+import { EncounterTriggerComponent } from '../../components/EncounterTriggerComponent';
 import { RenderComponent } from '../../components/RenderComponent';
 import {
     SCOUT_MOVEMENT_BUDGET,
@@ -75,9 +75,9 @@ describe('createScout', () => {
         expect(data?.pilotName).toBe('Lt. Kira Yossef');
     });
 
-    it('has ScoutDestructionComponent', () => {
+    it('has EncounterTriggerComponent', () => {
         const scout = createScout(world, 'scoutAlpha', 'Scout Alpha', 1, 'Lt. Kira Yossef', 0, 0);
-        expect(scout.getComponent(ScoutDestructionComponent)).toBeTruthy();
+        expect(scout.getComponent(EncounterTriggerComponent)).toBeTruthy();
     });
 
     it('has RenderComponent on the world layer', () => {

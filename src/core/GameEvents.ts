@@ -91,6 +91,16 @@ export const GameEvents = {
     ENGINE_REPAIR_STARTED: 'engine:repair:started',
     /** Ship engines have been fully repaired and are now online. */
     ENGINE_REPAIRED: 'engine:repaired',
+    /** An Extiris encounter was triggered with a scout. */
+    ENCOUNTER_TRIGGERED: 'encounter:triggered',
+    /** An encounter was resolved with an outcome. */
+    ENCOUNTER_RESOLVED: 'encounter:resolved',
+    /** A crew member died (combat or other cause). */
+    CREW_DEATH: 'crew:death',
+    /** The Extiris ship was destroyed (sacrifice or other). */
+    EXTIRIS_DESTROYED: 'extiris:destroyed',
+    /** A new Extiris ship has respawned. */
+    EXTIRIS_RESPAWN: 'extiris:respawn',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -321,4 +331,48 @@ export interface EngineRepairStartedEvent extends GameEvent {
 
 export interface EngineRepairedEvent extends GameEvent {
     type: typeof GameEvents.ENGINE_REPAIRED;
+}
+
+export interface EncounterTriggeredEvent extends GameEvent {
+    type: typeof GameEvents.ENCOUNTER_TRIGGERED;
+    /** Entity ID of the scout involved. */
+    scoutEntityId: number;
+    /** Entity ID of the pilot crew member. */
+    pilotEntityId: number;
+    /** Display name of the scout (e.g. 'Scout Alpha'). */
+    scoutName: string;
+}
+
+export interface EncounterResolvedEvent extends GameEvent {
+    type: typeof GameEvents.ENCOUNTER_RESOLVED;
+    /** Outcome tier: critical_success, success, partial, failure, catastrophe. */
+    tier: string;
+    /** Margin (total - difficulty). */
+    margin: number;
+    /** Crisis card ID that was drawn. */
+    cardId: string;
+}
+
+export interface CrewDeathEvent extends GameEvent {
+    type: typeof GameEvents.CREW_DEATH;
+    /** Entity ID of the deceased crew member. */
+    entityId: number;
+    /** Full name of the deceased. */
+    name: string;
+    /** Cause of death. */
+    cause: 'combat' | 'sacrifice';
+}
+
+export interface ExtirisDestroyedEvent extends GameEvent {
+    type: typeof GameEvents.EXTIRIS_DESTROYED;
+    /** How it was destroyed. */
+    cause: 'sacrifice';
+    /** Name of the crew member who sacrificed. */
+    sacrificeName?: string;
+}
+
+export interface ExtirisRespawnEvent extends GameEvent {
+    type: typeof GameEvents.EXTIRIS_RESPAWN;
+    /** How many times the Extiris has been destroyed total. */
+    destructionCount: number;
 }

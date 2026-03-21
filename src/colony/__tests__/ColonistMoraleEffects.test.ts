@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveTurnMorale, getWorkEfficiency } from '../ColonistMoraleEffects';
 import { CrewMemberComponent } from '../../components/CrewMemberComponent';
 import { World } from '../../core/World';
-import type { Trait } from '../../components/CrewMemberComponent';
+import type { PersonalityTrait } from '../../components/CrewMemberComponent';
 
 function makeWorld(): World {
     return new World();
@@ -12,7 +12,7 @@ function addCrew(
     world: World,
     name: string,
     morale: number,
-    traits: [Trait, Trait] = ['Determined', 'Resourceful'],
+    traits: PersonalityTrait[] = ['Determined', 'Resourceful'],
     planetEntityId = 99,
     regionId = 1,
 ): { entityId: number; crew: CrewMemberComponent } {
