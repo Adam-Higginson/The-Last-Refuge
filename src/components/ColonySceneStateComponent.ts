@@ -10,6 +10,7 @@ import { advanceClock, getDayNightState } from '../rendering/colonyDayNight';
 import { advanceWeather } from '../rendering/colonyWeather';
 import { ResourceComponent } from './ResourceComponent';
 import { RESOURCE_CONFIGS, RESOURCE_TYPES } from '../data/resources';
+import type { ParticlePool } from '../rendering/ParticlePool';
 import type { ColonySlotRect } from '../rendering/drawColonyScene';
 import type { ColonistScreenPos } from '../rendering/colonyGridRenderer';
 import type { HitTestItem } from '../rendering/RenderQueue';
@@ -108,6 +109,11 @@ export class ColonySceneStateComponent extends Component {
             // so they reinitialise at correct positions on next render
             this.crewSprites.clear();
             this.particles = [];
+            // Reset smoke pool so it reinitialises at new positions
+            this.smokePool = null;
+            this.smokeSpawnTimer = 0;
+            this.hazeGradient = null;
+            this.hazeFogColor = '';
             // Reset frame time to avoid dt spike
             this.lastFrameTime = 0;
         };
@@ -238,4 +244,13 @@ export class ColonySceneStateComponent extends Component {
     emergencyIntensity = 0;
     /** Debug override — when true, updateEmergencyState skips resource checks. */
     emergencyDebugOverride = false;  // 0-1, drives visual effects
+
+    // Smoke particle pool — lazily initialised in drawColonyScene
+    smokePool: ParticlePool | null = null;
+    /** Accumulator for smoke spawn timing (seconds since last spawn). */
+    smokeSpawnTimer = 0;
+
+    // Atmospheric haze cache — recreated only when fog colour changes
+    hazeGradient: CanvasGradient | null = null;
+    hazeFogColor = '';
 }
