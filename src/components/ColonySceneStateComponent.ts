@@ -126,6 +126,16 @@ export class ColonySceneStateComponent extends Component {
 
     /** Check resource levels and update emergency mode with hysteresis. */
     private updateEmergencyState(dt: number): void {
+        // Skip resource checks when debug override is active
+        if (this.emergencyDebugOverride) {
+            const target = this.emergencyActive ? 1 : 0;
+            if (this.emergencyIntensity < target) {
+                this.emergencyIntensity = Math.min(target, this.emergencyIntensity + dt / 2);
+            } else if (this.emergencyIntensity > target) {
+                this.emergencyIntensity = Math.max(target, this.emergencyIntensity - dt / 3);
+            }
+            return;
+        }
         if (!ServiceLocator.has('world')) return;
         const world = ServiceLocator.get<World>('world');
         const gameState = world.getEntityByName('gameState');
@@ -225,5 +235,7 @@ export class ColonySceneStateComponent extends Component {
 
     // Emergency visual mode — activates when resources hit critical
     emergencyActive = false;
-    emergencyIntensity = 0;  // 0-1, drives visual effects
+    emergencyIntensity = 0;
+    /** Debug override — when true, updateEmergencyState skips resource checks. */
+    emergencyDebugOverride = false;  // 0-1, drives visual effects
 }

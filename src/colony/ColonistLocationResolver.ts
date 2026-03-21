@@ -24,6 +24,7 @@ export interface ResolvedLocation {
 export function spreadAroundCell(
     grid: ColonyGrid, targetX: number, targetY: number, entityId: number,
     occupiedPositions?: Set<string>,
+    excludeCell?: { gridX: number; gridY: number } | null,
 ): { gridX: number; gridY: number } {
     const walkable: { gridX: number; gridY: number }[] = [];
     for (let dy = -2; dy <= 2; dy++) {
@@ -31,6 +32,8 @@ export function spreadAroundCell(
             if (Math.abs(dx) + Math.abs(dy) > 2) continue; // Manhattan distance <= 2
             const gx = targetX + dx;
             const gy = targetY + dy;
+            // Skip the excluded cell (e.g. campfire — don't stand in the fire)
+            if (excludeCell && gx === excludeCell.gridX && gy === excludeCell.gridY) continue;
             const cell = grid.getCell(gx, gy);
             if (cell && (cell.type === 'empty' || cell.type === 'path' || cell.type === 'door')) {
                 walkable.push({ gridX: gx, gridY: gy });
@@ -62,6 +65,7 @@ function spreadWithRelationships(
     sim: ColonySimulationComponent,
     world: World,
     occupiedPositions?: Set<string>,
+    excludeCell?: { gridX: number; gridY: number } | null,
 ): { gridX: number; gridY: number } {
     const walkable: { gridX: number; gridY: number }[] = [];
     for (let dy = -2; dy <= 2; dy++) {
@@ -69,6 +73,7 @@ function spreadWithRelationships(
             if (Math.abs(dx) + Math.abs(dy) > 2) continue;
             const gx = targetX + dx;
             const gy = targetY + dy;
+            if (excludeCell && gx === excludeCell.gridX && gy === excludeCell.gridY) continue;
             const cell = grid.getCell(gx, gy);
             if (cell && (cell.type === 'empty' || cell.type === 'path' || cell.type === 'door')) {
                 walkable.push({ gridX: gx, gridY: gy });
@@ -186,13 +191,13 @@ export function resolveLocation(
             }
         }
 
-        // Relationship-aware spreading at social area
+        // Relationship-aware spreading at social area — exclude campfire cell
         if (world) {
-            const spread = spreadWithRelationships(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId, sim, world, occupiedPositions);
+            const spread = spreadWithRelationships(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId, sim, world, occupiedPositions, sim.campfireCell);
             return { ...spread, buildingSlot: null, buildingTypeId: null };
         }
 
-        const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId, occupiedPositions);
+        const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId, occupiedPositions, sim.campfireCell);
         return { ...spread, buildingSlot: null, buildingTypeId: null };
     }
 

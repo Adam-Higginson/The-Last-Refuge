@@ -367,8 +367,11 @@ export function updateColonists(
             colonist.sheltered = true;
             continue;
         }
-        // Resting colonists assigned to shelter (slot 0) are inside the building
-        if (colonist.activity === 'resting' && colonist.assignedBuildingSlot === 0) {
+        // Resting colonists assigned to shelter (slot 0) are inside the building —
+        // but still check if the schedule has changed so they can wake up.
+        const earlySchedule = getScheduleBlock(colonist.role, gameHour, colonist.entityId);
+        if (colonist.activity === 'resting' && colonist.assignedBuildingSlot === 0
+            && earlySchedule.activity === 'resting') {
             colonist.sheltered = true;
             continue;
         }

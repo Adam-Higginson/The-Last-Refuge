@@ -757,7 +757,7 @@ function drawGroundDressing(
     const gustX = state.lastGustX;
     const gustActive = state.lastGustActive;
 
-    const greens = ['#4a8a3a', '#3a7a2a', '#5a9a4a', '#3a6a28'];
+    const greens = ['#3a5a30', '#2a4a22', '#4a6038', '#2a4020'];
 
     ctx.save();
 
@@ -935,7 +935,7 @@ function drawMidgroundScenery(
         const canopyCy = ty - trunkH - canopyR * 0.3;
 
         ctx.globalAlpha = isNight ? 0.2 : 0.4;
-        ctx.fillStyle = isNight ? '#1a2a18' : '#5a9a42';
+        ctx.fillStyle = isNight ? '#1a2a18' : '#3a5a30';
         for (let c = 0; c < 4; c++) {
             const cx = canopyCx + Math.sin(ms + c * 2.7) * canopyR * 0.35;
             const cy = canopyCy - canopyR * 0.15 + Math.sin(ms + c * 1.3) * canopyR * 0.15;
@@ -946,7 +946,7 @@ function drawMidgroundScenery(
         }
 
         ctx.globalAlpha = isNight ? 0.2 : 0.45;
-        ctx.fillStyle = isNight ? '#0f1a0d' : '#2a5a1a';
+        ctx.fillStyle = isNight ? '#0f1a0d' : '#1a3a12';
         for (let c = 0; c < 3; c++) {
             const cx = canopyCx + Math.sin(ms + c * 3.1 + 1) * canopyR * 0.3;
             const cy = canopyCy + canopyR * 0.12 + Math.abs(Math.sin(ms + c * 2.1)) * canopyR * 0.1;
@@ -1104,7 +1104,7 @@ function drawForegroundGrass(
     const windLean = weather.windAngle * 12 * wScale;
     const rainBoost = weather.rainIntensity * 3 * wScale;
 
-    const fgGreens = ['#2a5a1a', '#1a4a12', '#1a5a18', '#2a6a20'];
+    const fgGreens = ['#1a3a12', '#12300a', '#183a10', '#1a4018'];
     const fgCount = 80;
 
     ctx.save();
@@ -1208,7 +1208,7 @@ function drawForegroundTrees(
 
         // Grass around trunk base
         ctx.globalAlpha = isNight ? 0.2 : 0.4;
-        ctx.strokeStyle = isNight ? '#1a2a12' : '#3a6a28';
+        ctx.strokeStyle = isNight ? '#1a2a12' : '#2a4a1a';
         ctx.lineWidth = 1;
         ctx.lineCap = 'round';
         for (let g = 0; g < 8; g++) {
@@ -1227,7 +1227,7 @@ function drawForegroundTrees(
         const canopyCy = trunkTopY - canopyW * 0.15;
 
         ctx.globalAlpha = isNight ? 0.2 : 0.4;
-        ctx.fillStyle = isNight ? '#1a2a18' : '#5a9a48';
+        ctx.fillStyle = isNight ? '#1a2a18' : '#3a5a30';
         for (let c = 0; c < 5; c++) {
             const cx = canopyCx + Math.sin(ts + c * 1.7) * canopyW * 0.3;
             const cy = canopyCy - canopyW * 0.08 + Math.sin(ts + c * 2.3) * canopyW * 0.1;
@@ -1238,7 +1238,7 @@ function drawForegroundTrees(
         }
 
         ctx.globalAlpha = isNight ? 0.25 : 0.35;
-        ctx.fillStyle = isNight ? '#0f1a0d' : '#3a6a2a';
+        ctx.fillStyle = isNight ? '#0f1a0d' : '#2a4a1a';
         for (let c = 0; c < 6; c++) {
             const cx = canopyCx + Math.sin(ts + c * 2.1) * canopyW * 0.35;
             const cy = canopyCy + Math.sin(ts + c * 1.5) * canopyW * 0.15;
@@ -1249,7 +1249,7 @@ function drawForegroundTrees(
         }
 
         ctx.globalAlpha = isNight ? 0.15 : 0.2;
-        ctx.fillStyle = isNight ? '#080e08' : '#2a4a1a';
+        ctx.fillStyle = isNight ? '#080e08' : '#1a3a12';
         for (let c = 0; c < 4; c++) {
             const cx = canopyCx + Math.sin(ts + c * 3.1) * canopyW * 0.25;
             const cy = canopyCy + canopyW * 0.1 + Math.abs(Math.sin(ts + c * 1.9)) * canopyW * 0.1;
@@ -1262,7 +1262,7 @@ function drawForegroundTrees(
         // Dappled light on ground beneath
         if (!isNight) {
             ctx.globalAlpha = 0.05;
-            ctx.fillStyle = '#aac880';
+            ctx.fillStyle = '#6a8050';
             for (let d = 0; d < 5; d++) {
                 const dx = tx + Math.sin(ts + d * 3.1) * 30 * scale;
                 const dy = trunkBaseY - 10 * scale + Math.sin(ts + d * 2.7) * 10 * scale;
@@ -1354,10 +1354,19 @@ function drawEmergencyOverlay(
 ): void {
     if (intensity <= 0) return;
 
-    // Subtle blue-gray wash — desaturates and shifts palette cold
+    // Crisis atmosphere — heavy desaturation, cold shift, dark vignette
     ctx.save();
-    ctx.globalAlpha = intensity * 0.15;
-    ctx.fillStyle = 'rgb(40, 50, 80)';
+    // Layer 1: Strong desaturation via dark blue-gray wash
+    ctx.globalAlpha = intensity * 0.5;
+    ctx.fillStyle = 'rgb(20, 25, 45)';
+    ctx.fillRect(0, 0, w, h);
+    // Layer 2: Heavy dark vignette — edges go nearly black
+    const vignette = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.7);
+    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignette.addColorStop(0.6, `rgba(10, 5, 15, ${(intensity * 0.25).toFixed(2)})`);
+    vignette.addColorStop(1, `rgba(10, 5, 15, ${(intensity * 0.5).toFixed(2)})`);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 }

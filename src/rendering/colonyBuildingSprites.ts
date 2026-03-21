@@ -33,7 +33,6 @@ export function drawBuilding(
     if (state === 'idle' || state === 'disabled') ctx.globalAlpha = 0.4;
     const drawFn = BUILDING_DRAW_FUNCTIONS[buildingId];
     if (drawFn) drawFn(ctx, x, y, t, dayNight);
-    drawMakeshiftOverlay(ctx, buildingId, x, y);
     ctx.restore();
 
     // Draw building lights at dusk/night
@@ -90,28 +89,24 @@ function drawConstructionScaffolding(ctx: CanvasRenderingContext2D, x: number, y
 
 // --- Shelter: dome hab-module ---
 function drawShelter(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
-    // Base
-    drawIsometricBox(ctx, x, y, 20, '#a0a0b0', '#6a6a7a', '#505060');
+    // Base — weathered gray-brown, not clean silver
+    drawIsometricBox(ctx, x, y, 20, '#6a6860', '#4a4840', '#3a3830');
 
-    // Dome
-    ctx.fillStyle = '#9a9aaa';
+    // Dome — dull, scuffed
+    ctx.fillStyle = '#5a5850';
     ctx.beginPath();
     ctx.ellipse(x, y - 28, HW * 0.5, 18, 0, Math.PI, 0);
     ctx.fill();
-
-    // Door
-    ctx.fillStyle = '#4a4a5a';
-    ctx.fillRect(x - 5, y - 12, 10, 12);
 }
 
 // --- Farm: crop fields ---
 function drawFarm(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, _dn: DayNightState): void {
-    // Tilled soil base (flat isometric tile)
-    drawIsometricBox(ctx, x, y, 4, '#70944a', '#4a6a2a', '#3a5420');
+    // Tilled soil base — dark, hardscrabble earth
+    drawIsometricBox(ctx, x, y, 4, '#4a5a35', '#3a4a28', '#2a3a1a');
 
-    // Crop rows with sway
+    // Crop rows with sway — muted, struggling plants
     const sway = Math.sin(t / 1500) * 2;
-    ctx.fillStyle = '#7aaa4a';
+    ctx.fillStyle = '#5a7a3a';
     for (let i = -2; i <= 2; i++) {
         const cx = x + i * 10 + sway;
         const cy = y - 8 + Math.abs(i) * 2;
@@ -126,13 +121,13 @@ function drawFarm(ctx: CanvasRenderingContext2D, x: number, y: number, t: number
 
 // --- Solar Array: tilted panels ---
 function drawSolarArray(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, _dn: DayNightState): void {
-    // Support poles
-    ctx.fillStyle = '#6a6a7a';
+    // Support poles — rusty metal
+    ctx.fillStyle = '#4a4a40';
     ctx.fillRect(x - 15, y - 8, 2, 16);
     ctx.fillRect(x + 13, y - 8, 2, 16);
 
-    // Panels (tilted isometric)
-    ctx.fillStyle = '#2a4a8a';
+    // Panels — dark, weathered
+    ctx.fillStyle = '#1a3560';
     ctx.beginPath();
     ctx.moveTo(x - HW * 0.6, y - 30);
     ctx.lineTo(x + HW * 0.6, y - 20);
@@ -164,7 +159,8 @@ function drawSolarArray(ctx: CanvasRenderingContext2D, x: number, y: number, t: 
 
 // --- Storage Depot: blocky warehouse ---
 function drawStorageDepot(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
-    drawIsometricBox(ctx, x, y, 28, '#707080', '#4a4a5a', '#38384a');
+    // Dull metal walls — salvaged ship hull
+    drawIsometricBox(ctx, x, y, 28, '#505048', '#3a3a35', '#2a2a28');
 
     // Horizontal seam lines on left face
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
@@ -177,15 +173,6 @@ function drawStorageDepot(ctx: CanvasRenderingContext2D, x: number, y: number, _
         ctx.stroke();
     }
 
-    // Loading door on right face
-    ctx.fillStyle = '#3a3a4a';
-    ctx.beginPath();
-    ctx.moveTo(x + 5, y + HH * 0.3);
-    ctx.lineTo(x + HW * 0.6, y - 5);
-    ctx.lineTo(x + HW * 0.6, y + 8);
-    ctx.lineTo(x + 5, y + HH * 0.3 + 13);
-    ctx.closePath();
-    ctx.fill();
 }
 
 // --- Workshop: industrial with chimney and smoke ---
@@ -210,24 +197,15 @@ function drawWorkshop(ctx: CanvasRenderingContext2D, x: number, y: number, t: nu
         }
     }
 
-    // Orange window glow (intensifies at night)
-    const glowAlpha = dn.phase === 'night' ? 0.9 : dn.phase === 'dusk' ? 0.7 : 0.4;
-    ctx.fillStyle = `rgba(255, 160, 40, ${glowAlpha})`;
-    ctx.beginPath();
-    ctx.moveTo(x - HW * 0.3, y - 8);
-    ctx.lineTo(x - HW * 0.1, y - 14);
-    ctx.lineTo(x - HW * 0.1, y - 6);
-    ctx.lineTo(x - HW * 0.3, y);
-    ctx.closePath();
-    ctx.fill();
 }
 
-// --- Med Bay: white with red cross ---
+// --- Med Bay: off-white, weathered medical module ---
 function drawMedBay(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
-    drawIsometricBox(ctx, x, y, 22, '#e8e8f0', '#b8b8c0', '#9898a8');
+    // Dirty off-white — originally white, now stained from field use
+    drawIsometricBox(ctx, x, y, 22, '#8a8880', '#6a6860', '#5a5850');
 
-    // Red cross on top face
-    ctx.fillStyle = '#cc3333';
+    // Faded red cross on top face
+    ctx.fillStyle = '#8a3030';
     ctx.fillRect(x - 3, y - HH - 22 - 2, 6, 14);
     ctx.fillRect(x - 8, y - HH - 22 + 3, 16, 4);
 }
@@ -243,10 +221,6 @@ function drawBarracks(ctx: CanvasRenderingContext2D, x: number, y: number, _t: n
         ctx.fillRect(x + i * 16 - 4, y - HH - 20 - crenH, 8, crenH);
     }
 
-    // Slit windows on left face
-    ctx.fillStyle = '#2a3a2a';
-    ctx.fillRect(x - HW * 0.4, y - 10, 3, 8);
-    ctx.fillRect(x - HW * 0.2, y - 12, 3, 8);
 }
 
 // --- Hydroponics Bay: greenhouse dome ---
@@ -289,121 +263,6 @@ function drawHydroponicsBay(ctx: CanvasRenderingContext2D, x: number, y: number,
 
 // --- Makeshift survival-camp overlays (salvaged hull plating, tarps, patchwork) ---
 
-function drawMakeshiftOverlay(
-    ctx: CanvasRenderingContext2D,
-    buildingId: BuildingId,
-    x: number,
-    y: number,
-): void {
-    ctx.save();
-
-    // --- Common overlays for all buildings ---
-
-    // Patchwork seam lines (irregular thin lines suggesting welded-together panels)
-    ctx.strokeStyle = 'rgba(80, 70, 60, 0.3)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(x - HW * 0.3, y - 18);
-    ctx.lineTo(x + HW * 0.15, y - 10);
-    ctx.moveTo(x - HW * 0.1, y - 25);
-    ctx.lineTo(x + HW * 0.25, y - 15);
-    ctx.moveTo(x - HW * 0.4, y - 5);
-    ctx.lineTo(x - HW * 0.05, y - 2);
-    ctx.stroke();
-
-    // Repurposed hull plating patch (small metallic rectangle on one side)
-    ctx.fillStyle = '#7a7a80';
-    ctx.globalAlpha = 0.15;
-    ctx.fillRect(x + HW * 0.15, y - 20, 8, 6);
-    ctx.globalAlpha = 1;
-
-    // --- Per-building-type details ---
-
-    if (buildingId === 'shelter') {
-        // Tarp triangle draped over the roof
-        ctx.fillStyle = '#5a5040';
-        ctx.globalAlpha = 0.25;
-        ctx.beginPath();
-        ctx.moveTo(x - HW * 0.35, y - 32);
-        ctx.lineTo(x + HW * 0.1, y - 38);
-        ctx.lineTo(x - HW * 0.05, y - 24);
-        ctx.closePath();
-        ctx.fill();
-        ctx.globalAlpha = 1;
-
-    } else if (buildingId === 'farm') {
-        // Rough fence posts at edges
-        ctx.strokeStyle = 'rgba(90, 70, 50, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x - HW * 0.6, y + 2);
-        ctx.lineTo(x - HW * 0.6, y - 8);
-        ctx.moveTo(x + HW * 0.6, y + 2);
-        ctx.lineTo(x + HW * 0.6, y - 8);
-        ctx.moveTo(x - HW * 0.6, y - 4);
-        ctx.lineTo(x + HW * 0.6, y - 4);
-        ctx.stroke();
-
-    } else if (buildingId === 'workshop') {
-        // Scorch marks near chimney area
-        ctx.fillStyle = 'rgba(30, 20, 10, 0.15)';
-        ctx.beginPath();
-        ctx.ellipse(x + HW * 0.25, y - 30, 7, 4, 0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-    } else if (buildingId === 'storage_depot') {
-        // Stenciled "SUPPLIES" text
-        ctx.globalAlpha = 0.1;
-        ctx.fillStyle = '#e0e0e0';
-        ctx.font = '5px monospace';
-        ctx.fillText('SUPPLIES', x - HW * 0.35, y + 2);
-        ctx.globalAlpha = 1;
-
-    } else if (buildingId === 'med_bay') {
-        // Red cross patch (small + made of two thin rects)
-        ctx.fillStyle = 'rgba(180, 50, 50, 0.2)';
-        ctx.fillRect(x + HW * 0.2 - 1, y - 14, 3, 8);
-        ctx.fillRect(x + HW * 0.2 - 3, y - 11, 7, 3);
-
-    } else if (buildingId === 'barracks') {
-        // Reinforcement struts along edges
-        ctx.strokeStyle = 'rgba(40, 40, 40, 0.25)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x - HW * 0.5, y - 20);
-        ctx.lineTo(x - HW * 0.5, y + 4);
-        ctx.moveTo(x + HW * 0.5, y - 20);
-        ctx.lineTo(x + HW * 0.5, y + 4);
-        ctx.stroke();
-
-    } else if (buildingId === 'solar_array') {
-        // Tape / repair marks across panels
-        ctx.strokeStyle = 'rgba(180, 170, 140, 0.2)';
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.moveTo(x - HW * 0.3, y - 28);
-        ctx.lineTo(x + HW * 0.1, y - 16);
-        ctx.moveTo(x, y - 27);
-        ctx.lineTo(x + HW * 0.4, y - 17);
-        ctx.stroke();
-
-    } else if (buildingId === 'hydroponics_bay') {
-        // Condensation drips (thin vertical lines with blue tint)
-        ctx.strokeStyle = 'rgba(120, 180, 220, 0.15)';
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(x - 8, y - 30);
-        ctx.lineTo(x - 8, y - 18);
-        ctx.moveTo(x + 3, y - 34);
-        ctx.lineTo(x + 3, y - 20);
-        ctx.moveTo(x + 10, y - 28);
-        ctx.lineTo(x + 10, y - 17);
-        ctx.stroke();
-    }
-
-    ctx.restore();
-}
-
 // --- Building lights (drawn after the building, visible at dusk/night) ---
 
 function drawBuildingLights(
@@ -444,16 +303,12 @@ function drawBuildingLights(
         ctx.arc(x, y + 5, glowR, 0, Math.PI * 2);
         ctx.fill();
 
-        // Window glow intensifies
-        ctx.fillStyle = `rgba(255, 200, 100, ${(0.7 * flicker).toFixed(2)})`;
+        // Small window glows on dome — subtle circles, not rectangles
+        ctx.fillStyle = `rgba(255, 200, 100, ${(0.3 * flicker).toFixed(2)})`;
         ctx.beginPath();
-        ctx.arc(x - 12, y - 26, 5, 0, Math.PI * 2);
-        ctx.arc(x + 12, y - 26, 5, 0, Math.PI * 2);
+        ctx.arc(x - 10, y - 26, 3, 0, Math.PI * 2);
+        ctx.arc(x + 10, y - 26, 3, 0, Math.PI * 2);
         ctx.fill();
-
-        // Door light spill
-        ctx.fillStyle = `rgba(255, 180, 80, ${(0.5 * flicker).toFixed(2)})`;
-        ctx.fillRect(x - 6, y - 12, 12, 14);
 
     } else if (buildingId === 'workshop') {
         // Furnace glow from window (orange-red)

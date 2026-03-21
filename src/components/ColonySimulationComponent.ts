@@ -78,6 +78,15 @@ export class ColonySimulationComponent extends Component {
         if (e.code === 'KeyG' && !e.ctrlKey && !e.metaKey) {
             this.debugGridVisible = !this.debugGridVisible;
         }
+        // E key: toggle emergency mode for visual testing
+        if (e.code === 'KeyE' && !e.ctrlKey && !e.metaKey) {
+            const state = this.entity.getComponent(ColonySceneStateComponent);
+            if (state) {
+                state.emergencyDebugOverride = true;
+                state.emergencyActive = !state.emergencyActive;
+                console.log(`[DEBUG] Emergency mode: ${state.emergencyActive ? 'ON' : 'OFF'}`);
+            }
+        }
     };
 
     /** Build or rebuild the grid for the active colony region. */
