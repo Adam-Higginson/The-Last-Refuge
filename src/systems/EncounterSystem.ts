@@ -17,6 +17,10 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import { EncounterTriggerComponent } from '../components/EncounterTriggerComponent';
+import { ExtirisRespawnComponent } from '../components/ExtirisRespawnComponent';
+import { GhostMarkerComponent } from '../components/GhostMarkerComponent';
+import { TransformComponent } from '../components/TransformComponent';
+import { RenderComponent } from '../components/RenderComponent';
 import { CRISIS_CARDS, resolveOutcomeTier, getOutcomeForTier } from '../data/crisisCards';
 import { getSkillScore, getRelationshipModifier } from '../utils/combatSkills';
 import { applyConsequences, processEndOfTurn } from './ConsequenceResolver';
@@ -48,6 +52,7 @@ export class EncounterSystem extends System {
     private turnEndHandler!: EventHandler;
     private resolving = false;
     private currentTurn = 1;
+    private extirisDestructionCount = 0;
 
     init(world: World): void {
         super.init(world);
@@ -165,11 +170,22 @@ export class EncounterSystem extends System {
                 const extiris = this.world.getEntityByName('extiris');
                 if (extiris) {
                     this.world.removeEntity(extiris.id);
+                    this.extirisDestructionCount++;
                     this.eventQueue.emit({
                         type: GameEvents.EXTIRIS_DESTROYED,
                         cause: 'sacrifice',
                         sacrificeName: sacCrew?.fullName,
                     });
+
+                    // Start respawn timer on gameState entity
+                    const gameState = this.world.getEntityByName('gameState');
+                    if (gameState) {
+                        // Remove any existing respawn component (shouldn't happen, but defensive)
+                        const existing = gameState.getComponent(ExtirisRespawnComponent);
+                        if (!existing) {
+                            gameState.addComponent(new ExtirisRespawnComponent(this.extirisDestructionCount));
+                        }
+                    }
                 }
 
                 // Show sacrifice outcome
@@ -185,6 +201,9 @@ export class EncounterSystem extends System {
                     margin: 0,
                     cardId: card.id,
                 });
+
+                // Place ghost marker at scout's last position
+                this.createGhostMarker(event.scoutEntityId, sacCrew?.fullName ?? 'Unknown');
             } else {
                 // Normal resolution — calculate skill totals and resolve outcome
                 const total = this.calculateTotal(card, assignedCrewIds);
@@ -212,6 +231,14 @@ export class EncounterSystem extends System {
                     // Show outcome text
                     const outcomeModal = crisisModal ?? ServiceLocator.get<NarrativeModal>('narrativeModal');
                     await outcomeModal.showOutcome(outcome.description);
+
+                    // Ghost marker if pilot died (failure/catastrophe)
+                    if (tier === 'failure' || tier === 'catastrophe') {
+                        const pilotCrew = this.world.getEntity(event.pilotEntityId)?.getComponent(CrewMemberComponent);
+                        if (pilotCrew && pilotCrew.location.type === 'dead') {
+                            this.createGhostMarker(event.scoutEntityId, pilotCrew.fullName);
+                        }
+                    }
                 }
 
                 // Emit resolved event
@@ -238,6 +265,52 @@ export class EncounterSystem extends System {
             if (modalLock) {
                 modalLock.release();
             }
+        }
+    }
+
+    private createGhostMarker(scoutEntityId: number, pilotName: string): void {
+        const scoutEntity = this.world.getEntity(scoutEntityId);
+        const scoutTransform = scoutEntity?.getComponent(TransformComponent);
+        if (!scoutTransform) return;
+
+        const x = scoutTransform.x;
+        const y = scoutTransform.y;
+        const marker = this.world.createEntity(`ghost_${pilotName}`);
+        marker.addComponent(new TransformComponent(x, y));
+        marker.addComponent(new GhostMarkerComponent(pilotName));
+
+        // Render: faint X + name, alpha based on turnsRemaining
+        marker.addComponent(new RenderComponent('world', (ctx, mx, my) => {
+            const ghost = marker.getComponent(GhostMarkerComponent);
+            if (!ghost) return;
+            const alpha = Math.max(0, (ghost.turnsRemaining / 10) * 0.3);
+            if (alpha <= 0) return;
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+
+            // X mark
+            const size = 8;
+            ctx.strokeStyle = '#e05050';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(mx - size, my - size);
+            ctx.lineTo(mx + size, my + size);
+            ctx.moveTo(mx + size, my - size);
+            ctx.lineTo(mx - size, my + size);
+            ctx.stroke();
+
+            // Pilot name
+            ctx.fillStyle = '#e05050';
+            ctx.font = '9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(pilotName, mx, my + size + 12);
+
+            ctx.restore();
+        }));
+
+        if (isDebugEnabled()) {
+            console.log(`[Combat] Ghost marker placed for ${pilotName} at (${x.toFixed(0)}, ${y.toFixed(0)})`);
         }
     }
 

@@ -9,6 +9,8 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { DateUIComponent } from './DateUIComponent';
 import { RelationshipGraphComponent } from './RelationshipGraphComponent';
+import { ExtirisRespawnComponent } from './ExtirisRespawnComponent';
+import type { World } from '../core/World';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { TurnBlockEvent, TurnUnblockEvent } from '../core/GameEvents';
 
@@ -18,6 +20,7 @@ export class HUDUIComponent extends Component {
     private dateEl: HTMLElement | null = null;
     private endTurnBtn: HTMLButtonElement | null = null;
     private aiHuntingEl: HTMLElement | null = null;
+    private dormantEl: HTMLElement | null = null;
 
     private socialBtn: HTMLButtonElement | null = null;
 
@@ -90,6 +93,20 @@ export class HUDUIComponent extends Component {
             document.body.appendChild(this.aiHuntingEl);
         }
 
+        // "EXTIRIS SIGNAL: DORMANT" indicator
+        if (typeof document.createElement === 'function') {
+            this.dormantEl = document.createElement('div');
+            this.dormantEl.id = 'hud-extiris-dormant';
+            this.dormantEl.style.cssText = `
+                position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+                color: #d4a020; font-family: monospace; font-size: 11px;
+                letter-spacing: 1.5px; text-transform: uppercase;
+                opacity: 0; transition: opacity 0.3s ease;
+                pointer-events: none; text-shadow: 0 0 6px rgba(212,160,32,0.3);
+            `;
+            document.body.appendChild(this.dormantEl);
+        }
+
         this.aiPhaseStartHandler = (): void => {
             if (this.aiHuntingEl) this.aiHuntingEl.style.opacity = '1';
         };
@@ -112,6 +129,9 @@ export class HUDUIComponent extends Component {
 
         // Update END TURN button state
         this.updateButtonState();
+
+        // Update Extiris dormant timer display
+        this.updateDormantTimer();
     }
 
     private updateButtonState(): void {
@@ -120,6 +140,25 @@ export class HUDUIComponent extends Component {
             this.endTurnBtn.classList.add('disabled');
         } else {
             this.endTurnBtn.classList.remove('disabled');
+        }
+    }
+
+    private updateDormantTimer(): void {
+        if (!this.dormantEl) return;
+
+        try {
+            const world = ServiceLocator.get<World>('world');
+            const gameState = world.getEntityByName('gameState');
+            const respawn = gameState?.getComponent(ExtirisRespawnComponent);
+
+            if (respawn && respawn.turnsRemaining > 0) {
+                this.dormantEl.textContent = `EXTIRIS SIGNAL: DORMANT (reacquisition in ~${respawn.turnsRemaining} turns)`;
+                this.dormantEl.style.opacity = '1';
+            } else {
+                this.dormantEl.style.opacity = '0';
+            }
+        } catch {
+            // World not available
         }
     }
 
@@ -144,6 +183,9 @@ export class HUDUIComponent extends Component {
         }
         if (this.aiHuntingEl) {
             this.aiHuntingEl.remove();
+        }
+        if (this.dormantEl) {
+            this.dormantEl.remove();
         }
     }
 }
