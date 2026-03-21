@@ -37,10 +37,10 @@ describe('ColonyGrid', () => {
     it('builds from region with 1 building', () => {
         const grid = new ColonyGrid();
         grid.buildFromRegion(makeRegion([{ typeId: 'shelter', slotIndex: 0 }]));
-        // Shelter is 2x2 at position (2,1)
-        expect(grid.getCell(2, 1)?.type).toBe('building');
-        expect(grid.getCell(3, 2)?.type).toBe('building');
-        expect(grid.getCell(4, 1)?.type).toBe('empty');
+        // Shelter is 2x2 at position (4,1)
+        expect(grid.getCell(4, 1)?.type).toBe('building');
+        expect(grid.getCell(5, 2)?.type).toBe('building');
+        expect(grid.getCell(6, 1)?.type).toBe('empty');
     });
 
     it('builds from region with 6 buildings', () => {

@@ -169,9 +169,18 @@ function tryLRoute(
     return cells;
 }
 
-/** Find a campfire cell near grid centre on a path cell. */
+/** Find a campfire cell near grid centre on a path cell.
+ *  Prefers the true grid centre (5,5) if it's empty or a path cell. */
 function findCampfireCell(grid: ColonyGrid): { gridX: number; gridY: number } | null {
     const centre = COLONY_GRID_SIZE / 2;
+    const centreInt = Math.floor(centre);
+
+    // Prefer the true grid centre if it's available (empty or path)
+    const centreCell = grid.getCell(centreInt, centreInt);
+    if (centreCell && (centreCell.type === 'empty' || centreCell.type === 'path')) {
+        return { gridX: centreInt, gridY: centreInt };
+    }
+
     let bestCell: { gridX: number; gridY: number } | null = null;
     let bestDist = Infinity;
 

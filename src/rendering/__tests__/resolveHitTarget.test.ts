@@ -25,15 +25,16 @@ function makeColonist(depth: number, screenX: number, screenY: number, entityId:
 }
 
 describe('resolveHitTarget', () => {
-    it('building at higher depth wins over colonist at same screen position', () => {
+    it('colonist always wins over empty-slot at same screen position', () => {
         const items: HitTestItem[] = [
             makeColonist(3, 100, 100, 42),
-            makeBuilding(5, { x: 80, y: 80, width: 40, height: 40 }, 1),
+            { kind: 'empty-slot', depth: 8, screenX: 100, screenY: 100, slotIndex: 1,
+              hitRect: { x: 80, y: 80, width: 40, height: 40 } },
         ];
         const result = resolveHitTarget(items, 100, 100);
         expect(result).not.toBeNull();
-        expect(result?.kind).toBe('building');
-        expect(result?.slotIndex).toBe(1);
+        expect(result?.kind).toBe('colonist');
+        expect(result?.entityId).toBe(42);
     });
 
     it('colonist at higher depth wins over building at same screen position', () => {

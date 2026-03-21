@@ -56,8 +56,10 @@ export class ColonyBuildingComponent extends Component {
         return true;
     }
 
-    /** Start construction of a building in a region. Returns true if successful. */
-    startConstruction(regionId: number, buildingId: BuildingId): boolean {
+    /** Start construction of a building in a region. Returns true if successful.
+     *  If targetSlotIndex is provided, the building is placed at that specific slot
+     *  (matching the slot the player clicked). Otherwise falls back to auto-assign. */
+    startConstruction(regionId: number, buildingId: BuildingId, targetSlotIndex?: number): boolean {
         const regionData = this.entity.getComponent(RegionDataComponent);
         if (!regionData) return false;
 
@@ -76,11 +78,15 @@ export class ColonyBuildingComponent extends Component {
         const buildingType = getBuildingType(buildingId);
         if (!resources.canAfford('materials', buildingType.materialCost)) return false;
 
+        // Use the clicked slot if provided, otherwise auto-assign
+        const slotIndex = targetSlotIndex ?? this.getNextSlotIndex(region);
+
+        // Prevent placing at an already-occupied slot
+        if (region.buildings.some(b => b.slotIndex === slotIndex)) return false;
+
         // Deduct cost
         resources.deduct('materials', buildingType.materialCost);
 
-        // Create building instance with unique slot index
-        const slotIndex = this.getNextSlotIndex(region);
         const building: BuildingInstance = {
             typeId: buildingId,
             slotIndex,
