@@ -11,6 +11,7 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { createExtiris } from '../entities/createExtiris';
 import { ExtirisAIComponent } from './ExtirisAIComponent';
+import type { CombatEncounterRecord } from './ExtirisAIComponent';
 import type { World } from '../core/World';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { TurnEndEvent } from '../core/GameEvents';
@@ -36,15 +37,25 @@ export class ExtirisRespawnComponent extends Component {
     destructionCount: number;
     /** Difficulty escalation applied to crisis cards (+1 per destruction, capped). */
     difficultyEscalation: number;
+    /** Combat memory inherited from destroyed predecessor. */
+    combatHistory: CombatEncounterRecord[];
+    /** Active adaptations inherited from destroyed predecessor. */
+    activeAdaptations: string[];
 
     private eventQueue: EventQueue | null = null;
     private turnEndHandler: EventHandler | null = null;
 
-    constructor(destructionCount: number) {
+    constructor(
+        destructionCount: number,
+        combatHistory: CombatEncounterRecord[] = [],
+        activeAdaptations: string[] = [],
+    ) {
         super();
         this.destructionCount = destructionCount;
         this.turnsRemaining = RESPAWN_TURNS;
         this.difficultyEscalation = Math.min(destructionCount, MAX_DIFFICULTY_ESCALATION);
+        this.combatHistory = combatHistory;
+        this.activeAdaptations = activeAdaptations;
     }
 
     init(): void {
@@ -105,6 +116,9 @@ export class ExtirisRespawnComponent extends Component {
         if (ai) {
             ai.memory.reasoning =
                 `Replacement hunter #${this.destructionCount + 1}. Predecessor was destroyed. Difficulty escalated by +${this.difficultyEscalation}.`;
+            // Inherit combat memory from predecessor
+            ai.memory.combatHistory = [...this.combatHistory];
+            ai.memory.activeAdaptations = [...this.activeAdaptations];
         }
 
         // Clean up — remove the respawn timer component
