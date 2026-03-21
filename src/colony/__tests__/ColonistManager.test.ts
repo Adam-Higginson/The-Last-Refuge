@@ -87,7 +87,7 @@ describe('ColonistManager', () => {
         expect(state?.role).toBe('Soldier');
         expect(state?.isLeader).toBe(true);
         expect(state?.name).toBe('Commander Rex');
-        expect(state?.colour).toBe('#4fa8ff'); // Soldier colour
+        expect(state?.colour).toBe('#4a6a8a'); // Soldier colour
     });
 
     it('walking colonist advances along path', () => {

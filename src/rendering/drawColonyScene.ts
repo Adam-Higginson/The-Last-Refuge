@@ -10,7 +10,7 @@ import { drawSettlementProps, drawMicroDetails, drawSettlementPropsForSlot } fro
 import { drawParticles } from './colonyParticles';
 import { getDayNightState, setGameHour } from './colonyDayNight';
 import { drawWeatherEffects, getWeatherInfo, forceNextWeather } from './colonyWeather';
-import { drawGridTiles, drawPathTiles, drawBuildingGlow, drawDebugOverlay, drawFigure, drawFireflies } from './colonyGridRenderer';
+import { drawGridTiles, drawBuildingGlow, drawDebugOverlay, drawFigure, drawFireflies } from './colonyGridRenderer';
 import { drawRelationshipOverlays, drawThoughtBubble } from './colonyRelationshipRenderer';
 import { getVisibleColonists } from '../colony/ColonistManager';
 import { resolveThought } from '../colony/ColonistThoughts';
@@ -62,8 +62,8 @@ interface BiomeVisuals {
 
 const BIOME_VISUALS: Partial<Record<BiomeName, BiomeVisuals>> = {
     'Temperate Plains': {
-        skyTop: '#4a8ac0', skyBottom: '#c8d8e8', skyHaze: 'rgba(200,220,240,0.3)',
-        groundBase: '#4a7a3a', groundDark: '#3a6a2a', groundLight: '#5a8a4a',
+        skyTop: '#8a9a7a', skyBottom: '#b0b8a0', skyHaze: 'rgba(160,170,150,0.25)',
+        groundBase: '#3a3830', groundDark: '#2a2820', groundLight: '#4a4838',
         horizonFeature: 'trees', starTint: 'rgba(255, 220, 150, 0.25)',
         particleColour: 'rgba(255,255,200,0.4)', particleType: 'pollen',
         dressing: 'grass',
@@ -92,8 +92,8 @@ const BIOME_VISUALS: Partial<Record<BiomeName, BiomeVisuals>> = {
 };
 
 const DEFAULT_VISUALS: BiomeVisuals = {
-    skyTop: '#4a8ac0', skyBottom: '#c8d8e8', skyHaze: 'rgba(200,220,240,0.3)',
-    groundBase: '#5a7a4a', groundDark: '#4a6a3a', groundLight: '#6a8a5a',
+    skyTop: '#8a9a7a', skyBottom: '#b0b8a0', skyHaze: 'rgba(160,170,150,0.25)',
+    groundBase: '#3a3830', groundDark: '#2a2820', groundLight: '#4a4838',
     horizonFeature: 'none', starTint: 'rgba(255, 220, 150, 0.2)',
     particleColour: 'rgba(255,255,200,0.3)', particleType: 'pollen',
     dressing: 'grass',
@@ -297,6 +297,7 @@ export function drawColonyScene(
     drawForegroundTrees(ctx, w, h, visuals, region.id, t, state);
     drawForegroundGrass(ctx, w, h, region.id, t, state);
     drawAmbientOverlay(ctx, w, h, dayNight);
+    drawEmergencyOverlay(ctx, w, h, state.emergencyIntensity);
 
     // Weather effects drawn AFTER ambient overlay so rain is visible on dark nights
     drawWeatherEffects(ctx, w, h, t, state);
@@ -1343,6 +1344,24 @@ function drawAmbientOverlay(
     }
 }
 
+// --- Emergency overlay (desaturation + blue shift during resource crisis) ---
+
+function drawEmergencyOverlay(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    intensity: number,
+): void {
+    if (intensity <= 0) return;
+
+    // Subtle blue-gray wash — desaturates and shifts palette cold
+    ctx.save();
+    ctx.globalAlpha = intensity * 0.15;
+    ctx.fillStyle = 'rgb(40, 50, 80)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+}
+
 // --- Time indicator (subtle, top-right) ---
 
 function drawTimeIndicator(
@@ -1493,7 +1512,7 @@ function drawSingleBuildingSlot(
         ctx.globalAlpha = 0.4;
     }
 
-    drawBuilding(ctx, building.typeId, screenPos.x, screenPos.y, building.state, t, state.gameHour);
+    drawBuilding(ctx, building.typeId, screenPos.x, screenPos.y, building.state, t, state.gameHour, state.emergencyIntensity);
 
     // Building name label
     ctx.fillStyle = '#ffffff';
