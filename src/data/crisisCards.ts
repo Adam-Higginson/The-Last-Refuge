@@ -30,6 +30,90 @@ export interface SkillSlot {
     label: string;
     maxCrew: number;
     required: boolean;
+    /** Skill penalty applied by Extiris adaptation. 0 = no penalty. */
+    penalty?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Extiris adaptation system
+// ---------------------------------------------------------------------------
+
+export type AdaptationTag =
+    | 'sensor_resistance'
+    | 'probe_swarms'
+    | 'pattern_prediction'
+    | 'debris_analysis'
+    | 'signal_triangulation';
+
+export const VALID_ADAPTATION_TAGS: AdaptationTag[] = [
+    'sensor_resistance', 'probe_swarms', 'pattern_prediction',
+    'debris_analysis', 'signal_triangulation',
+];
+
+interface AdaptationEffect {
+    description: string;
+    targetSkill: SkillType | null;
+    penalty: number;
+    disablesSacrifice?: boolean;
+}
+
+export const ADAPTATION_EFFECTS: Record<AdaptationTag, AdaptationEffect> = {
+    sensor_resistance:    { description: 'Extiris has hardened sensors', targetSkill: 'engineering', penalty: -2 },
+    probe_swarms:         { description: 'Probe swarms deployed', targetSkill: 'piloting', penalty: -1 },
+    pattern_prediction:   { description: 'Movement patterns predicted', targetSkill: 'piloting', penalty: -1 },
+    debris_analysis:      { description: 'Sacrifice tactic analyzed', targetSkill: null, penalty: 0, disablesSacrifice: true },
+    signal_triangulation: { description: 'Comms triangulated', targetSkill: 'leadership', penalty: -2 },
+};
+
+/** Deterministic mapping: which adaptation counters which tactic (adaptationTag on crisis cards). */
+export const TACTIC_COUNTER_MAP: Record<string, AdaptationTag> = {
+    evasion: 'pattern_prediction',
+    sensor_jam: 'sensor_resistance',
+};
+
+export interface AdaptedCard {
+    modifiedCard: CrisisCard;
+    sacrificeDisabled: boolean;
+}
+
+/**
+ * Apply active Extiris adaptations to a crisis card.
+ * Returns a cloned card with penalty values set on matching slots,
+ * plus a flag indicating whether sacrifice is disabled.
+ * Does NOT mutate the original card.
+ */
+export function applyAdaptations(card: CrisisCard, adaptations: string[]): AdaptedCard {
+    let sacrificeDisabled = false;
+
+    const modifiedSlots = card.skillSlots.map(slot => {
+        let totalPenalty = 0;
+        for (const tag of adaptations) {
+            const effect = ADAPTATION_EFFECTS[tag as AdaptationTag];
+            if (!effect) continue;
+
+            if (effect.targetSkill === slot.skill) {
+                totalPenalty += effect.penalty;
+            }
+        }
+
+        if (totalPenalty !== 0) {
+            return { ...slot, penalty: totalPenalty };
+        }
+        return { ...slot };
+    });
+
+    // Check for sacrifice-disabling adaptations
+    for (const tag of adaptations) {
+        const effect = ADAPTATION_EFFECTS[tag as AdaptationTag];
+        if (effect?.disablesSacrifice) {
+            sacrificeDisabled = true;
+        }
+    }
+
+    return {
+        modifiedCard: { ...card, skillSlots: modifiedSlots },
+        sacrificeDisabled,
+    };
 }
 
 export interface CrisisOutcome {
