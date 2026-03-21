@@ -10,6 +10,7 @@ import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { SelectableComponent } from './SelectableComponent';
 import { TransformComponent } from './TransformComponent';
+import { EngineStateComponent } from './EngineStateComponent';
 import { animateMovement } from '../utils/animateMovement';
 import type { RightClickEvent, ModifierRightClickEvent, TurnEndEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
@@ -121,6 +122,10 @@ export class MovementComponent extends Component {
         // Suppress input during AI phase
         if (this.aiPhaseActive) return;
 
+        // Block movement when engines are offline
+        const engineState = this.entity.getComponent(EngineStateComponent);
+        if (engineState && engineState.engineState !== 'online') return;
+
         const selectable = this.entity.getComponent(SelectableComponent);
         const transform = this.entity.getComponent(TransformComponent);
         if (!selectable || !transform) return;
@@ -140,6 +145,10 @@ export class MovementComponent extends Component {
     /** Append a waypoint to the queue (ctrl+right-click). Always queues, never starts immediately. */
     private handleModifierRightClick(targetX: number, targetY: number): void {
         if (this.aiPhaseActive) return;
+
+        // Block movement when engines are offline
+        const engineState = this.entity.getComponent(EngineStateComponent);
+        if (engineState && engineState.engineState !== 'online') return;
 
         const selectable = this.entity.getComponent(SelectableComponent);
         if (!selectable?.selected) return;
@@ -174,6 +183,10 @@ export class MovementComponent extends Component {
         transform: TransformComponent,
         selectable: SelectableComponent,
     ): void {
+        // Block movement when engines are offline
+        const engineState = this.entity.getComponent(EngineStateComponent);
+        if (engineState && engineState.engineState !== 'online') return;
+
         // Validate distance is outside the entity's hit area
         let dx = targetX - transform.x;
         let dy = targetY - transform.y;

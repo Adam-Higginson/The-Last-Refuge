@@ -27,6 +27,7 @@ interface MockElement {
     click(): void;
     focus(): void;
     select(): void;
+    querySelector(_selector: string): MockElement | null;
     _fireKeydown(e: Partial<KeyboardEvent>): void;
     _fireEvent(eventName: string): void;
 }
@@ -59,6 +60,9 @@ function createMockElement(id: string): MockElement {
         },
         focus(): void { /* no-op */ },
         select(): void { /* no-op */ },
+        querySelector(_selector: string): MockElement | null {
+            return null;
+        },
         _fireKeydown(e: Partial<KeyboardEvent>): void {
             for (const fn of listeners['keydown'] ?? []) fn(e);
         },

@@ -87,6 +87,10 @@ export const GameEvents = {
     STATION_REPAIR_STARTED: 'station:repair:started',
     /** Station repair is complete. */
     STATION_REPAIRED: 'station:repaired',
+    /** Ship engine repair has been initiated. */
+    ENGINE_REPAIR_STARTED: 'engine:repair:started',
+    /** Ship engines have been fully repaired and are now online. */
+    ENGINE_REPAIRED: 'engine:repaired',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -309,4 +313,12 @@ export interface StationRepairStartedEvent extends GameEvent {
 
 export interface StationRepairedEvent extends GameEvent {
     type: typeof GameEvents.STATION_REPAIRED;
+}
+
+export interface EngineRepairStartedEvent extends GameEvent {
+    type: typeof GameEvents.ENGINE_REPAIR_STARTED;
+}
+
+export interface EngineRepairedEvent extends GameEvent {
+    type: typeof GameEvents.ENGINE_REPAIRED;
 }
