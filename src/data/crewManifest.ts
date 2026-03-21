@@ -2,14 +2,14 @@
 // 50 crew members grouped by role, with ~130 authored relationships.
 // Every player experiences the same rich social web.
 
-import type { CrewRole, Trait, RelationshipType } from '../components/CrewMemberComponent';
+import type { CrewRole, PersonalityTrait, RelationshipType } from '../components/CrewMemberComponent';
 
 export interface CrewDef {
     name: string;
     age: number;
     role: CrewRole;
     morale: number;
-    traits: [Trait, Trait];
+    traits: PersonalityTrait[];
     backstory: string;
     isCaptain?: boolean;
 }

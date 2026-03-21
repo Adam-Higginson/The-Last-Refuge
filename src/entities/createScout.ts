@@ -9,7 +9,7 @@ import { MoveConfirmComponent } from '../components/MoveConfirmComponent';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { VisibilitySourceComponent } from '../components/VisibilitySourceComponent';
 import { ScoutDataComponent } from '../components/ScoutDataComponent';
-import { ScoutDestructionComponent } from '../components/ScoutDestructionComponent';
+import { EncounterTriggerComponent } from '../components/EncounterTriggerComponent';
 import { CameraComponent } from '../components/CameraComponent';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { drawMovementRangeDisc } from '../utils/drawMovementRangeDisc';
@@ -377,7 +377,7 @@ export function createScout(
 
     const scoutData = new ScoutDataComponent(displayName, pilotEntityId, pilotName);
     entity.addComponent(scoutData);
-    entity.addComponent(new ScoutDestructionComponent());
+    entity.addComponent(new EncounterTriggerComponent());
 
     entity.addComponent(new RenderComponent('world', (ctx, ex, ey, angle) => {
         updateTrail(scoutData, ex, ey);

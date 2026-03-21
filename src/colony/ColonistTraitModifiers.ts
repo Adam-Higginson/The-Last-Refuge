@@ -4,7 +4,7 @@
 import { seededRandom } from './ColonistSubActivity';
 import type { ScheduleBlock } from './ColonistSchedule';
 import type { SubActivityResult } from './ColonistSubActivity';
-import type { Trait } from '../components/CrewMemberComponent';
+import type { PersonalityTrait } from '../components/CrewMemberComponent';
 
 /**
  * Apply trait-based modifications to a schedule block.
@@ -12,7 +12,7 @@ import type { Trait } from '../components/CrewMemberComponent';
  */
 export function applyTraitScheduleModifier(
     schedule: ScheduleBlock,
-    traits: [Trait, Trait],
+    traits: PersonalityTrait[],
     entityId: number,
     gameHour: number,
 ): ScheduleBlock {
@@ -72,7 +72,7 @@ export function applyTraitScheduleModifier(
  */
 export function applyTraitSubActivityModifier(
     result: SubActivityResult,
-    traits: [Trait, Trait],
+    traits: PersonalityTrait[],
 ): SubActivityResult {
     for (const trait of traits) {
         if (trait === 'Analytical' && result.subActivity === 'calibrating') {

@@ -40,7 +40,7 @@ interface NodeData {
     name: string;
     role: CrewRole;
     morale: number;
-    traits: [string, string];
+    traits: string[];
     connectionCount: number;
     relationships: { targetId: number; targetName: string; type: RelationshipType; level: number; description: string }[];
     isGhost: boolean;

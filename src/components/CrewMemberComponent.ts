@@ -21,17 +21,23 @@ export type CrewLocation =
     | { type: 'scout'; scoutEntityId: number }
     | { type: 'dead' };
 
-export type Trait =
+export type PersonalityTrait =
     | 'Stubborn' | 'Empathetic' | 'Reckless' | 'Analytical'
     | 'Protective' | 'Haunted' | 'Resourceful' | 'Quiet'
     | 'Hopeful' | 'Grieving' | 'Determined';
+
+export type StatusEffect = 'Injured' | 'Traumatized';
+
+/** @deprecated Use PersonalityTrait instead. Kept for backward compatibility during migration. */
+export type Trait = PersonalityTrait;
 
 export class CrewMemberComponent extends Component {
     fullName: string;
     age: number;
     role: CrewRole;
     morale: number;
-    traits: [Trait, Trait];
+    traits: PersonalityTrait[];
+    statusEffects: StatusEffect[];
     backstory: string;
     relationships: Relationship[];
     location: CrewLocation;
@@ -43,7 +49,7 @@ export class CrewMemberComponent extends Component {
         age: number,
         role: CrewRole,
         morale: number,
-        traits: [Trait, Trait],
+        traits: PersonalityTrait[],
         backstory: string,
     ) {
         super();
@@ -52,6 +58,7 @@ export class CrewMemberComponent extends Component {
         this.role = role;
         this.morale = morale;
         this.traits = traits;
+        this.statusEffects = [];
         this.backstory = backstory;
         this.relationships = [];
         this.location = { type: 'ship' };

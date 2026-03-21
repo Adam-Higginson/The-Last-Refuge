@@ -143,7 +143,8 @@ You are methodical, patient, and relentless. You cannot be reasoned with.
 
 Rules:
 - Move up to ${payload.self.movementBudget} world units per turn from your current position
-- If you see the player ship, pursue it directly
+- If you see the player ship, pursue it directly — highest priority
+- If you see a scout, pursue it — scouts are reconnaissance vessels that lead back to the humans
 - If you last saw the player, search that area
 - If no leads, patrol toward planets you haven't visited recently (high turnsSinceLastVisit or null)
 - Prefer unvisited planets (turnsSinceLastVisit=null), but revisit old ones after 8+ turns
@@ -185,7 +186,25 @@ Respond with ONLY valid JSON: {"action":"move","target":{"x":N,"y":N},"reasoning
             return this.clampMove(self, playerShip, payload, 'Pursuing visible player ship');
         }
 
-        // Priority 2: Search last known player position
+        // Priority 2: Pursue visible scouts (they came from somewhere — hunt them)
+        const visibleScouts = visibleEntities.filter(e => e.type === 'scout');
+        if (visibleScouts.length > 0) {
+            // Chase the closest scout
+            let closestScout = visibleScouts[0];
+            let closestScoutDist = Infinity;
+            for (const scout of visibleScouts) {
+                const sdx = scout.x - self.x;
+                const sdy = scout.y - self.y;
+                const sDist = Math.sqrt(sdx * sdx + sdy * sdy);
+                if (sDist < closestScoutDist) {
+                    closestScoutDist = sDist;
+                    closestScout = scout;
+                }
+            }
+            return this.clampMove(self, closestScout, payload, `Pursuing scout: ${closestScout.name}`);
+        }
+
+        // Priority 3: Search last known player position
         if (memory.lastSeenPlayerPos && memory.lastSeenPlayerPos.turnsSinceLastSeen < 5) {
             return this.clampMove(
                 self,
@@ -195,7 +214,7 @@ Respond with ONLY valid JSON: {"action":"move","target":{"x":N,"y":N},"reasoning
             );
         }
 
-        // Priority 3: Patrol toward least-recently-visited planet
+        // Priority 4: Patrol toward least-recently-visited planet
         // Prefer never-visited (null), then oldest visit (highest turnsSinceLastVisit)
         const REVISIT_THRESHOLD = 8;
         const patrolCandidates = memory.knownPlanets.filter(
@@ -225,7 +244,7 @@ Respond with ONLY valid JSON: {"action":"move","target":{"x":N,"y":N},"reasoning
             return this.clampMove(self, closest, payload, `Patrolling toward ${('name' in closest) ? closest.name : 'planet'}`);
         }
 
-        // Priority 4: Random patrol within world bounds
+        // Priority 5: Random patrol within world bounds
         const angle = Math.random() * Math.PI * 2;
         const dist = self.movementBudget * 0.8;
         const tx = Math.max(worldBounds.min, Math.min(worldBounds.max, self.x + Math.cos(angle) * dist));
