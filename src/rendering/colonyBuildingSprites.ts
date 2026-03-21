@@ -20,6 +20,7 @@ export function drawBuilding(
     state: BuildingState,
     t: number,
     gameHour?: number,
+    emergencyIntensity?: number,
 ): void {
     if (state === 'constructing') {
         drawConstructionScaffolding(ctx, x, y, t);
@@ -36,7 +37,7 @@ export function drawBuilding(
 
     // Draw building lights at dusk/night
     if (dayNight.ambientLight < 0.5 && state === 'active') {
-        drawBuildingLights(ctx, buildingId, x, y, t, dayNight);
+        drawBuildingLights(ctx, buildingId, x, y, t, dayNight, emergencyIntensity ?? 0);
     }
 }
 
@@ -88,28 +89,24 @@ function drawConstructionScaffolding(ctx: CanvasRenderingContext2D, x: number, y
 
 // --- Shelter: dome hab-module ---
 function drawShelter(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
-    // Base
-    drawIsometricBox(ctx, x, y, 20, '#a0a0b0', '#6a6a7a', '#505060');
+    // Base — weathered gray-brown, not clean silver
+    drawIsometricBox(ctx, x, y, 20, '#6a6860', '#4a4840', '#3a3830');
 
-    // Dome
-    ctx.fillStyle = '#9a9aaa';
+    // Dome — dull, scuffed
+    ctx.fillStyle = '#5a5850';
     ctx.beginPath();
     ctx.ellipse(x, y - 28, HW * 0.5, 18, 0, Math.PI, 0);
     ctx.fill();
-
-    // Door
-    ctx.fillStyle = '#4a4a5a';
-    ctx.fillRect(x - 5, y - 12, 10, 12);
 }
 
 // --- Farm: crop fields ---
 function drawFarm(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, _dn: DayNightState): void {
-    // Tilled soil base (flat isometric tile)
-    drawIsometricBox(ctx, x, y, 4, '#70944a', '#4a6a2a', '#3a5420');
+    // Tilled soil base — dark, hardscrabble earth
+    drawIsometricBox(ctx, x, y, 4, '#4a5a35', '#3a4a28', '#2a3a1a');
 
-    // Crop rows with sway
+    // Crop rows with sway — muted, struggling plants
     const sway = Math.sin(t / 1500) * 2;
-    ctx.fillStyle = '#7aaa4a';
+    ctx.fillStyle = '#5a7a3a';
     for (let i = -2; i <= 2; i++) {
         const cx = x + i * 10 + sway;
         const cy = y - 8 + Math.abs(i) * 2;
@@ -124,13 +121,13 @@ function drawFarm(ctx: CanvasRenderingContext2D, x: number, y: number, t: number
 
 // --- Solar Array: tilted panels ---
 function drawSolarArray(ctx: CanvasRenderingContext2D, x: number, y: number, t: number, _dn: DayNightState): void {
-    // Support poles
-    ctx.fillStyle = '#6a6a7a';
+    // Support poles — rusty metal
+    ctx.fillStyle = '#4a4a40';
     ctx.fillRect(x - 15, y - 8, 2, 16);
     ctx.fillRect(x + 13, y - 8, 2, 16);
 
-    // Panels (tilted isometric)
-    ctx.fillStyle = '#2a4a8a';
+    // Panels — dark, weathered
+    ctx.fillStyle = '#1a3560';
     ctx.beginPath();
     ctx.moveTo(x - HW * 0.6, y - 30);
     ctx.lineTo(x + HW * 0.6, y - 20);
@@ -162,7 +159,8 @@ function drawSolarArray(ctx: CanvasRenderingContext2D, x: number, y: number, t: 
 
 // --- Storage Depot: blocky warehouse ---
 function drawStorageDepot(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
-    drawIsometricBox(ctx, x, y, 28, '#707080', '#4a4a5a', '#38384a');
+    // Dull metal walls — salvaged ship hull
+    drawIsometricBox(ctx, x, y, 28, '#505048', '#3a3a35', '#2a2a28');
 
     // Horizontal seam lines on left face
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
@@ -175,15 +173,6 @@ function drawStorageDepot(ctx: CanvasRenderingContext2D, x: number, y: number, _
         ctx.stroke();
     }
 
-    // Loading door on right face
-    ctx.fillStyle = '#3a3a4a';
-    ctx.beginPath();
-    ctx.moveTo(x + 5, y + HH * 0.3);
-    ctx.lineTo(x + HW * 0.6, y - 5);
-    ctx.lineTo(x + HW * 0.6, y + 8);
-    ctx.lineTo(x + 5, y + HH * 0.3 + 13);
-    ctx.closePath();
-    ctx.fill();
 }
 
 // --- Workshop: industrial with chimney and smoke ---
@@ -208,24 +197,15 @@ function drawWorkshop(ctx: CanvasRenderingContext2D, x: number, y: number, t: nu
         }
     }
 
-    // Orange window glow (intensifies at night)
-    const glowAlpha = dn.phase === 'night' ? 0.9 : dn.phase === 'dusk' ? 0.7 : 0.4;
-    ctx.fillStyle = `rgba(255, 160, 40, ${glowAlpha})`;
-    ctx.beginPath();
-    ctx.moveTo(x - HW * 0.3, y - 8);
-    ctx.lineTo(x - HW * 0.1, y - 14);
-    ctx.lineTo(x - HW * 0.1, y - 6);
-    ctx.lineTo(x - HW * 0.3, y);
-    ctx.closePath();
-    ctx.fill();
 }
 
-// --- Med Bay: white with red cross ---
+// --- Med Bay: off-white, weathered medical module ---
 function drawMedBay(ctx: CanvasRenderingContext2D, x: number, y: number, _t: number, _dn: DayNightState): void {
-    drawIsometricBox(ctx, x, y, 22, '#e8e8f0', '#b8b8c0', '#9898a8');
+    // Dirty off-white — originally white, now stained from field use
+    drawIsometricBox(ctx, x, y, 22, '#8a8880', '#6a6860', '#5a5850');
 
-    // Red cross on top face
-    ctx.fillStyle = '#cc3333';
+    // Faded red cross on top face
+    ctx.fillStyle = '#8a3030';
     ctx.fillRect(x - 3, y - HH - 22 - 2, 6, 14);
     ctx.fillRect(x - 8, y - HH - 22 + 3, 16, 4);
 }
@@ -241,10 +221,6 @@ function drawBarracks(ctx: CanvasRenderingContext2D, x: number, y: number, _t: n
         ctx.fillRect(x + i * 16 - 4, y - HH - 20 - crenH, 8, crenH);
     }
 
-    // Slit windows on left face
-    ctx.fillStyle = '#2a3a2a';
-    ctx.fillRect(x - HW * 0.4, y - 10, 3, 8);
-    ctx.fillRect(x - HW * 0.2, y - 12, 3, 8);
 }
 
 // --- Hydroponics Bay: greenhouse dome ---
@@ -285,6 +261,8 @@ function drawHydroponicsBay(ctx: CanvasRenderingContext2D, x: number, y: number,
     ctx.fill();
 }
 
+// --- Makeshift survival-camp overlays (salvaged hull plating, tarps, patchwork) ---
+
 // --- Building lights (drawn after the building, visible at dusk/night) ---
 
 function drawBuildingLights(
@@ -294,9 +272,20 @@ function drawBuildingLights(
     y: number,
     t: number,
     dayNight: DayNightState,
+    emergencyIntensity: number,
 ): void {
     const lightIntensity = Math.max(0, 1 - dayNight.ambientLight * 2);
     if (lightIntensity <= 0) return;
+
+    // During emergency, lights flicker erratically — irregular on/off pattern
+    if (emergencyIntensity > 0) {
+        // Use multiple overlapping sine waves at different frequencies for irregular flicker
+        const hash = buildingId.length * 13 + x * 7 + y * 3;
+        const erratic = Math.sin(t / 120 + hash) * Math.sin(t / 73 + hash * 2.3) * Math.sin(t / 47 + hash * 0.7);
+        // erratic ranges roughly -1 to 1; during emergency, lights cut out when erratic < threshold
+        const cutThreshold = -0.3 + emergencyIntensity * 0.6; // at full emergency, cuts out more often
+        if (erratic < cutThreshold) return; // light is "off" this frame
+    }
 
     ctx.save();
     ctx.globalAlpha = lightIntensity;
@@ -314,16 +303,12 @@ function drawBuildingLights(
         ctx.arc(x, y + 5, glowR, 0, Math.PI * 2);
         ctx.fill();
 
-        // Window glow intensifies
-        ctx.fillStyle = `rgba(255, 200, 100, ${(0.7 * flicker).toFixed(2)})`;
+        // Small window glows on dome — subtle circles, not rectangles
+        ctx.fillStyle = `rgba(255, 200, 100, ${(0.3 * flicker).toFixed(2)})`;
         ctx.beginPath();
-        ctx.arc(x - 12, y - 26, 5, 0, Math.PI * 2);
-        ctx.arc(x + 12, y - 26, 5, 0, Math.PI * 2);
+        ctx.arc(x - 10, y - 26, 3, 0, Math.PI * 2);
+        ctx.arc(x + 10, y - 26, 3, 0, Math.PI * 2);
         ctx.fill();
-
-        // Door light spill
-        ctx.fillStyle = `rgba(255, 180, 80, ${(0.5 * flicker).toFixed(2)})`;
-        ctx.fillRect(x - 6, y - 12, 12, 14);
 
     } else if (buildingId === 'workshop') {
         // Furnace glow from window (orange-red)

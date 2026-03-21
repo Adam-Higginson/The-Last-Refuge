@@ -8,11 +8,14 @@ import { GameEvents } from '../core/GameEvents';
 import { COLONY_ZOOM } from '../rendering/isometric';
 import { advanceClock, getDayNightState } from '../rendering/colonyDayNight';
 import { advanceWeather } from '../rendering/colonyWeather';
+import { ResourceComponent } from './ResourceComponent';
+import { RESOURCE_CONFIGS, RESOURCE_TYPES } from '../data/resources';
 import type { ColonySlotRect } from '../rendering/drawColonyScene';
 import type { ColonistScreenPos } from '../rendering/colonyGridRenderer';
 import type { HitTestItem } from '../rendering/RenderQueue';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { CanvasResizeEvent } from '../core/GameEvents';
+import type { World } from '../core/World';
 
 /**
  * Derived view layout — single source of truth for both rendering and input.
@@ -116,6 +119,60 @@ export class ColonySceneStateComponent extends Component {
         advanceClock(this, dt);
         const dayNight = getDayNightState(this.gameHour);
         advanceWeather(this, Math.min(dt, 0.1), dayNight);
+
+        // Emergency mode: check resource crisis state
+        this.updateEmergencyState(dt);
+    }
+
+    /** Check resource levels and update emergency mode with hysteresis. */
+    private updateEmergencyState(dt: number): void {
+        // Skip resource checks when debug override is active
+        if (this.emergencyDebugOverride) {
+            const target = this.emergencyActive ? 1 : 0;
+            if (this.emergencyIntensity < target) {
+                this.emergencyIntensity = Math.min(target, this.emergencyIntensity + dt / 2);
+            } else if (this.emergencyIntensity > target) {
+                this.emergencyIntensity = Math.max(target, this.emergencyIntensity - dt / 3);
+            }
+            return;
+        }
+        if (!ServiceLocator.has('world')) return;
+        const world = ServiceLocator.get<World>('world');
+        const gameState = world.getEntityByName('gameState');
+        const resources = gameState?.getComponent(ResourceComponent);
+        if (!resources) return;
+
+        // Check if ANY resource is critical: net rate < 0 AND current < 20% of starting
+        let anyCritical = false;
+        let allAboveRecovery = true;
+        for (const type of RESOURCE_TYPES) {
+            const state = resources.resources[type];
+            const startingAmount = RESOURCE_CONFIGS[type].startingAmount;
+            const criticalThreshold = startingAmount * 0.2;
+            const recoveryThreshold = startingAmount * 0.25;
+
+            if (resources.getNetRate(type) < 0 && state.current < criticalThreshold) {
+                anyCritical = true;
+            }
+            if (state.current < recoveryThreshold) {
+                allAboveRecovery = false;
+            }
+        }
+
+        // Hysteresis: activate on any critical, deactivate only when all above 25%
+        if (anyCritical) {
+            this.emergencyActive = true;
+        } else if (allAboveRecovery) {
+            this.emergencyActive = false;
+        }
+
+        // Linear fade: 2s fade-in, 3s fade-out
+        const target = this.emergencyActive ? 1 : 0;
+        if (this.emergencyIntensity < target) {
+            this.emergencyIntensity = Math.min(target, this.emergencyIntensity + dt / 2);
+        } else if (this.emergencyIntensity > target) {
+            this.emergencyIntensity = Math.max(target, this.emergencyIntensity - dt / 3);
+        }
     }
 
     destroy(): void {
@@ -175,4 +232,10 @@ export class ColonySceneStateComponent extends Component {
 
     // Wind gust decay timeout (frame-based, seconds remaining)
     gustDecayTimer = 0;
+
+    // Emergency visual mode — activates when resources hit critical
+    emergencyActive = false;
+    emergencyIntensity = 0;
+    /** Debug override — when true, updateEmergencyState skips resource checks. */
+    emergencyDebugOverride = false;  // 0-1, drives visual effects
 }

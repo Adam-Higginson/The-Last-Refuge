@@ -62,8 +62,8 @@ interface BiomeVisuals {
 
 const BIOME_VISUALS: Partial<Record<BiomeName, BiomeVisuals>> = {
     'Temperate Plains': {
-        skyTop: '#4a8ac0', skyBottom: '#c8d8e8', skyHaze: 'rgba(200,220,240,0.3)',
-        groundBase: '#4a7a3a', groundDark: '#3a6a2a', groundLight: '#5a8a4a',
+        skyTop: '#8a9a7a', skyBottom: '#b0b8a0', skyHaze: 'rgba(160,170,150,0.25)',
+        groundBase: '#3a3830', groundDark: '#2a2820', groundLight: '#4a4838',
         horizonFeature: 'trees', starTint: 'rgba(255, 220, 150, 0.25)',
         particleColour: 'rgba(255,255,200,0.4)', particleType: 'pollen',
         dressing: 'grass',
@@ -92,8 +92,8 @@ const BIOME_VISUALS: Partial<Record<BiomeName, BiomeVisuals>> = {
 };
 
 const DEFAULT_VISUALS: BiomeVisuals = {
-    skyTop: '#4a8ac0', skyBottom: '#c8d8e8', skyHaze: 'rgba(200,220,240,0.3)',
-    groundBase: '#5a7a4a', groundDark: '#4a6a3a', groundLight: '#6a8a5a',
+    skyTop: '#8a9a7a', skyBottom: '#b0b8a0', skyHaze: 'rgba(160,170,150,0.25)',
+    groundBase: '#3a3830', groundDark: '#2a2820', groundLight: '#4a4838',
     horizonFeature: 'none', starTint: 'rgba(255, 220, 150, 0.2)',
     particleColour: 'rgba(255,255,200,0.3)', particleType: 'pollen',
     dressing: 'grass',
@@ -297,6 +297,7 @@ export function drawColonyScene(
     drawForegroundTrees(ctx, w, h, visuals, region.id, t, state);
     drawForegroundGrass(ctx, w, h, region.id, t, state);
     drawAmbientOverlay(ctx, w, h, dayNight);
+    drawEmergencyOverlay(ctx, w, h, state.emergencyIntensity);
 
     // Weather effects drawn AFTER ambient overlay so rain is visible on dark nights
     drawWeatherEffects(ctx, w, h, t, state);
@@ -756,7 +757,7 @@ function drawGroundDressing(
     const gustX = state.lastGustX;
     const gustActive = state.lastGustActive;
 
-    const greens = ['#4a8a3a', '#3a7a2a', '#5a9a4a', '#3a6a28'];
+    const greens = ['#3a5a30', '#2a4a22', '#4a6038', '#2a4020'];
 
     ctx.save();
 
@@ -934,7 +935,7 @@ function drawMidgroundScenery(
         const canopyCy = ty - trunkH - canopyR * 0.3;
 
         ctx.globalAlpha = isNight ? 0.2 : 0.4;
-        ctx.fillStyle = isNight ? '#1a2a18' : '#5a9a42';
+        ctx.fillStyle = isNight ? '#1a2a18' : '#3a5a30';
         for (let c = 0; c < 4; c++) {
             const cx = canopyCx + Math.sin(ms + c * 2.7) * canopyR * 0.35;
             const cy = canopyCy - canopyR * 0.15 + Math.sin(ms + c * 1.3) * canopyR * 0.15;
@@ -945,7 +946,7 @@ function drawMidgroundScenery(
         }
 
         ctx.globalAlpha = isNight ? 0.2 : 0.45;
-        ctx.fillStyle = isNight ? '#0f1a0d' : '#2a5a1a';
+        ctx.fillStyle = isNight ? '#0f1a0d' : '#1a3a12';
         for (let c = 0; c < 3; c++) {
             const cx = canopyCx + Math.sin(ms + c * 3.1 + 1) * canopyR * 0.3;
             const cy = canopyCy + canopyR * 0.12 + Math.abs(Math.sin(ms + c * 2.1)) * canopyR * 0.1;
@@ -1103,7 +1104,7 @@ function drawForegroundGrass(
     const windLean = weather.windAngle * 12 * wScale;
     const rainBoost = weather.rainIntensity * 3 * wScale;
 
-    const fgGreens = ['#2a5a1a', '#1a4a12', '#1a5a18', '#2a6a20'];
+    const fgGreens = ['#1a3a12', '#12300a', '#183a10', '#1a4018'];
     const fgCount = 80;
 
     ctx.save();
@@ -1207,7 +1208,7 @@ function drawForegroundTrees(
 
         // Grass around trunk base
         ctx.globalAlpha = isNight ? 0.2 : 0.4;
-        ctx.strokeStyle = isNight ? '#1a2a12' : '#3a6a28';
+        ctx.strokeStyle = isNight ? '#1a2a12' : '#2a4a1a';
         ctx.lineWidth = 1;
         ctx.lineCap = 'round';
         for (let g = 0; g < 8; g++) {
@@ -1226,7 +1227,7 @@ function drawForegroundTrees(
         const canopyCy = trunkTopY - canopyW * 0.15;
 
         ctx.globalAlpha = isNight ? 0.2 : 0.4;
-        ctx.fillStyle = isNight ? '#1a2a18' : '#5a9a48';
+        ctx.fillStyle = isNight ? '#1a2a18' : '#3a5a30';
         for (let c = 0; c < 5; c++) {
             const cx = canopyCx + Math.sin(ts + c * 1.7) * canopyW * 0.3;
             const cy = canopyCy - canopyW * 0.08 + Math.sin(ts + c * 2.3) * canopyW * 0.1;
@@ -1237,7 +1238,7 @@ function drawForegroundTrees(
         }
 
         ctx.globalAlpha = isNight ? 0.25 : 0.35;
-        ctx.fillStyle = isNight ? '#0f1a0d' : '#3a6a2a';
+        ctx.fillStyle = isNight ? '#0f1a0d' : '#2a4a1a';
         for (let c = 0; c < 6; c++) {
             const cx = canopyCx + Math.sin(ts + c * 2.1) * canopyW * 0.35;
             const cy = canopyCy + Math.sin(ts + c * 1.5) * canopyW * 0.15;
@@ -1248,7 +1249,7 @@ function drawForegroundTrees(
         }
 
         ctx.globalAlpha = isNight ? 0.15 : 0.2;
-        ctx.fillStyle = isNight ? '#080e08' : '#2a4a1a';
+        ctx.fillStyle = isNight ? '#080e08' : '#1a3a12';
         for (let c = 0; c < 4; c++) {
             const cx = canopyCx + Math.sin(ts + c * 3.1) * canopyW * 0.25;
             const cy = canopyCy + canopyW * 0.1 + Math.abs(Math.sin(ts + c * 1.9)) * canopyW * 0.1;
@@ -1261,7 +1262,7 @@ function drawForegroundTrees(
         // Dappled light on ground beneath
         if (!isNight) {
             ctx.globalAlpha = 0.05;
-            ctx.fillStyle = '#aac880';
+            ctx.fillStyle = '#6a8050';
             for (let d = 0; d < 5; d++) {
                 const dx = tx + Math.sin(ts + d * 3.1) * 30 * scale;
                 const dy = trunkBaseY - 10 * scale + Math.sin(ts + d * 2.7) * 10 * scale;
@@ -1341,6 +1342,33 @@ function drawAmbientOverlay(
         ctx.fillRect(0, 0, w, h);
         ctx.restore();
     }
+}
+
+// --- Emergency overlay (desaturation + blue shift during resource crisis) ---
+
+function drawEmergencyOverlay(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    intensity: number,
+): void {
+    if (intensity <= 0) return;
+
+    // Crisis atmosphere — heavy desaturation, cold shift, dark vignette
+    ctx.save();
+    // Layer 1: Strong desaturation via dark blue-gray wash
+    ctx.globalAlpha = intensity * 0.5;
+    ctx.fillStyle = 'rgb(20, 25, 45)';
+    ctx.fillRect(0, 0, w, h);
+    // Layer 2: Heavy dark vignette — edges go nearly black
+    const vignette = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.7);
+    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignette.addColorStop(0.6, `rgba(10, 5, 15, ${(intensity * 0.25).toFixed(2)})`);
+    vignette.addColorStop(1, `rgba(10, 5, 15, ${(intensity * 0.5).toFixed(2)})`);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
 }
 
 // --- Time indicator (subtle, top-right) ---
@@ -1493,7 +1521,7 @@ function drawSingleBuildingSlot(
         ctx.globalAlpha = 0.4;
     }
 
-    drawBuilding(ctx, building.typeId, screenPos.x, screenPos.y, building.state, t, state.gameHour);
+    drawBuilding(ctx, building.typeId, screenPos.x, screenPos.y, building.state, t, state.gameHour, state.emergencyIntensity);
 
     // Building name label
     ctx.fillStyle = '#ffffff';

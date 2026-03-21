@@ -7,11 +7,11 @@ import type { ColonySlotRect } from './drawColonyScene';
 import type { ColonySceneStateComponent, ColonyCrewSprite } from '../components/ColonySceneStateComponent';
 
 const ROLE_COLOURS: Record<string, string> = {
-    Soldier: '#4fa8ff',
-    Civilian: '#66bb6a',
-    Engineer: '#c0c8d8',
-    Medic: '#ef5350',
-    Scientist: '#ffca28',
+    Soldier: '#4a6a8a',
+    Civilian: '#5a7a5a',
+    Engineer: '#6a6a6a',
+    Medic: '#8a4a4a',
+    Scientist: '#8a8a50',
 };
 
 /** Skin tone palette — diverse range derived deterministically from crew ID. */

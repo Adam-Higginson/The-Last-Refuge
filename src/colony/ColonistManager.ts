@@ -31,11 +31,11 @@ import type { World } from '../core/World';
 export { spreadAroundCell } from './ColonistLocationResolver';
 
 const ROLE_COLOURS: Record<string, string> = {
-    Soldier: '#4fa8ff',
-    Civilian: '#66bb6a',
-    Engineer: '#c0c8d8',
-    Medic: '#ef5350',
-    Scientist: '#ffca28',
+    Soldier: '#4a6a8a',
+    Civilian: '#5a7a5a',
+    Engineer: '#6a6a6a',
+    Medic: '#8a4a4a',
+    Scientist: '#8a8a50',
 };
 
 const SKIN_TONES = [
@@ -350,6 +350,7 @@ export function updateColonists(
     eventQueue: EventQueue,
     buildings: BuildingInstance[],
     world?: World,
+    emergencyIntensity?: number,
 ): void {
     // Clear and rebuild occupied positions from current colonist locations
     sim.occupiedPositions.clear();
@@ -366,8 +367,11 @@ export function updateColonists(
             colonist.sheltered = true;
             continue;
         }
-        // Resting colonists assigned to shelter (slot 0) are inside the building
-        if (colonist.activity === 'resting' && colonist.assignedBuildingSlot === 0) {
+        // Resting colonists assigned to shelter (slot 0) are inside the building —
+        // but still check if the schedule has changed so they can wake up.
+        const earlySchedule = getScheduleBlock(colonist.role, gameHour, colonist.entityId);
+        if (colonist.activity === 'resting' && colonist.assignedBuildingSlot === 0
+            && earlySchedule.activity === 'resting') {
             colonist.sheltered = true;
             continue;
         }
@@ -400,7 +404,13 @@ export function updateColonists(
 
         // Morale-driven walk speed: 0.7–1.0x based on morale
         if (crewData) {
-            colonist.walkSpeed = 2.0 * (0.7 + 0.3 * crewData.morale / 100);
+            let speed = 2.0 * (0.7 + 0.3 * crewData.morale / 100);
+            // Emergency: colonists move sluggishly (down to 50% speed at full intensity)
+            const emergency = emergencyIntensity ?? 0;
+            if (emergency > 0) {
+                speed *= 1 - emergency * 0.5;
+            }
+            colonist.walkSpeed = speed;
         }
 
         // Check current schedule, apply trait modifiers
