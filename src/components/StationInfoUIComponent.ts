@@ -13,7 +13,10 @@ import { StationRepairComponent } from './StationRepairComponent';
 import { TransformComponent } from './TransformComponent';
 import { VisibilitySourceComponent } from './VisibilitySourceComponent';
 import { ResourceComponent } from './ResourceComponent';
+import { CrewMemberComponent } from './CrewMemberComponent';
+import { ScoutDataComponent } from './ScoutDataComponent';
 import { STATION_FOG_BLIP_RADIUS } from '../data/constants';
+import { getCrewAtScout } from '../utils/crewUtils';
 import type { ConfirmModal } from '../ui/ConfirmModal';
 import type { World } from '../core/World';
 
@@ -22,6 +25,7 @@ export class StationInfoUIComponent extends Component {
     private panelOpen = false;
     private lastRepairState: string | null = null;
     private lastTurnsRemaining = -1;
+    private lastHasEngineerNearby = false;
 
     init(): void {
         this.panel = document.getElementById('station-info-panel');
@@ -37,13 +41,21 @@ export class StationInfoUIComponent extends Component {
 
         // Only show when selected and discovered
         if (selectable.selected && stationData.discovered) {
+            let world: World | null = null;
+            try {
+                world = ServiceLocator.get<World>('world');
+            } catch { /* ignore */ }
+            const engineerNearby = world ? this.hasEngineerNearby(world) : false;
+
             const needsRebuild = !this.panelOpen
                 || this.lastRepairState !== stationData.repairState
-                || this.lastTurnsRemaining !== stationData.repairTurnsRemaining;
+                || this.lastTurnsRemaining !== stationData.repairTurnsRemaining
+                || this.lastHasEngineerNearby !== engineerNearby;
 
             if (needsRebuild) {
                 this.lastRepairState = stationData.repairState;
                 this.lastTurnsRemaining = stationData.repairTurnsRemaining;
+                this.lastHasEngineerNearby = engineerNearby;
                 this.buildPanel(stationData);
             }
 
@@ -72,14 +84,17 @@ export class StationInfoUIComponent extends Component {
         const statusLabel = stationData.repairState.toUpperCase();
 
         if (stationData.repairState === 'discovered') {
-            // Check proximity and affordability
+            // Check proximity, engineer, and affordability (3-tier)
             const canAfford = this.canAffordRepair(world, stationData);
             const hasNearby = this.hasNearbySource(world);
-            const canRepair = canAfford && hasNearby;
+            const engineerNearby = this.hasEngineerNearby(world);
+            const canRepair = canAfford && hasNearby && engineerNearby;
 
             let hint = '';
             if (!hasNearby) {
-                hint = 'Move ship or scout closer';
+                hint = 'Move a scout closer';
+            } else if (!engineerNearby) {
+                hint = 'Send an engineer to begin repairs';
             } else if (!canAfford) {
                 hint = `Need ${stationData.repairCost} materials`;
             }
@@ -100,7 +115,9 @@ export class StationInfoUIComponent extends Component {
         } else if (stationData.repairState === 'repairing') {
             const done = stationData.repairTurnsTotal - stationData.repairTurnsRemaining;
             const pct = (done / stationData.repairTurnsTotal) * 100;
+            const engineerNearby = this.hasEngineerNearby(world);
             statusSection = `
+                ${!engineerNearby ? '<div style="color: #c86; font-weight: bold; margin-bottom: 6px;">&#9888; REPAIR PAUSED &mdash; No engineer nearby</div>' : ''}
                 <div class="station-panel-progress">
                     <div class="station-progress-bar">
                         <div class="station-progress-fill" style="width: ${pct}%"></div>
@@ -178,6 +195,34 @@ export class StationInfoUIComponent extends Component {
         const resources = gameState?.getComponent(ResourceComponent);
         if (!resources) return false;
         return resources.canAfford('materials', stationData.repairCost);
+    }
+
+    private hasEngineerNearby(world: World): boolean {
+        const stationTransform = this.entity.getComponent(TransformComponent);
+        if (!stationTransform) return false;
+
+        const sources = world.getEntitiesWithComponent(VisibilitySourceComponent);
+        for (const sourceEntity of sources) {
+            const vis = sourceEntity.getComponent(VisibilitySourceComponent);
+            const sourceTransform = sourceEntity.getComponent(TransformComponent);
+            if (!vis || !sourceTransform || !vis.active) continue;
+
+            const dx = sourceTransform.x - stationTransform.x;
+            const dy = sourceTransform.y - stationTransform.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist <= vis.effectiveDetailRadius) {
+                const scoutData = sourceEntity.getComponent(ScoutDataComponent);
+                if (scoutData) {
+                    const crew = getCrewAtScout(world, sourceEntity.id);
+                    for (const crewEntity of crew) {
+                        const member = crewEntity.getComponent(CrewMemberComponent);
+                        if (member && member.role === 'Engineer') return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private hasNearbySource(world: World): boolean {

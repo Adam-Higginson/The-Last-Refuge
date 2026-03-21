@@ -17,7 +17,7 @@ import { EngineStateComponent } from './EngineStateComponent';
 import { EngineRepairComponent } from './EngineRepairComponent';
 import { EventStateComponent } from './EventStateComponent';
 import { ResourceComponent } from './ResourceComponent';
-import { getCrewCounts } from '../utils/crewUtils';
+import { getCrewCounts, hasEngineerOnShip } from '../utils/crewUtils';
 import type { ConfirmModal } from '../ui/ConfirmModal';
 import type { World } from '../core/World';
 
@@ -44,6 +44,7 @@ export class ShipInfoUIComponent extends Component {
     private lastEngineState: string | null = null;
     private lastRepairTurns = -1;
     private lastStationRepaired = false;
+    private lastHasEngineerOnShip = false;
 
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
@@ -266,13 +267,21 @@ export class ShipInfoUIComponent extends Component {
                     stationRepaired = eventState?.hasFlag('station_repaired') ?? false;
                 } catch { /* ignore */ }
 
+                let engineerOnShip = false;
+                try {
+                    const w = ServiceLocator.get<World>('world');
+                    engineerOnShip = hasEngineerOnShip(w);
+                } catch { /* ignore */ }
+
                 const stateChanged = this.lastEngineState !== engineData.engineState;
                 const turnsChanged = this.lastRepairTurns !== engineData.repairTurnsRemaining;
                 const stationChanged = this.lastStationRepaired !== stationRepaired;
-                if (stateChanged || turnsChanged || stationChanged) {
+                const engineerChanged = this.lastHasEngineerOnShip !== engineerOnShip;
+                if (stateChanged || turnsChanged || stationChanged || engineerChanged) {
                     this.lastEngineState = engineData.engineState;
                     this.lastRepairTurns = engineData.repairTurnsRemaining;
                     this.lastStationRepaired = stationRepaired;
+                    this.lastHasEngineerOnShip = engineerOnShip;
                     this.buildPanelHTML();
                 }
             }
@@ -326,6 +335,15 @@ export class ShipInfoUIComponent extends Component {
             // Station is repaired — show repair controls
             const resources = gameState?.getComponent(ResourceComponent);
             const canAfford = resources?.canAfford('materials', engineData.repairCost) ?? false;
+            const engineerPresent = hasEngineerOnShip(world);
+            const canRepair = canAfford && engineerPresent;
+
+            let hint = '';
+            if (!engineerPresent) {
+                hint = 'Assign an engineer to the ship';
+            } else if (!canAfford) {
+                hint = `Need ${engineData.repairCost} materials`;
+            }
 
             return `
                 <hr class="divider">
@@ -339,17 +357,25 @@ export class ShipInfoUIComponent extends Component {
                     <span>${engineData.repairTurnsTotal} turns</span>
                 </div>
                 <button class="hud-btn" id="engine-repair-btn" type="button"
-                    ${canAfford ? '' : 'disabled'}>BEGIN ENGINE REPAIR</button>
-                ${!canAfford ? `<div class="station-repair-hint" style="color: #886; font-size: 11px; margin-top: 4px;">Need ${engineData.repairCost} materials</div>` : ''}
+                    ${canRepair ? '' : 'disabled'}>BEGIN ENGINE REPAIR</button>
+                ${hint ? `<div class="station-repair-hint" style="color: #886; font-size: 11px; margin-top: 4px;">${hint}</div>` : ''}
             `;
         }
 
         if (engineData.engineState === 'repairing') {
             const done = engineData.repairTurnsTotal - engineData.repairTurnsRemaining;
             const pct = (done / engineData.repairTurnsTotal) * 100;
+
+            let world2: World | null = null;
+            try {
+                world2 = ServiceLocator.get<World>('world');
+            } catch { /* ignore */ }
+            const engineerPresent = world2 ? hasEngineerOnShip(world2) : false;
+
             return `
                 <hr class="divider">
                 <div style="color: #ca6; font-weight: bold; margin-bottom: 8px;">ENGINE REPAIR</div>
+                ${!engineerPresent ? '<div style="color: #c86; font-weight: bold; margin-bottom: 6px;">&#9888; REPAIR PAUSED &mdash; No engineer aboard</div>' : ''}
                 <div class="station-panel-progress">
                     <div class="station-progress-bar">
                         <div class="station-progress-fill" style="width: ${pct}%"></div>

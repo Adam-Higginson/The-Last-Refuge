@@ -10,6 +10,7 @@ import { MovementComponent } from './MovementComponent';
 import { ScoutDataComponent } from './ScoutDataComponent';
 import { SelectableComponent } from './SelectableComponent';
 import { TransformComponent } from './TransformComponent';
+import { getCrewAtScout } from '../utils/crewUtils';
 import type { World } from '../core/World';
 
 export class ScoutInfoUIComponent extends Component {
@@ -66,10 +67,16 @@ export class ScoutInfoUIComponent extends Component {
         const movement = scout.getComponent(MovementComponent);
         if (!data) return;
 
+        const crewCount = getCrewAtScout(world, scout.id).length;
+
         this.panel.innerHTML = `
             <button class="panel-close-btn" id="scout-panel-close" type="button" title="Close">&times;</button>
             <div class="scout-panel-name">${data.displayName.toUpperCase()}</div>
             <div class="scout-panel-pilot">Pilot: ${data.pilotName}</div>
+            <div class="scout-panel-stat">
+                <span>CREW</span>
+                <span class="scout-panel-stat-value">${crewCount} / ${data.capacity}</span>
+            </div>
             <hr class="scout-panel-divider">
             <div class="scout-panel-stat">
                 <span>STATUS</span>

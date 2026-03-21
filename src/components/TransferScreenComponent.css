@@ -129,6 +129,22 @@
     color: #66bb6a;
 }
 
+.location-card.location-full {
+    border-color: rgba(120, 120, 120, 0.4);
+    background: rgba(80, 80, 80, 0.15);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.full-badge {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 9px;
+    color: #ff6b6b;
+    letter-spacing: 1px;
+    vertical-align: middle;
+}
+
 .location-name {
     font-size: 13px;
     color: #ffffff;

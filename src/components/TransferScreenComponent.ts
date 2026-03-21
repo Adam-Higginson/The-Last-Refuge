@@ -232,12 +232,14 @@ export class TransferScreenComponent extends Component {
                 && this.viewingLocation.scoutEntityId === scoutEntity.id;
 
             const scoutCrew = getCrewAtScout(world, scoutEntity.id);
+            const isFull = scoutCrew.length >= scoutData.capacity;
+            const isTransferTarget = hasSelection && !isViewing;
 
             html += `
-                <div class="location-card ${isViewing ? 'active' : ''} ${hasSelection && !isViewing ? 'transfer-target' : ''}"
+                <div class="location-card ${isViewing ? 'active' : ''} ${isTransferTarget && !isFull ? 'transfer-target' : ''} ${isTransferTarget && isFull ? 'location-full' : ''}"
                      data-loc="scout" data-scout-id="${scoutEntity.id}">
-                    <div class="location-name">${scoutData.displayName.toUpperCase()}</div>
-                    <div class="location-meta">${scoutCrew.length} crew — Pilot: ${scoutData.pilotName}</div>
+                    <div class="location-name">${scoutData.displayName.toUpperCase()} (${scoutCrew.length}/${scoutData.capacity})${isFull && isTransferTarget ? '<span class="full-badge">FULL</span>' : ''}</div>
+                    <div class="location-meta">Pilot: ${scoutData.pilotName}</div>
                 </div>
             `;
         }
@@ -420,6 +422,27 @@ export class TransferScreenComponent extends Component {
 
     private async transferSelected(destination: CrewLocation, world: World): Promise<void> {
         const modal = ServiceLocator.get<ConfirmModal>('confirmModal');
+
+        // Check scout capacity before transferring
+        if (destination.type === 'scout') {
+            const scoutEntity = world.getEntity(destination.scoutEntityId);
+            const scoutData = scoutEntity?.getComponent(ScoutDataComponent);
+            if (scoutData) {
+                const currentCrew = getCrewAtScout(world, destination.scoutEntityId).length;
+                const slotsAvailable = scoutData.capacity - currentCrew;
+                if (slotsAvailable <= 0) {
+                    return; // Scout is full, block transfer
+                }
+                if (this.selectedCrewIds.size > slotsAvailable) {
+                    await modal.show({
+                        title: 'CAPACITY EXCEEDED',
+                        body: `${scoutData.displayName} only has ${slotsAvailable} slot${slotsAvailable === 1 ? '' : 's'} available. Deselect some crew and try again.`,
+                        confirmLabel: 'OK',
+                    });
+                    return;
+                }
+            }
+        }
 
         // Check if transferring FROM the ship would violate minimums
         if (this.viewingLocation.type === 'ship' && destination.type === 'colony') {
