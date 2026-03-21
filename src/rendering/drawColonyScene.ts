@@ -206,7 +206,6 @@ export function drawColonyScene(
 
     const gridCentre = getGridCentre(groundCentreX, groundCentreY);
     if (sim) {
-        drawPathTiles(ctx, sim.grid, gridCentre.centreX, gridCentre.centreY);
         drawGridTiles(ctx, sim.grid, gridCentre.centreX, gridCentre.centreY);
     }
 
