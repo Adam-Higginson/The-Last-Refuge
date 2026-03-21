@@ -514,61 +514,88 @@ function drawCampfireRing(
 ): void {
     ctx.save();
 
-    // Larger stone ring
-    ctx.globalAlpha = 0.4;
+    // Stone ring
+    ctx.globalAlpha = 0.5;
     ctx.fillStyle = '#5a5a5a';
-    for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const rx = x + Math.cos(angle) * 10;
-        const ry = y + Math.sin(angle) * 4;
+    for (let i = 0; i < 10; i++) {
+        const angle = (i / 10) * Math.PI * 2;
+        const rx = x + Math.cos(angle) * 16;
+        const ry = y + Math.sin(angle) * 7;
         ctx.beginPath();
-        ctx.arc(rx, ry, 2.5, 0, Math.PI * 2);
+        ctx.arc(rx, ry, 3, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // Log seats (2)
+    // Log seats (3 around the fire)
     ctx.fillStyle = '#4a3a2a';
     ctx.save();
-    ctx.translate(x - 14, y + 2);
+    ctx.translate(x - 20, y + 4);
     ctx.rotate(-0.3);
-    ctx.fillRect(-6, -1.5, 12, 3);
+    ctx.fillRect(-8, -2, 16, 4);
     ctx.restore();
     ctx.save();
-    ctx.translate(x + 13, y + 1);
+    ctx.translate(x + 19, y + 3);
     ctx.rotate(0.2);
-    ctx.fillRect(-5, -1.5, 10, 3);
+    ctx.fillRect(-7, -2, 14, 4);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(x + 2, y + 9);
+    ctx.rotate(0.1);
+    ctx.fillRect(-6, -2, 12, 4);
     ctx.restore();
 
-    // Fire
+    // Fire — multiple flickering flame layers for a pronounced effect
     const flicker = 0.5 + 0.5 * Math.sin(t / 120 + Math.sin(t / 300) * 3);
-    const intensity = isNight ? 0.9 : 0.3;
+    const flicker2 = 0.4 + 0.6 * Math.sin(t / 95 + 1.5);
+    const intensity = isNight ? 1.0 : 0.6;
 
+    // Outer flame (orange-red, wide)
+    ctx.globalAlpha = intensity * 0.8;
+    ctx.fillStyle = `rgba(255, 100, 20, ${(0.6 * flicker).toFixed(2)})`;
+    ctx.beginPath();
+    ctx.moveTo(x - 7, y + 2);
+    ctx.quadraticCurveTo(x - 3, y - 18 * flicker, x, y - 20 * flicker);
+    ctx.quadraticCurveTo(x + 3, y - 18 * flicker, x + 6, y + 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Mid flame (bright orange)
     ctx.globalAlpha = intensity;
-    ctx.fillStyle = `rgba(255, 130, 30, ${(0.7 * flicker).toFixed(2)})`;
+    ctx.fillStyle = `rgba(255, 150, 30, ${(0.7 * flicker2).toFixed(2)})`;
     ctx.beginPath();
-    ctx.moveTo(x - 3, y + 1);
-    ctx.quadraticCurveTo(x, y - 7 * flicker, x + 2, y + 1);
+    ctx.moveTo(x - 5, y + 1);
+    ctx.quadraticCurveTo(x - 1, y - 14 * flicker2, x + 1, y - 15 * flicker);
+    ctx.quadraticCurveTo(x + 3, y - 12 * flicker2, x + 4, y + 1);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = `rgba(255, 200, 50, ${(0.4 * flicker).toFixed(2)})`;
+    // Inner flame (yellow-white, bright core)
+    ctx.fillStyle = `rgba(255, 220, 80, ${(0.5 * flicker).toFixed(2)})`;
     ctx.beginPath();
-    ctx.moveTo(x - 1.5, y);
-    ctx.quadraticCurveTo(x + 0.5, y - 4 * flicker, x + 1.5, y);
+    ctx.moveTo(x - 3, y);
+    ctx.quadraticCurveTo(x, y - 10 * flicker2, x + 2, y);
     ctx.closePath();
     ctx.fill();
 
-    // Warm light pool at night
-    if (isNight) {
-        const glow = ctx.createRadialGradient(x, y, 0, x, y, 35);
-        glow.addColorStop(0, `rgba(255, 130, 50, ${(0.12 * flicker).toFixed(2)})`);
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x, y, 35, 0, Math.PI * 2);
-        ctx.fill();
-    }
+    // Ember base (glowing coals)
+    ctx.globalAlpha = intensity * 0.6;
+    ctx.fillStyle = `rgba(255, 80, 20, ${(0.4 + 0.2 * flicker).toFixed(2)})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y + 1, 6, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Warm light pool
+    const glowRadius = isNight ? 55 : 30;
+    const glowAlpha = isNight ? 0.15 : 0.06;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
+    glow.addColorStop(0, `rgba(255, 130, 50, ${(glowAlpha * flicker).toFixed(3)})`);
+    glow.addColorStop(0.5, `rgba(255, 100, 30, ${(glowAlpha * 0.4 * flicker).toFixed(3)})`);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
 }
