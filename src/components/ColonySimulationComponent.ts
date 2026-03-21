@@ -131,7 +131,7 @@ export class ColonySimulationComponent extends Component {
         const weather = sceneState.currentWeather;
 
         const world = ServiceLocator.get<World>('world');
-        updateColonists(this, dt, gameHour, weather, this.eventQueue, region.buildings, world);
+        updateColonists(this, dt, gameHour, weather, this.eventQueue, region.buildings, world, sceneState.emergencyIntensity);
     }
 
     destroy(): void {
