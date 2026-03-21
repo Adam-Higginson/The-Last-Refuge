@@ -5,10 +5,10 @@
 //     └─▶ acquire modal lock (skip if locked)
 //     └─▶ emit TURN_BLOCK('encounter')
 //     └─▶ draw crisis card (filtered by encounter type)
-//     └─▶ show NarrativeModal fallback (PR 1 — CrisisModal replaces in PR 2)
+//     └─▶ show CrisisModal (crew assignment UI)
 //     └─▶ resolve outcome (skill totals vs difficulty)
 //     └─▶ apply consequences via ConsequenceResolver
-//     └─▶ show outcome text
+//     └─▶ show outcome text (with 0.3s blackout transition)
 //     └─▶ emit TURN_UNBLOCK('encounter')
 //     └─▶ release modal lock
 
@@ -18,10 +18,11 @@ import { GameEvents } from '../core/GameEvents';
 import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import { EncounterTriggerComponent } from '../components/EncounterTriggerComponent';
 import { CRISIS_CARDS, resolveOutcomeTier, getOutcomeForTier } from '../data/crisisCards';
-import { getSkillScore } from '../utils/combatSkills';
+import { getSkillScore, getRelationshipModifier } from '../utils/combatSkills';
 import { applyConsequences } from './ConsequenceResolver';
 import type { CrisisCard, OutcomeTier } from '../data/crisisCards';
 import type { EncounterTriggeredEvent } from '../core/GameEvents';
+import type { CrisisModal } from '../ui/CrisisModal';
 import type { NarrativeModal } from '../ui/NarrativeModal';
 import type { ModalLock } from '../services/ModalLock';
 import type { World } from '../core/World';
@@ -94,99 +95,120 @@ export class EncounterSystem extends System {
 
             // Get available crew for assignment
             const availableCrew = this.getAvailableCrew(event.scoutEntityId);
-            const pilotEntry = availableCrew.find(c => c.entityId === event.pilotEntityId);
 
             if (isDebugEnabled()) {
                 console.log(`[Combat] Crisis: ${card.title} (difficulty ${card.difficulty})`);
                 console.log(`[Combat] Available crew: ${availableCrew.map(c => c.crew.fullName).join(', ')}`);
             }
 
-            // --- NarrativeModal fallback (PR 1) ---
-            // In PR 2, this is replaced by the full CrisisModal with crew assignment UI.
-            // For now, the pilot is auto-assigned to the first required slot.
-            const assignedCrewIds: number[] = [];
-
-            if (pilotEntry) {
-                assignedCrewIds.push(pilotEntry.entityId);
+            // Show CrisisModal for player crew assignment
+            let crisisModal: CrisisModal | null = null;
+            try {
+                crisisModal = ServiceLocator.get<CrisisModal>('crisisModal');
+            } catch {
+                // CrisisModal not registered — use fallback
             }
 
-            // Auto-assign: pilot fills first slot, ship crew fill remaining slots
-            const shipCrew = availableCrew.filter(c => c.entityId !== event.pilotEntityId);
-            for (let i = 1; i < card.skillSlots.length && i - 1 < shipCrew.length; i++) {
-                const slot = card.skillSlots[i];
-                if (slot.skill === 'combat' || slot.skill === 'engineering' || slot.skill === 'piloting') {
-                    // Find best crew for this slot
-                    let bestCrew = shipCrew[0];
-                    let bestScore = 0;
-                    for (const c of shipCrew) {
-                        if (assignedCrewIds.includes(c.entityId)) continue;
-                        const score = getSkillScore(c.crew, slot.skill, c.entityId);
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestCrew = c;
-                        }
-                    }
-                    if (bestCrew && !assignedCrewIds.includes(bestCrew.entityId)) {
-                        assignedCrewIds.push(bestCrew.entityId);
-                    }
-                }
-            }
+            let assignedCrewIds: number[];
+            let sacrificeCrewId: number | null = null;
 
-            // Calculate total skill
-            let total = 0;
-            for (let i = 0; i < card.skillSlots.length && i < assignedCrewIds.length; i++) {
-                const crewEntity = this.world.getEntity(assignedCrewIds[i]);
-                const crew = crewEntity?.getComponent(CrewMemberComponent);
-                if (crew) {
-                    total += getSkillScore(crew, card.skillSlots[i].skill, assignedCrewIds[i]);
-                }
-            }
-
-            const margin = total - card.difficulty;
-            const tier = resolveOutcomeTier(margin);
-            const outcome = getOutcomeForTier(card, tier);
-
-            if (isDebugEnabled()) {
-                console.log(`[Combat] Total: ${total}, Difficulty: ${card.difficulty}, Margin: ${margin}, Tier: ${tier}`);
-            }
-
-            // Show encounter via NarrativeModal fallback
-            const narrativeModal = ServiceLocator.get<NarrativeModal>('narrativeModal');
-
-            const crewNames = assignedCrewIds.map(id => {
-                const e = this.world.getEntity(id);
-                return e?.getComponent(CrewMemberComponent)?.fullName ?? 'Unknown';
-            }).join(', ');
-
-            const choiceLabels = this.buildFallbackChoices(tier);
-
-            await narrativeModal.show({
-                title: `⚠ ${card.title}`,
-                body: `${card.description}\n\nYour crew responds: ${crewNames}\nSkill total: ${total} vs Difficulty: ${card.difficulty}`,
-                choices: choiceLabels,
-            });
-
-            // Apply consequences
-            if (outcome) {
-                applyConsequences(outcome.consequences, {
-                    world: this.world,
-                    eventQueue: this.eventQueue,
-                    scoutEntityId: event.scoutEntityId,
-                    pilotEntityId: event.pilotEntityId,
-                    assignedCrewIds,
+            if (crisisModal) {
+                // Full CrisisModal UI — player assigns crew
+                const result = await crisisModal.show(card, availableCrew);
+                assignedCrewIds = [...result.assignments.values()];
+                sacrificeCrewId = result.sacrificeCrewId;
+            } else {
+                // NarrativeModal fallback (if CrisisModal not registered)
+                assignedCrewIds = this.autoAssignCrew(card, availableCrew, event.pilotEntityId);
+                const narrativeModal = ServiceLocator.get<NarrativeModal>('narrativeModal');
+                const choiceLabels = this.buildFallbackChoices(resolveOutcomeTier(
+                    this.calculateTotal(card, assignedCrewIds) - card.difficulty,
+                ));
+                await narrativeModal.show({
+                    title: `\u26A0 ${card.title}`,
+                    body: `${card.description}\n\nYour crew responds.\nSkill total: ${this.calculateTotal(card, assignedCrewIds)} vs Difficulty: ${card.difficulty}`,
+                    choices: choiceLabels,
                 });
-
-                // Show outcome text
-                await narrativeModal.showOutcome(outcome.description);
             }
 
-            // Emit resolved event
-            this.eventQueue.emit({
-                type: GameEvents.ENCOUNTER_RESOLVED,
-                tier,
-                margin,
-                cardId: card.id,
-            });
+            // Handle sacrifice — auto-succeeds, destroys Extiris
+            if (sacrificeCrewId !== null) {
+                if (isDebugEnabled()) {
+                    const sacCrew = this.world.getEntity(sacrificeCrewId)?.getComponent(CrewMemberComponent);
+                    console.log(`[Combat] SACRIFICE: ${sacCrew?.fullName ?? 'Unknown'}`);
+                }
+
+                // Kill the sacrificed crew member
+                const sacEntity = this.world.getEntity(sacrificeCrewId);
+                const sacCrew = sacEntity?.getComponent(CrewMemberComponent);
+                if (sacCrew && sacCrew.location.type !== 'dead') {
+                    sacCrew.location = { type: 'dead' };
+                    this.eventQueue.emit({
+                        type: GameEvents.CREW_DEATH,
+                        entityId: sacrificeCrewId,
+                        name: sacCrew.fullName,
+                        cause: 'sacrifice',
+                    });
+                }
+
+                // Destroy the Extiris
+                const extiris = this.world.getEntityByName('extiris');
+                if (extiris) {
+                    this.world.removeEntity(extiris.id);
+                    this.eventQueue.emit({
+                        type: GameEvents.EXTIRIS_DESTROYED,
+                        cause: 'sacrifice',
+                        sacrificeName: sacCrew?.fullName,
+                    });
+                }
+
+                // Show sacrifice outcome
+                const outcomeModal = crisisModal ?? ServiceLocator.get<NarrativeModal>('narrativeModal');
+                const sacName = sacCrew?.fullName ?? 'Your crew member';
+                await outcomeModal.showOutcome(
+                    `${sacName} rams the scout directly into the Extiris hunter.\n\nThe explosion tears through both vessels. The hunter's signal goes dark.\n\nFor now, the skies are quiet. But the Extiris will send another.`,
+                );
+
+                this.eventQueue.emit({
+                    type: GameEvents.ENCOUNTER_RESOLVED,
+                    tier: 'sacrifice',
+                    margin: 0,
+                    cardId: card.id,
+                });
+            } else {
+                // Normal resolution — calculate skill totals and resolve outcome
+                const total = this.calculateTotal(card, assignedCrewIds);
+                const margin = total - card.difficulty;
+                const tier = resolveOutcomeTier(margin);
+                const outcome = getOutcomeForTier(card, tier);
+
+                if (isDebugEnabled()) {
+                    console.log(`[Combat] Total: ${total}, Difficulty: ${card.difficulty}, Margin: ${margin}, Tier: ${tier}`);
+                }
+
+                // Apply consequences
+                if (outcome) {
+                    applyConsequences(outcome.consequences, {
+                        world: this.world,
+                        eventQueue: this.eventQueue,
+                        scoutEntityId: event.scoutEntityId,
+                        pilotEntityId: event.pilotEntityId,
+                        assignedCrewIds,
+                    });
+
+                    // Show outcome text
+                    const outcomeModal = crisisModal ?? ServiceLocator.get<NarrativeModal>('narrativeModal');
+                    await outcomeModal.showOutcome(outcome.description);
+                }
+
+                // Emit resolved event
+                this.eventQueue.emit({
+                    type: GameEvents.ENCOUNTER_RESOLVED,
+                    tier,
+                    margin,
+                    cardId: card.id,
+                });
+            }
 
             // Reset the trigger on the scout so future encounters can fire
             const scoutEntity = this.world.getEntity(event.scoutEntityId);
@@ -223,6 +245,53 @@ export class EncounterSystem extends System {
         const picked = eligible[Math.floor(Math.random() * eligible.length)];
         lastDrawnCardId = picked.id;
         return picked;
+    }
+
+    private calculateTotal(card: CrisisCard, assignedCrewIds: number[]): number {
+        let total = 0;
+        for (let i = 0; i < card.skillSlots.length && i < assignedCrewIds.length; i++) {
+            const crewEntity = this.world.getEntity(assignedCrewIds[i]);
+            const crew = crewEntity?.getComponent(CrewMemberComponent);
+            if (crew) {
+                let score = getSkillScore(crew, card.skillSlots[i].skill, assignedCrewIds[i]);
+                // Relationship modifiers
+                for (let j = 0; j < assignedCrewIds.length; j++) {
+                    if (j === i) continue;
+                    score += getRelationshipModifier(crew, assignedCrewIds[j]);
+                }
+                total += score;
+            }
+        }
+        return total;
+    }
+
+    private autoAssignCrew(
+        card: CrisisCard,
+        availableCrew: Array<{ entityId: number; crew: CrewMemberComponent }>,
+        pilotEntityId: number,
+    ): number[] {
+        const assignedCrewIds: number[] = [];
+        const pilotEntry = availableCrew.find(c => c.entityId === pilotEntityId);
+        if (pilotEntry) assignedCrewIds.push(pilotEntry.entityId);
+
+        const shipCrew = availableCrew.filter(c => c.entityId !== pilotEntityId);
+        for (let i = 1; i < card.skillSlots.length && i - 1 < shipCrew.length; i++) {
+            const slot = card.skillSlots[i];
+            let bestCrew = shipCrew[0];
+            let bestScore = 0;
+            for (const c of shipCrew) {
+                if (assignedCrewIds.includes(c.entityId)) continue;
+                const score = getSkillScore(c.crew, slot.skill, c.entityId);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestCrew = c;
+                }
+            }
+            if (bestCrew && !assignedCrewIds.includes(bestCrew.entityId)) {
+                assignedCrewIds.push(bestCrew.entityId);
+            }
+        }
+        return assignedCrewIds;
     }
 
     private getAvailableCrew(scoutEntityId: number): Array<{ entityId: number; crew: CrewMemberComponent }> {
