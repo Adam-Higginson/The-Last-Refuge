@@ -12,6 +12,7 @@ import { resolveTurnMorale, getWorkEfficiency } from '../colony/ColonistMoraleEf
 import { ResourceComponent } from './ResourceComponent';
 import { CrewMemberComponent } from './CrewMemberComponent';
 import { ColonySceneStateComponent } from './ColonySceneStateComponent';
+import { AdaptiveQualityComponent } from './AdaptiveQualityComponent';
 import { RegionDataComponent } from './RegionDataComponent';
 import { getCrewAtColony } from '../utils/crewUtils';
 import type { ColonistVisualState } from '../colony/ColonistState';
@@ -77,6 +78,13 @@ export class ColonySimulationComponent extends Component {
     private onKeyDown = (e: KeyboardEvent): void => {
         if (e.code === 'KeyG' && !e.ctrlKey && !e.metaKey) {
             this.debugGridVisible = !this.debugGridVisible;
+        }
+        // Q key: toggle adaptive quality debug overlay
+        if (e.code === 'KeyQ' && !e.ctrlKey && !e.metaKey) {
+            const quality = this.entity.getComponent(AdaptiveQualityComponent);
+            if (quality) {
+                quality.debugVisible = !quality.debugVisible;
+            }
         }
         // E key: toggle emergency mode for visual testing
         if (e.code === 'KeyE' && !e.ctrlKey && !e.metaKey) {

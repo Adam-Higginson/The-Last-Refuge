@@ -22,6 +22,7 @@ import { ColonyViewInputComponent } from '../components/ColonyViewInputComponent
 import { ColonyBuildPickerComponent } from '../components/ColonyBuildPickerComponent';
 import { ColonySidebarUIComponent } from '../components/ColonySidebarUIComponent';
 import { ColonyCrewDetailComponent } from '../components/ColonyCrewDetailComponent';
+import { AdaptiveQualityComponent } from '../components/AdaptiveQualityComponent';
 import { PlanetInfoUIComponent } from '../components/PlanetInfoUIComponent';
 import { VisibilitySourceComponent } from '../components/VisibilitySourceComponent';
 import { COLONY_FOG_DETAIL_RADIUS, COLONY_FOG_BLIP_RADIUS } from '../data/constants';
@@ -943,6 +944,7 @@ export function createPlanet(world: World, config: PlanetConfig): Entity {
         entity.addComponent(new ColonyBuildPickerComponent());
         entity.addComponent(new ColonySidebarUIComponent());
         entity.addComponent(new ColonyCrewDetailComponent());
+        entity.addComponent(new AdaptiveQualityComponent());
 
         const colonyVis = new VisibilitySourceComponent(COLONY_FOG_DETAIL_RADIUS, COLONY_FOG_BLIP_RADIUS);
         colonyVis.active = false;
