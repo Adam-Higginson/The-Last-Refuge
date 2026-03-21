@@ -16,6 +16,7 @@ import { MinimapComponent } from '../components/MinimapComponent';
 import { MoveConfirmComponent } from '../components/MoveConfirmComponent';
 import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import { ScoutDataComponent } from '../components/ScoutDataComponent';
+import { getCrewAtScout } from '../utils/crewUtils';
 import { SelectableComponent } from '../components/SelectableComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import type { World } from '../core/World';
@@ -179,11 +180,15 @@ export class InputSystem extends System {
                 const scoutData = selectedScout.getComponent(ScoutDataComponent);
                 if (!scoutData) return;
 
-                // Mark pilot as dead
-                const pilotEntity = this.world.getEntity(scoutData.pilotEntityId);
-                const pilot = pilotEntity?.getComponent(CrewMemberComponent);
-                if (pilot && pilot.location.type !== 'dead') {
-                    pilot.location = { type: 'dead' };
+                // Mark ALL crew aboard as dead (pilot + passengers)
+                const allCrew = getCrewAtScout(this.world, selectedScout.id);
+                const casualtyNames: string[] = [];
+                for (const crewEntity of allCrew) {
+                    const member = crewEntity.getComponent(CrewMemberComponent);
+                    if (member) {
+                        casualtyNames.push(member.fullName);
+                        member.location = { type: 'dead' };
+                    }
                 }
 
                 // Emit destruction event
@@ -191,6 +196,7 @@ export class InputSystem extends System {
                     type: GameEvents.SCOUT_DESTROYED,
                     scoutEntityId: selectedScout.id,
                     pilotName: scoutData.pilotName,
+                    casualties: casualtyNames,
                 });
 
                 const scoutName = scoutData.displayName;

@@ -277,6 +277,8 @@ export interface ScoutDestroyedEvent extends GameEvent {
     type: typeof GameEvents.SCOUT_DESTROYED;
     scoutEntityId: number;
     pilotName: string;
+    /** Names of all crew killed (pilot + passengers). */
+    casualties: string[];
 }
 
 export interface ScoutDockedEvent extends GameEvent {

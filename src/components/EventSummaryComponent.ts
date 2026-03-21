@@ -64,9 +64,10 @@ export class EventSummaryComponent extends Component {
 
         this.handleScoutDestroyed = (e: GameEvent): void => {
             if (!this.collecting) return;
-            const pilotName = (e as ScoutDestroyedEvent).pilotName;
+            const { casualties, pilotName } = e as ScoutDestroyedEvent;
+            const names = casualties.length > 0 ? casualties.join(', ') : pilotName;
             this.pendingEvents.push({
-                text: `\u26A0 Scout ${pilotName} destroyed!`,
+                text: `\u26A0 Scout destroyed — ${names} KIA!`,
                 critical: true,
             });
         };

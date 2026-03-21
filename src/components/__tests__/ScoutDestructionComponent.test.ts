@@ -55,7 +55,7 @@ describe('ScoutDestructionComponent', () => {
         expect(pilot.location.type).toBe('dead');
     });
 
-    it('emits SCOUT_DESTROYED event with pilot name', () => {
+    it('emits SCOUT_DESTROYED event with pilot name and casualties', () => {
         const pilotEntity = world.createEntity('pilot');
         const pilot = pilotEntity.addComponent(new CrewMemberComponent(
             'Lt. Kira Yossef', 33, 'Pilot', 58, ['Determined', 'Protective'],
@@ -66,9 +66,9 @@ describe('ScoutDestructionComponent', () => {
         const { scout, destruction } = createScout(150, 100, pilotEntity.id, 'Lt. Kira Yossef');
         pilot.location = { type: 'scout', scoutEntityId: scout.id };
 
-        const events: Array<{ type: string; pilotName?: string }> = [];
+        const events: Array<{ type: string; pilotName?: string; casualties?: string[] }> = [];
         eventQueue.on(GameEvents.SCOUT_DESTROYED, (e) => {
-            events.push(e as { type: string; pilotName?: string });
+            events.push(e as { type: string; pilotName?: string; casualties?: string[] });
         });
 
         destruction.update(0.016);
@@ -76,6 +76,7 @@ describe('ScoutDestructionComponent', () => {
 
         expect(events).toHaveLength(1);
         expect(events[0].pilotName).toBe('Lt. Kira Yossef');
+        expect(events[0].casualties).toContain('Lt. Kira Yossef');
     });
 
     it('does not destroy scout when outside kill radius', () => {
@@ -125,5 +126,73 @@ describe('ScoutDestructionComponent', () => {
         // Should not throw; pilot stays dead
         destruction.update(0.016);
         expect(pilot.location.type).toBe('dead');
+    });
+
+    it('marks all crew on scout as dead including passengers', () => {
+        const pilotEntity = world.createEntity('pilot');
+        const pilot = pilotEntity.addComponent(new CrewMemberComponent(
+            'Lt. Kira Yossef', 33, 'Pilot', 58, ['Determined', 'Protective'],
+            'Test backstory',
+        ));
+
+        const passenger1Entity = world.createEntity('passenger1');
+        const passenger1 = passenger1Entity.addComponent(new CrewMemberComponent(
+            'Eng. Marcus Cole', 28, 'Engineer', 45, ['Resourceful', 'Analytical'],
+            'Test backstory',
+        ));
+
+        const passenger2Entity = world.createEntity('passenger2');
+        const passenger2 = passenger2Entity.addComponent(new CrewMemberComponent(
+            'Dr. Anya Patel', 40, 'Medic', 60, ['Empathetic', 'Hopeful'],
+            'Test backstory',
+        ));
+
+        createExtiris(100, 100);
+        const { scout, destruction } = createScout(150, 100, pilotEntity.id, 'Lt. Kira Yossef');
+
+        // Assign all crew to the scout
+        pilot.location = { type: 'scout', scoutEntityId: scout.id };
+        passenger1.location = { type: 'scout', scoutEntityId: scout.id };
+        passenger2.location = { type: 'scout', scoutEntityId: scout.id };
+
+        const events: Array<{ type: string; casualties?: string[] }> = [];
+        eventQueue.on(GameEvents.SCOUT_DESTROYED, (e) => {
+            events.push(e as { type: string; casualties?: string[] });
+        });
+
+        destruction.update(0.016);
+        eventQueue.drain();
+
+        // All crew should be dead
+        expect(pilot.location.type).toBe('dead');
+        expect(passenger1.location.type).toBe('dead');
+        expect(passenger2.location.type).toBe('dead');
+
+        // Event should list all casualties
+        expect(events).toHaveLength(1);
+        expect(events[0].casualties).toHaveLength(3);
+        expect(events[0].casualties).toContain('Lt. Kira Yossef');
+        expect(events[0].casualties).toContain('Eng. Marcus Cole');
+        expect(events[0].casualties).toContain('Dr. Anya Patel');
+    });
+
+    it('handles empty scout with no crew without crashing', () => {
+        createExtiris(100, 100);
+
+        // Create a scout with a non-existent pilot entity ID (no crew assigned)
+        const scout = world.createEntity('emptyScout');
+        scout.addComponent(new TransformComponent(150, 100));
+        scout.addComponent(new ScoutDataComponent('Empty Scout', 9999, 'Nobody'));
+        const destruction = scout.addComponent(new ScoutDestructionComponent());
+
+        const events: unknown[] = [];
+        eventQueue.on(GameEvents.SCOUT_DESTROYED, (e) => events.push(e));
+
+        // Should not throw
+        expect(() => destruction.update(0.016)).not.toThrow();
+        eventQueue.drain();
+
+        // Event should still be emitted with empty casualties
+        expect(events).toHaveLength(1);
     });
 });

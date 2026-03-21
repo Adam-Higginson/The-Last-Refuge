@@ -22,19 +22,22 @@ export class ScoutDeathUIComponent extends Component {
         document.body.appendChild(this.overlayEl);
 
         this.destroyedHandler = (event): void => {
-            const { pilotName } = event as ScoutDestroyedEvent;
-            this.showNotification(pilotName);
+            const { casualties, pilotName } = event as ScoutDestroyedEvent;
+            const names = casualties.length > 0 ? casualties : [pilotName];
+            this.showNotification(names);
         };
         this.eventQueue.on(GameEvents.SCOUT_DESTROYED, this.destroyedHandler);
     }
 
-    private showNotification(pilotName: string): void {
+    private showNotification(casualties: string[]): void {
         if (!this.overlayEl) return;
+
+        const namesText = casualties.map(n => n.toUpperCase()).join(', ');
 
         const notification = document.createElement('div');
         notification.className = 'scout-death-notification';
         notification.innerHTML = `
-            <div class="pilot-name">${pilotName.toUpperCase()}</div>
+            <div class="pilot-name">${namesText}</div>
             <div class="death-text">LOST IN THE LINE OF DUTY</div>
         `;
         this.overlayEl.appendChild(notification);

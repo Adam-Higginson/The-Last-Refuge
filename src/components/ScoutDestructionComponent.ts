@@ -1,5 +1,5 @@
 // ScoutDestructionComponent.ts — Checks if Extiris is within kill radius.
-// Destroys the scout and marks the pilot as dead when caught.
+// Destroys the scout and marks all crew aboard as dead when caught.
 
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
@@ -8,6 +8,7 @@ import { TransformComponent } from './TransformComponent';
 import { ScoutDataComponent } from './ScoutDataComponent';
 import { CrewMemberComponent } from './CrewMemberComponent';
 import { SCOUT_KILL_RADIUS } from '../data/constants';
+import { getCrewAtScout } from '../utils/crewUtils';
 import type { World } from '../core/World';
 
 export class ScoutDestructionComponent extends Component {
@@ -35,11 +36,15 @@ export class ScoutDestructionComponent extends Component {
         const scoutData = this.entity.getComponent(ScoutDataComponent);
         if (!scoutData) return;
 
-        // Mark pilot as dead
-        const pilotEntity = world.getEntity(scoutData.pilotEntityId);
-        const pilot = pilotEntity?.getComponent(CrewMemberComponent);
-        if (pilot && pilot.location.type !== 'dead') {
-            pilot.location = { type: 'dead' };
+        // Mark ALL crew aboard as dead (pilot + passengers)
+        const allCrew = getCrewAtScout(world, this.entity.id);
+        const casualtyNames: string[] = [];
+        for (const crewEntity of allCrew) {
+            const member = crewEntity.getComponent(CrewMemberComponent);
+            if (member) {
+                casualtyNames.push(member.fullName);
+                member.location = { type: 'dead' };
+            }
         }
 
         // Emit destruction event
@@ -48,6 +53,7 @@ export class ScoutDestructionComponent extends Component {
             type: GameEvents.SCOUT_DESTROYED,
             scoutEntityId: this.entity.id,
             pilotName: scoutData.pilotName,
+            casualties: casualtyNames,
         });
 
         // Remove scout entity from world
