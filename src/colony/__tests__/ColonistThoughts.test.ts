@@ -34,6 +34,9 @@ function makeColonist(overrides: Partial<ColonistVisualState> = {}): ColonistVis
         greetingTargetId: null,
         thoughtBubble: null,
         thoughtTimer: 0,
+        morale: 50,
+        celebrating: false,
+        celebrateTimer: 0,
         ...overrides,
     };
 }

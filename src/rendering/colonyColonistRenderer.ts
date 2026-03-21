@@ -9,6 +9,40 @@ import type { ColonistScreenPos } from './colonyGridRenderer';
 /** Colonist figure scale — larger for visibility on isometric grid. */
 const FIGURE_SCALE = 1.8;
 
+/** Hair style index from entity ID (deterministic). */
+function getHairStyle(entityId: number): number {
+    return entityId % 4;
+}
+
+/** Build height modifier from entity ID (deterministic, range 0.9-1.1). */
+function getBuildModifier(entityId: number): number {
+    return 0.9 + (entityId % 5) * 0.05;
+}
+
+/** Morale posture adjustments. Returns head offset, body width multiplier, and arm swing multiplier. */
+function getMoralePosture(morale: number): { headOffset: number; bodyWidthMult: number; armSwingMult: number } {
+    if (morale > 70) {
+        return { headOffset: -1, bodyWidthMult: 1.0, armSwingMult: 1.0 };
+    } else if (morale >= 30) {
+        return { headOffset: 0, bodyWidthMult: 1.0, armSwingMult: 1.0 };
+    } else if (morale >= 10) {
+        return { headOffset: 1, bodyWidthMult: 0.9, armSwingMult: 1.0 };
+    } else {
+        return { headOffset: 2, bodyWidthMult: 0.8, armSwingMult: 0.5 };
+    }
+}
+
+/** Darken a hex colour by a factor (0-1, where 0 = black). */
+function darkenColour(hex: string, factor: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const dr = Math.round(r * factor);
+    const dg = Math.round(g * factor);
+    const db = Math.round(b * factor);
+    return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
+}
+
 /** Draw all colonist figures. Returns screen positions for hit-testing. */
 export function drawColonistFigures(
     ctx: CanvasRenderingContext2D,
@@ -39,8 +73,11 @@ export function drawFigure(
     isWalking: boolean,
     isSelected: boolean = false,
     _nearbyBuildingPos?: { x: number; y: number },
+    isNight: boolean = false,
 ): void {
-    const s = FIGURE_SCALE;
+    const buildMod = getBuildModifier(colonist.entityId);
+    const s = FIGURE_SCALE * buildMod;
+    const posture = getMoralePosture(colonist.morale);
 
     // Sub-activity pose adjustments
     const isSitting = colonist.subActivity === 'sitting' ||
@@ -48,6 +85,9 @@ export function drawFigure(
         colonist.subActivity === 'sitting_eating';
     const isStretching = colonist.subActivity === 'stretching';
     const yOffset = isSitting ? 3 * s : 0;
+
+    // Morale head offset (positive = lower)
+    const moraleHeadY = posture.headOffset * s;
 
     // Idle bob when stationary
     const bob = isWalking ? 0 : Math.sin(t / 600 + colonist.walkPhase) * 1 * s;
@@ -94,37 +134,40 @@ export function drawFigure(
         ctx.stroke();
     }
 
-    // Body — role-coloured clothing
+    // Body — role-coloured clothing (width affected by morale posture)
+    const bodyWidth = 2.5 * s * posture.bodyWidthMult;
     ctx.fillStyle = colonist.colour;
     ctx.beginPath();
-    ctx.ellipse(x, y - 5 * s + bob + yOffset, 2.5 * s, 3.5 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y - 5 * s + bob + yOffset + moraleHeadY * 0.5, bodyWidth, 3.5 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Arms — sub-activity aware
-    const armSwing = isWalking ? Math.sin(colonist.walkPhase + Math.PI) * 2 * s : 0;
+    // Role-based accessories (subtle, drawn on top of body)
+    drawAccessories(ctx, x, y + yOffset, colonist, s, bob, moraleHeadY);
+
+    // Arms — sub-activity aware (amplitude affected by morale)
+    const armSwing = isWalking ? Math.sin(colonist.walkPhase + Math.PI) * 2 * s * posture.armSwingMult : 0;
     drawArms(ctx, x, y + yOffset, colonist, t, s, bob, armSwing, isStretching);
 
-    // Head — skin tone (shifted when looking_around)
+    // Head — skin tone (shifted when looking_around, offset by morale)
     const headShift = colonist.subActivity === 'looking_around'
         ? Math.sin(t / 800 + colonist.walkPhase) * 1.5 * s
         : 0;
+    const celebrateHeadOffset = colonist.celebrating ? -1 : 0;
+    const headY = y - 9.5 * s + bob + yOffset + moraleHeadY + celebrateHeadOffset;
     ctx.fillStyle = colonist.skinTone;
     ctx.beginPath();
-    ctx.arc(x + headShift, y - 9.5 * s + bob + yOffset, 2.2 * s, 0, Math.PI * 2);
+    ctx.arc(x + headShift, headY, 2.2 * s, 0, Math.PI * 2);
     ctx.fill();
 
-    // Hair
-    ctx.fillStyle = colonist.hairColour;
-    ctx.beginPath();
-    ctx.arc(x + headShift, y - 10 * s + bob + yOffset, 2 * s, Math.PI * 0.85, Math.PI * 0.15, true);
-    ctx.fill();
+    // Hair — style varies by entityId
+    drawHairStyle(ctx, x + headShift, headY, colonist, s);
 
     // Name label
     ctx.globalAlpha = 0.6;
     ctx.fillStyle = '#ffffff';
     ctx.font = `${Math.round(5 * s)}px "Share Tech Mono", "Courier New", monospace`;
     ctx.textAlign = 'center';
-    ctx.fillText(colonist.name, x, y - 14 * s + bob + yOffset);
+    ctx.fillText(colonist.name, x, y - 14 * s + bob + yOffset + moraleHeadY);
     ctx.globalAlpha = 1;
 
     // Leader star
@@ -132,14 +175,122 @@ export function drawFigure(
         ctx.fillStyle = '#d4a020';
         ctx.font = `${Math.round(6 * s)}px "Share Tech Mono"`;
         ctx.textAlign = 'center';
-        ctx.fillText('\u2605', x, y - 17 * s + bob + yOffset);
+        ctx.fillText('\u2605', x, y - 17 * s + bob + yOffset + moraleHeadY);
     }
 
-    // Activity icon / sub-activity visual
-    const iconBaseY = y - (colonist.isLeader ? 20 : 17) * s + bob + yOffset;
-    drawActivityVisual(ctx, x, iconBaseY, colonist, t, s);
+    // Activity icon / sub-activity visual (skip if celebrating — wave is the visual)
+    if (!colonist.celebrating) {
+        const iconBaseY = y - (colonist.isLeader ? 20 : 17) * s + bob + yOffset + moraleHeadY;
+        drawActivityVisual(ctx, x, iconBaseY, colonist, t, s);
+    }
+
+    // Breath puff at night — one small rising circle per colonist
+    if (isNight) {
+        drawBreathPuff(ctx, x + headShift, headY, colonist.entityId, t, s);
+    }
 
     ctx.restore();
+}
+
+/** Draw hair based on style index (0-3), seeded by entityId. */
+function drawHairStyle(
+    ctx: CanvasRenderingContext2D,
+    headX: number, headY: number,
+    colonist: ColonistVisualState,
+    s: number,
+): void {
+    const style = getHairStyle(colonist.entityId);
+    ctx.fillStyle = colonist.hairColour;
+
+    switch (style) {
+        case 0: {
+            // Short — small semicircle on top of head
+            ctx.beginPath();
+            ctx.arc(headX, headY - 0.5 * s, 2 * s, Math.PI * 0.85, Math.PI * 0.15, true);
+            ctx.fill();
+            break;
+        }
+        case 1: {
+            // Long — larger arc extending below ears
+            ctx.beginPath();
+            ctx.arc(headX, headY - 0.3 * s, 2.4 * s, Math.PI * 0.95, Math.PI * 0.05, true);
+            ctx.fill();
+            // Side extensions below ears
+            ctx.fillRect(headX - 2.2 * s, headY - 0.5 * s, 1 * s, 2.5 * s);
+            ctx.fillRect(headX + 1.2 * s, headY - 0.5 * s, 1 * s, 2.5 * s);
+            break;
+        }
+        case 2: {
+            // Bald — no hair drawn
+            break;
+        }
+        case 3: {
+            // Tied-back — small cap with tail line to one side
+            ctx.beginPath();
+            ctx.arc(headX, headY - 0.5 * s, 2 * s, Math.PI * 0.8, Math.PI * 0.2, true);
+            ctx.fill();
+            // Tail line
+            ctx.strokeStyle = colonist.hairColour;
+            ctx.lineWidth = 1 * s;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(headX + 1.8 * s, headY - 0.3 * s);
+            ctx.lineTo(headX + 3 * s, headY + 0.8 * s);
+            ctx.stroke();
+            break;
+        }
+    }
+}
+
+/** Draw subtle role-based accessories on top of body. */
+function drawAccessories(
+    ctx: CanvasRenderingContext2D,
+    x: number, y: number,
+    colonist: ColonistVisualState,
+    s: number, bob: number, moraleHeadY: number,
+): void {
+    const darkerColour = darkenColour(colonist.colour, 0.7);
+
+    switch (colonist.role) {
+        case 'Soldier': {
+            // Small diagonal line behind shoulder suggesting weapon on back
+            ctx.strokeStyle = darkerColour;
+            ctx.lineWidth = 0.8 * s;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x + 2 * s, y - 7 * s + bob + moraleHeadY * 0.5);
+            ctx.lineTo(x + 3.5 * s, y - 3 * s + bob + moraleHeadY * 0.5);
+            ctx.stroke();
+            break;
+        }
+        case 'Engineer': {
+            // Small rect at waist suggesting tool belt
+            ctx.fillStyle = darkerColour;
+            ctx.fillRect(
+                x - 2 * s, y - 3 * s + bob + moraleHeadY * 0.5,
+                4 * s, 0.8 * s,
+            );
+            break;
+        }
+        case 'Medic': {
+            // Tiny + cross on chest
+            ctx.strokeStyle = darkerColour;
+            ctx.lineWidth = 0.6 * s;
+            const crossY = y - 5 * s + bob + moraleHeadY * 0.5;
+            ctx.beginPath();
+            ctx.moveTo(x, crossY - 0.8 * s);
+            ctx.lineTo(x, crossY + 0.8 * s);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x - 0.8 * s, crossY);
+            ctx.lineTo(x + 0.8 * s, crossY);
+            ctx.stroke();
+            break;
+        }
+        default:
+            // Leaders have their star, civilians/scientists/pilots have no extra accessory
+            break;
+    }
 }
 
 /** Draw arms with sub-activity awareness. */
@@ -152,6 +303,23 @@ function drawArms(
 ): void {
     ctx.strokeStyle = colonist.skinTone;
     ctx.lineWidth = 1 * s;
+
+    // Celebration wave — arm raised, oscillating between 30° and 60° above horizontal
+    if (colonist.celebrating) {
+        const waveAngle = (Math.sin(t / 200) * 15 + 45) * Math.PI / 180;
+        const armLen = 5 * s;
+        // Left arm normal
+        ctx.beginPath();
+        ctx.moveTo(x - 2 * s, y - 6 * s + bob);
+        ctx.lineTo(x - 3.5 * s, y - 3 * s + bob);
+        ctx.stroke();
+        // Right arm raised waving
+        ctx.beginPath();
+        ctx.moveTo(x + 2 * s, y - 6 * s + bob);
+        ctx.lineTo(x + 2 * s + Math.cos(waveAngle) * armLen, y - 6 * s + bob - Math.sin(waveAngle) * armLen);
+        ctx.stroke();
+        return;
+    }
 
     // Greeting wave
     if (colonist.greetingTimer > 0) {
@@ -454,6 +622,37 @@ function drawRestingVisual(
     ctx.font = `${Math.round(4 * s)}px "Share Tech Mono"`;
     ctx.textAlign = 'center';
     ctx.fillText('Zzz', x, y - 1 * s);
+}
+
+/** Draw a single breath puff circle near a colonist's head during nighttime. */
+function drawBreathPuff(
+    ctx: CanvasRenderingContext2D,
+    headX: number,
+    headY: number,
+    entityId: number,
+    t: number,
+    s: number,
+): void {
+    // Staggered timing per colonist — puff when sine crosses above 0.9
+    const sineVal = Math.sin(t / 2000 + entityId * 3.7);
+    if (sineVal <= 0.9) return;
+
+    // Map 0.9–1.0 range to 0–1 for fade lifecycle
+    const phase = (sineVal - 0.9) / 0.1;
+    const alpha = 0.3 * (1 - phase);
+    if (alpha <= 0) return;
+
+    const radius = (1.5 + phase * 0.5) * s;
+    const puffX = headX + 3 * s;
+    const puffY = headY - 2 * s - phase * 3 * s; // drift upward
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(200, 210, 220, 1)';
+    ctx.beginPath();
+    ctx.arc(puffX, puffY, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 }
 
 /** Draw firefly particles near campfire during evening hours. */
