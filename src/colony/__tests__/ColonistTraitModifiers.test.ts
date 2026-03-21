@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { applyTraitScheduleModifier, applyTraitSubActivityModifier } from '../ColonistTraitModifiers';
 import type { ScheduleBlock } from '../ColonistSchedule';
 import type { SubActivityResult } from '../ColonistSubActivity';
-import type { Trait } from '../../components/CrewMemberComponent';
+import type { PersonalityTrait } from '../../components/CrewMemberComponent';
 
 describe('ColonistTraitModifiers', () => {
     describe('applyTraitScheduleModifier', () => {
@@ -117,7 +117,7 @@ describe('ColonistTraitModifiers', () => {
         });
 
         it('handles all trait combinations without error', () => {
-            const allTraits: Trait[] = [
+            const allTraits: PersonalityTrait[] = [
                 'Stubborn', 'Empathetic', 'Reckless', 'Analytical',
                 'Protective', 'Haunted', 'Resourceful', 'Quiet',
                 'Hopeful', 'Grieving', 'Determined',

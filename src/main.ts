@@ -36,6 +36,8 @@ import { ConfirmModal } from './ui/ConfirmModal';
 import { NarrativeModal } from './ui/NarrativeModal';
 import { EventSummaryOverlay } from './ui/EventSummaryOverlay';
 import { NarrativeEventSystem } from './systems/NarrativeEventSystem';
+import { EncounterSystem } from './systems/EncounterSystem';
+import { ModalLock } from './services/ModalLock';
 
 function boot(): void {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -66,6 +68,7 @@ function boot(): void {
     ServiceLocator.register('confirmModal', new ConfirmModal());
     ServiceLocator.register('narrativeModal', new NarrativeModal());
     ServiceLocator.register('eventSummaryOverlay', new EventSummaryOverlay());
+    ServiceLocator.register('modalLock', new ModalLock());
 
     // Load API key: localStorage override > build-time env > no key (deterministic)
     try {
@@ -81,6 +84,7 @@ function boot(): void {
     world.addSystem(new InputSystem());
     world.addSystem(new TurnSystem());
     world.addSystem(new NarrativeEventSystem());
+    world.addSystem(new EncounterSystem());
     world.addSystem(new ComponentSystem());
     world.addSystem(new RenderSystem());
     world.addSystem(new UISystem());

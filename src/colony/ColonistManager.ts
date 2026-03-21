@@ -156,7 +156,7 @@ function countNearbySocializing(sim: ColonySimulationComponent, entityId: number
 }
 
 interface ColonistCrewData {
-    traits: [import('../components/CrewMemberComponent').Trait, import('../components/CrewMemberComponent').Trait];
+    traits: import('../components/CrewMemberComponent').PersonalityTrait[];
     morale: number;
 }
 

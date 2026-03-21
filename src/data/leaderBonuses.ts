@@ -3,7 +3,7 @@
 // (resource modifiers, morale changes) will be applied by LeaderBonusComponent
 // when it is implemented in Phase 3 Step 9 (Polish & Balance).
 
-import type { CrewRole, Trait } from '../components/CrewMemberComponent';
+import type { CrewRole, PersonalityTrait } from '../components/CrewMemberComponent';
 
 export interface BonusEffect {
     text: string;
@@ -81,7 +81,7 @@ export const LEADER_ROLE_BONUSES: Record<CrewRole, LeaderBonus> = {
 };
 
 /** Bonuses granted by leader traits (only traits with gameplay effects). */
-export const LEADER_TRAIT_BONUSES: Partial<Record<Trait, LeaderBonus>> = {
+export const LEADER_TRAIT_BONUSES: Partial<Record<PersonalityTrait, LeaderBonus>> = {
     Resourceful: {
         materialCostReduction: 0.1,
         description: '-10% material cost',
@@ -146,7 +146,7 @@ export const COLONY_ROLE_DESCRIPTIONS: Record<CrewRole, string> = {
 };
 
 /** Get all bonus effect lines for a crew member if they were leader. */
-export function getLeaderBonusLines(role: CrewRole, traits: readonly Trait[]): BonusEffect[] {
+export function getLeaderBonusLines(role: CrewRole, traits: readonly PersonalityTrait[]): BonusEffect[] {
     const lines: BonusEffect[] = [];
     const roleBonus = LEADER_ROLE_BONUSES[role];
 
