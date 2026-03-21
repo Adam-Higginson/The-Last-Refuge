@@ -1622,7 +1622,7 @@ function registerColonists(
             kind: 'colonist',
             screenX: screen.x,
             screenY: screen.y,
-            label: colonist.name.split(' ')[0],
+            label: colonist.name,
             entityId: colonist.entityId,
             hitRadius: COLONIST_HIT_RADIUS,
             draw: (ctx) => {
