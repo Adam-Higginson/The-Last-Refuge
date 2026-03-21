@@ -14,6 +14,11 @@ describe('ScoutDataComponent', () => {
         expect(comp.trailPositions).toEqual([]);
     });
 
+    it('defaults capacity to 3', () => {
+        const comp = new ScoutDataComponent('Scout Delta', 5, 'Sgt. Val Torres');
+        expect(comp.capacity).toBe(3);
+    });
+
     it('allows pushing trail positions', () => {
         const comp = new ScoutDataComponent('Scout Gamma', 10, 'Pvt. Nala Osei');
         comp.trailPositions.push({ x: 100, y: 200 });

@@ -12,6 +12,7 @@ import {
     checkShipMinimums,
     getColonyLocations,
     getLocationLabel,
+    hasEngineerOnShip,
 } from '../crewUtils';
 
 function addCrew(
@@ -171,5 +172,30 @@ describe('crewUtils', () => {
     it('getLocationLabel returns DECEASED for dead location', () => {
         const label = getLocationLabel(world, { type: 'dead' });
         expect(label).toBe('DECEASED');
+    });
+
+    // --- hasEngineerOnShip ---
+
+    it('hasEngineerOnShip returns true when engineer is on ship', () => {
+        addCrew(world, 'eng1', 'Engineer');
+        expect(hasEngineerOnShip(world)).toBe(true);
+    });
+
+    it('hasEngineerOnShip returns false when no engineers exist', () => {
+        addCrew(world, 'soldier1', 'Soldier');
+        addCrew(world, 'medic1', 'Medic');
+        expect(hasEngineerOnShip(world)).toBe(false);
+    });
+
+    it('hasEngineerOnShip returns false when engineers are all at colonies', () => {
+        addCrew(world, 'eng1', 'Engineer', { planetEntityId: 10, regionId: 1 });
+        addCrew(world, 'eng2', 'Engineer', { planetEntityId: 10, regionId: 2 });
+        expect(hasEngineerOnShip(world)).toBe(false);
+    });
+
+    it('hasEngineerOnShip returns true when one of multiple engineers is on ship', () => {
+        addCrew(world, 'eng1', 'Engineer', { planetEntityId: 10, regionId: 1 });
+        addCrew(world, 'eng2', 'Engineer');
+        expect(hasEngineerOnShip(world)).toBe(true);
     });
 });

@@ -8,6 +8,8 @@ export class ScoutDataComponent extends Component {
     pilotEntityId: number;
     pilotName: string;
     trailPositions: Array<{ x: number; y: number }>;
+    /** Maximum crew (including pilot) this scout can carry. */
+    capacity = 3;
 
     constructor(displayName: string, pilotEntityId: number, pilotName: string) {
         super();

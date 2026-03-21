@@ -156,6 +156,18 @@ export function getCrewAtLocation(world: World, location: CrewLocation): Entity[
     return getCrewAtColony(world, location.planetEntityId, location.regionId);
 }
 
+/** Check if any crew member with role 'Engineer' is currently on the ship. */
+export function hasEngineerOnShip(world: World): boolean {
+    const crew = world.getEntitiesWithComponent(CrewMemberComponent);
+    for (const entity of crew) {
+        const member = entity.getComponent(CrewMemberComponent);
+        if (member && member.role === 'Engineer' && member.location.type === 'ship') {
+            return true;
+        }
+    }
+    return false;
+}
+
 /** Get a human-readable label for any crew location. */
 export function getLocationLabel(world: World, location: CrewLocation): string {
     if (location.type === 'ship') return 'ESV-7 (SHIP)';
