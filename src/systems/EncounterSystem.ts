@@ -19,8 +19,9 @@ import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import { EncounterTriggerComponent } from '../components/EncounterTriggerComponent';
 import { CRISIS_CARDS, resolveOutcomeTier, getOutcomeForTier } from '../data/crisisCards';
 import { getSkillScore, getRelationshipModifier } from '../utils/combatSkills';
-import { applyConsequences } from './ConsequenceResolver';
+import { applyConsequences, processEndOfTurn } from './ConsequenceResolver';
 import type { CrisisCard, OutcomeTier } from '../data/crisisCards';
+import type { TurnEndEvent } from '../core/GameEvents';
 import type { EncounterTriggeredEvent } from '../core/GameEvents';
 import type { CrisisModal } from '../ui/CrisisModal';
 import type { NarrativeModal } from '../ui/NarrativeModal';
@@ -44,7 +45,9 @@ let lastDrawnCardId: string | null = null;
 export class EncounterSystem extends System {
     private eventQueue!: EventQueue;
     private encounterHandler!: EventHandler;
+    private turnEndHandler!: EventHandler;
     private resolving = false;
+    private currentTurn = 1;
 
     init(world: World): void {
         super.init(world);
@@ -55,7 +58,14 @@ export class EncounterSystem extends System {
             void this.handleEncounter(e);
         };
 
+        this.turnEndHandler = (event): void => {
+            const e = event as TurnEndEvent;
+            this.currentTurn = e.turn;
+            processEndOfTurn(this.world);
+        };
+
         this.eventQueue.on(GameEvents.ENCOUNTER_TRIGGERED, this.encounterHandler);
+        this.eventQueue.on(GameEvents.TURN_END, this.turnEndHandler);
     }
 
     update(_dt: number): void {
@@ -194,6 +204,9 @@ export class EncounterSystem extends System {
                         scoutEntityId: event.scoutEntityId,
                         pilotEntityId: event.pilotEntityId,
                         assignedCrewIds,
+                        turn: this.currentTurn,
+                        cardTitle: card.title,
+                        tier,
                     });
 
                     // Show outcome text
@@ -333,5 +346,6 @@ export class EncounterSystem extends System {
 
     destroy(): void {
         this.eventQueue.off(GameEvents.ENCOUNTER_TRIGGERED, this.encounterHandler);
+        this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
     }
 }

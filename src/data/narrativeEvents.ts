@@ -196,4 +196,25 @@ The stars are no longer a cage. They're a map.`,
         condition: (ctx): boolean => ctx.flags.has('engine_repaired'),
         once: true,
     },
+
+    // --- Crew memorial (chained from combat death, fires 1 turn later) ---
+    {
+        id: 'crew_memorial',
+        title: 'MEMORIAL',
+        body: `The colony falls silent. Someone has scratched a name into the hull plating near the airlock — a tradition from Keth-7, where every lost soul was marked on the walls of the tunnels.
+
+Others gather. No words are spoken. None are needed. In the silence, you can hear what everyone is thinking: it could have been me.
+
+The name will stay there. The hull plating will outlast all of you.`,
+        category: 'story', // story category = weight 0, never drawn randomly from deck
+        condition: (ctx): boolean => {
+            // Only fires via chain queue — condition guards against accidental story-scan triggering.
+            // Check for any memorial_pending flag.
+            for (const flag of ctx.flags) {
+                if (flag.startsWith('memorial_pending:')) return true;
+            }
+            return false;
+        },
+        once: false, // Can fire multiple times (one per death)
+    },
 ];
