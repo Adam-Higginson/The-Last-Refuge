@@ -377,31 +377,75 @@ function drawSky(
     const pulse = 0.85 + 0.15 * Math.sin(t / 3000);
     const weatherDim = 1 - weather.overcastAmount * 1.2;
 
-    if (dayNight.celestialHeight > -0.15 && weatherDim > 0.05) {
-        const sunR = dayNight.phase === 'night' ? w * 0.03 : w * 0.05;
+    // Moon — drawn independently of sun visibility, arcs across the night sky
+    if (dayNight.phase === 'night' && weatherDim > 0.05) {
+        const mr = w * 0.025;
+        const moonNorm = ((dayNight.hour - 20) / 9 + 1) % 1;
+        const moonX = w * (0.15 + moonNorm * 0.7);
+        const moonY = horizonY * (0.6 - Math.sin(moonNorm * Math.PI) * 0.45);
+        ctx.save();
+        ctx.globalAlpha = dayNight.starAlpha * 0.8;
+
+        // Moon body — gray gradient (matches Luna entity)
+        const bodyGrad = ctx.createRadialGradient(
+            moonX - mr * 0.3, moonY - mr * 0.3, mr * 0.1,
+            moonX, moonY, mr,
+        );
+        bodyGrad.addColorStop(0, '#bbbbcc');
+        bodyGrad.addColorStop(1, '#888899');
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, mr, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Craters — darker spots clipped to moon circle
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, mr, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = '#666677';
+        ctx.beginPath();
+        ctx.ellipse(moonX - mr * 0.3, moonY - mr * 0.2, mr * 0.2, mr * 0.15, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(moonX + mr * 0.25, moonY + mr * 0.3, mr * 0.15, mr * 0.12, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(moonX + mr * 0.1, moonY - mr * 0.1, mr * 0.1, mr * 0.08, 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Shadow on one side
+        const shadowGrad = ctx.createRadialGradient(
+            moonX + mr * 0.4, moonY + mr * 0.2, mr * 0.2,
+            moonX + mr * 0.4, moonY + mr * 0.2, mr * 1.1,
+        );
+        shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+        shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = shadowGrad;
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, mr, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Soft glow around moon
+        const moonGlow = ctx.createRadialGradient(moonX, moonY, mr, moonX, moonY, mr * 4);
+        moonGlow.addColorStop(0, 'rgba(200, 210, 230, 0.08)');
+        moonGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = moonGlow;
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, mr * 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Sun — only visible when above horizon
+    if (dayNight.celestialHeight > -0.15 && weatherDim > 0.05 && dayNight.phase !== 'night') {
+        const sunR = w * 0.05;
         const horizonFade = dayNight.celestialHeight < 0
             ? 1 + dayNight.celestialHeight / 0.15
             : 1;
 
-        if (dayNight.phase === 'night') {
-            const moonNorm = ((dayNight.hour - 20) / 9 + 1) % 1;
-            const moonX = w * (0.15 + moonNorm * 0.7);
-            const moonY = horizonY * (0.6 - Math.sin(moonNorm * Math.PI) * 0.45);
-            ctx.save();
-            ctx.globalAlpha = dayNight.starAlpha * 0.7;
-            ctx.fillStyle = 'rgba(200, 210, 230, 1)';
-            ctx.beginPath();
-            ctx.arc(moonX, moonY, sunR, 0, Math.PI * 2);
-            ctx.fill();
-            const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, sunR * 4);
-            moonGlow.addColorStop(0, 'rgba(200, 210, 230, 0.1)');
-            moonGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = moonGlow;
-            ctx.beginPath();
-            ctx.arc(moonX, moonY, sunR * 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-        } else {
+        {
             ctx.save();
             ctx.globalAlpha = horizonFade * weatherDim;
             const bloomR = sunR * 3;
