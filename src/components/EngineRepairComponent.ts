@@ -10,6 +10,7 @@ import { EngineStateComponent } from './EngineStateComponent';
 import { EventStateComponent } from './EventStateComponent';
 import { ResourceComponent } from './ResourceComponent';
 import { OrbitComponent } from './OrbitComponent';
+import { hasEngineerOnShip } from '../utils/crewUtils';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { World } from '../core/World';
 
@@ -42,6 +43,8 @@ export class EngineRepairComponent extends Component {
         const eventState = gameState?.getComponent(EventStateComponent);
         if (!eventState?.hasFlag('station_repaired')) return false;
 
+        if (!hasEngineerOnShip(world)) return false;
+
         const resources = gameState?.getComponent(ResourceComponent);
         if (!resources) return false;
 
@@ -57,6 +60,15 @@ export class EngineRepairComponent extends Component {
     private onTurnAdvance(): void {
         const engineState = this.entity.getComponent(EngineStateComponent);
         if (!engineState || engineState.engineState !== 'repairing') return;
+
+        // Pause repair if no engineer on ship
+        let world: World;
+        try {
+            world = ServiceLocator.get<World>('world');
+        } catch {
+            return;
+        }
+        if (!hasEngineerOnShip(world)) return;
 
         engineState.repairTurnsRemaining--;
 

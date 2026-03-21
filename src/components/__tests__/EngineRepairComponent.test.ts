@@ -3,6 +3,7 @@ import { World } from '../../core/World';
 import { EventQueue } from '../../core/EventQueue';
 import { ServiceLocator } from '../../core/ServiceLocator';
 import { GameEvents } from '../../core/GameEvents';
+import { CrewMemberComponent } from '../CrewMemberComponent';
 import { EngineStateComponent } from '../EngineStateComponent';
 import { EngineRepairComponent } from '../EngineRepairComponent';
 import { EventStateComponent } from '../EventStateComponent';
@@ -44,6 +45,14 @@ describe('EngineRepairComponent', () => {
         return { entity, engineState, repair };
     }
 
+    function createEngineerOnShip(): import('../../core/Entity').Entity {
+        const entity = world.createEntity('engineer');
+        const crew = new CrewMemberComponent('Jane Doe', 30, 'Engineer', 80, ['Determined', 'Analytical'], 'An engineer.');
+        crew.location = { type: 'ship' };
+        entity.addComponent(crew);
+        return entity;
+    }
+
     it('startRepair returns false if engineState is not offline', () => {
         const { engineState, repair } = createShip();
         eventState.addFlag('station_repaired');
@@ -61,6 +70,7 @@ describe('EngineRepairComponent', () => {
     it('startRepair returns false if cannot afford materials', () => {
         const { repair } = createShip();
         eventState.addFlag('station_repaired');
+        createEngineerOnShip();
         resources.resources.materials.current = 0;
 
         expect(repair.startRepair()).toBe(false);
@@ -69,6 +79,7 @@ describe('EngineRepairComponent', () => {
     it('startRepair deducts materials and sets state to repairing', () => {
         const { engineState, repair } = createShip();
         eventState.addFlag('station_repaired');
+        createEngineerOnShip();
         const initialMaterials = resources.resources.materials.current;
 
         const result = repair.startRepair();
@@ -81,6 +92,7 @@ describe('EngineRepairComponent', () => {
     it('startRepair emits ENGINE_REPAIR_STARTED', () => {
         const { repair } = createShip();
         eventState.addFlag('station_repaired');
+        createEngineerOnShip();
 
         const events: unknown[] = [];
         eventQueue.on(GameEvents.ENGINE_REPAIR_STARTED, (e) => events.push(e));
@@ -94,6 +106,7 @@ describe('EngineRepairComponent', () => {
     it('onTurnAdvance decrements repairTurnsRemaining', () => {
         const { engineState, repair } = createShip();
         eventState.addFlag('station_repaired');
+        createEngineerOnShip();
         repair.startRepair();
 
         eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
@@ -106,6 +119,7 @@ describe('EngineRepairComponent', () => {
     it('onTurnAdvance sets state to online when turns reach 0', () => {
         const { engineState, repair } = createShip();
         eventState.addFlag('station_repaired');
+        createEngineerOnShip();
         repair.startRepair();
 
         for (let i = 0; i < ENGINE_REPAIR_TURNS; i++) {
@@ -120,6 +134,7 @@ describe('EngineRepairComponent', () => {
     it('onTurnAdvance sets engine_repaired flag on EventStateComponent', () => {
         const { repair } = createShip();
         eventState.addFlag('station_repaired');
+        createEngineerOnShip();
         repair.startRepair();
 
         for (let i = 0; i < ENGINE_REPAIR_TURNS; i++) {
@@ -133,6 +148,7 @@ describe('EngineRepairComponent', () => {
     it('onTurnAdvance removes OrbitComponent from ship on completion', () => {
         const { entity, repair } = createShip();
         eventState.addFlag('station_repaired');
+        createEngineerOnShip();
         repair.startRepair();
 
         // Verify OrbitComponent exists before completion
@@ -149,6 +165,7 @@ describe('EngineRepairComponent', () => {
     it('onTurnAdvance emits ENGINE_REPAIRED on completion', () => {
         const { repair } = createShip();
         eventState.addFlag('station_repaired');
+        createEngineerOnShip();
         repair.startRepair();
 
         const events: unknown[] = [];
@@ -163,5 +180,72 @@ describe('EngineRepairComponent', () => {
         eventQueue.drain();
 
         expect(events).toHaveLength(1);
+    });
+
+    it('startRepair fails when no engineer on ship', () => {
+        const { engineState, repair } = createShip();
+        eventState.addFlag('station_repaired');
+        // No engineer created
+
+        const result = repair.startRepair();
+
+        expect(result).toBe(false);
+        expect(engineState.engineState).toBe('offline');
+    });
+
+    it('startRepair succeeds when engineer is on ship', () => {
+        const { engineState, repair } = createShip();
+        eventState.addFlag('station_repaired');
+        createEngineerOnShip();
+
+        const result = repair.startRepair();
+
+        expect(result).toBe(true);
+        expect(engineState.engineState).toBe('repairing');
+    });
+
+    it('onTurnAdvance pauses when no engineer on ship', () => {
+        const { engineState, repair } = createShip();
+        eventState.addFlag('station_repaired');
+        const engineerEntity = createEngineerOnShip();
+        repair.startRepair();
+
+        // Advance one turn with engineer present
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
+        eventQueue.drain();
+        expect(engineState.repairTurnsRemaining).toBe(ENGINE_REPAIR_TURNS - 1);
+
+        // Move engineer away from ship
+        const crew = engineerEntity.getComponent(CrewMemberComponent);
+        if (crew) crew.location = { type: 'dead' };
+
+        // Advance another turn — should NOT decrement
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
+        eventQueue.drain();
+        expect(engineState.repairTurnsRemaining).toBe(ENGINE_REPAIR_TURNS - 1);
+    });
+
+    it('onTurnAdvance resumes when engineer returns to ship', () => {
+        const { engineState, repair } = createShip();
+        eventState.addFlag('station_repaired');
+        const engineerEntity = createEngineerOnShip();
+        repair.startRepair();
+
+        // Move engineer away
+        const crew = engineerEntity.getComponent(CrewMemberComponent);
+        if (crew) crew.location = { type: 'dead' };
+
+        // Turn should not decrement
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
+        eventQueue.drain();
+        expect(engineState.repairTurnsRemaining).toBe(ENGINE_REPAIR_TURNS);
+
+        // Return engineer to ship
+        if (crew) crew.location = { type: 'ship' };
+
+        // Turn should decrement again
+        eventQueue.emit({ type: GameEvents.TURN_ADVANCE });
+        eventQueue.drain();
+        expect(engineState.repairTurnsRemaining).toBe(ENGINE_REPAIR_TURNS - 1);
     });
 });

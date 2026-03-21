@@ -5,14 +5,18 @@
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
+import { CrewMemberComponent } from './CrewMemberComponent';
+import { ScoutDataComponent } from './ScoutDataComponent';
 import { StationDataComponent } from './StationDataComponent';
 import { EventStateComponent } from './EventStateComponent';
 import { ResourceComponent } from './ResourceComponent';
+import { TransformComponent } from './TransformComponent';
 import { VisibilitySourceComponent } from './VisibilitySourceComponent';
 import {
     STATION_FOG_DETAIL_RADIUS,
     STATION_FOG_BLIP_RADIUS,
 } from '../data/constants';
+import { getCrewAtScout } from '../utils/crewUtils';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { World } from '../core/World';
 
@@ -47,6 +51,8 @@ export class StationRepairComponent extends Component {
 
         if (!resources.canAfford('materials', stationData.repairCost)) return false;
 
+        if (!this.hasEngineerNearby()) return false;
+
         resources.deduct('materials', stationData.repairCost);
         stationData.repairState = 'repairing';
 
@@ -54,9 +60,48 @@ export class StationRepairComponent extends Component {
         return true;
     }
 
+    private hasEngineerNearby(): boolean {
+        let world: World;
+        try {
+            world = ServiceLocator.get<World>('world');
+        } catch {
+            return false;
+        }
+
+        const stationTransform = this.entity.getComponent(TransformComponent);
+        if (!stationTransform) return false;
+
+        const sources = world.getEntitiesWithComponent(VisibilitySourceComponent);
+        for (const sourceEntity of sources) {
+            const vis = sourceEntity.getComponent(VisibilitySourceComponent);
+            const sourceTransform = sourceEntity.getComponent(TransformComponent);
+            if (!vis || !sourceTransform || !vis.active) continue;
+
+            const dx = sourceTransform.x - stationTransform.x;
+            const dy = sourceTransform.y - stationTransform.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist <= vis.effectiveDetailRadius) {
+                // Check if this source is a scout with an engineer
+                const scoutData = sourceEntity.getComponent(ScoutDataComponent);
+                if (scoutData) {
+                    const crew = getCrewAtScout(world, sourceEntity.id);
+                    for (const crewEntity of crew) {
+                        const member = crewEntity.getComponent(CrewMemberComponent);
+                        if (member && member.role === 'Engineer') return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     private onTurnAdvance(): void {
         const stationData = this.entity.getComponent(StationDataComponent);
         if (!stationData || stationData.repairState !== 'repairing') return;
+
+        // Pause repair if no engineer nearby
+        if (!this.hasEngineerNearby()) return;
 
         stationData.repairTurnsRemaining--;
 
