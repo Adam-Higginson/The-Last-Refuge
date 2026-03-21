@@ -43,6 +43,7 @@ export class ShipInfoUIComponent extends Component {
 
     private lastEngineState: string | null = null;
     private lastRepairTurns = -1;
+    private lastStationRepaired = false;
 
     private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
@@ -256,11 +257,22 @@ export class ShipInfoUIComponent extends Component {
         if (this.panelOpen && this.activeView === 'overview') {
             const engineData = this.entity.getComponent(EngineStateComponent);
             if (engineData) {
+                // Check if station_repaired flag changed (unlocks repair button)
+                let stationRepaired = false;
+                try {
+                    const world = ServiceLocator.get<World>('world');
+                    const gameState = world.getEntityByName('gameState');
+                    const eventState = gameState?.getComponent(EventStateComponent);
+                    stationRepaired = eventState?.hasFlag('station_repaired') ?? false;
+                } catch { /* ignore */ }
+
                 const stateChanged = this.lastEngineState !== engineData.engineState;
                 const turnsChanged = this.lastRepairTurns !== engineData.repairTurnsRemaining;
-                if (stateChanged || turnsChanged) {
+                const stationChanged = this.lastStationRepaired !== stationRepaired;
+                if (stateChanged || turnsChanged || stationChanged) {
                     this.lastEngineState = engineData.engineState;
                     this.lastRepairTurns = engineData.repairTurnsRemaining;
+                    this.lastStationRepaired = stationRepaired;
                     this.buildPanelHTML();
                 }
             }

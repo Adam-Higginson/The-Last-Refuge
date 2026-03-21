@@ -29,6 +29,8 @@ import { createStation } from './entities/createStation';
 import { CameraComponent } from './components/CameraComponent';
 import { CrewMemberComponent } from './components/CrewMemberComponent';
 import { TransformComponent } from './components/TransformComponent';
+import { ResourceComponent } from './components/ResourceComponent';
+import { EventStateComponent } from './components/EventStateComponent';
 import { AIService } from './services/AIService';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { NarrativeModal } from './ui/NarrativeModal';
@@ -182,6 +184,45 @@ function boot(): void {
 
     // Expose world for browser console debugging (dev only)
     (window as unknown as Record<string, unknown>).__debugWorld = world;
+
+    // Debug cheat helpers — call from browser console: __cheat.materials(200)
+    const gameStateEntity = world.getEntityByName('gameState');
+    const cheatResources = gameStateEntity?.getComponent(ResourceComponent);
+    const cheatEventState = gameStateEntity?.getComponent(EventStateComponent);
+    (window as unknown as Record<string, unknown>).__cheat = {
+        /** Add materials: __cheat.materials(100) */
+        materials: (amount: number): void => {
+            if (!cheatResources) return;
+            cheatResources.resources.materials.current += amount;
+            console.log(`Added ${amount} materials. Now: ${cheatResources.resources.materials.current}`);
+        },
+        /** Add food: __cheat.food(100) */
+        food: (amount: number): void => {
+            if (!cheatResources) return;
+            cheatResources.resources.food.current += amount;
+            console.log(`Added ${amount} food. Now: ${cheatResources.resources.food.current}`);
+        },
+        /** Add energy: __cheat.energy(100) */
+        energy: (amount: number): void => {
+            if (!cheatResources) return;
+            cheatResources.resources.energy.current += amount;
+            console.log(`Added ${amount} energy. Now: ${cheatResources.resources.energy.current}`);
+        },
+        /** Set a flag: __cheat.flag('station_repaired') */
+        flag: (name: string): void => {
+            cheatEventState?.addFlag(name);
+            console.log(`Flag set: ${name}`);
+        },
+        /** List all flags: __cheat.flags() */
+        flags: (): void => {
+            console.log('Flags:', cheatEventState ? [...cheatEventState.flags] : []);
+        },
+        /** Show all resources: __cheat.resources() */
+        resources: (): void => {
+            if (!cheatResources) return;
+            console.log(`Food: ${cheatResources.resources.food.current}, Materials: ${cheatResources.resources.materials.current}, Energy: ${cheatResources.resources.energy.current}`);
+        },
+    };
 
     // Start the game loop
     const loop = new GameLoop(world);
