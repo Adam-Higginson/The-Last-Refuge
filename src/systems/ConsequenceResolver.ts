@@ -19,6 +19,7 @@ import { GameEvents } from '../core/GameEvents';
 import { CrewMemberComponent } from '../components/CrewMemberComponent';
 import { ScoutDataComponent } from '../components/ScoutDataComponent';
 import { ResourceComponent } from '../components/ResourceComponent';
+import { IntelComponent } from '../components/IntelComponent';
 import { EventStateComponent } from '../components/EventStateComponent';
 import type { Consequence, OutcomeTier } from '../data/crisisCards';
 import type { World } from '../core/World';
@@ -379,15 +380,25 @@ function applyResourceChange(
 }
 
 // ---------------------------------------------------------------------------
-// Extiris intel (stub for PR 5)
+// Extiris intel gathering
 // ---------------------------------------------------------------------------
 
 function applyExtirisIntel(
     consequence: Extract<Consequence, { type: 'extiris_intel' }>,
-    _ctx: EncounterContext,
+    ctx: EncounterContext,
 ): void {
+    const gameState = ctx.world.getEntityByName('gameState');
+    const intel = gameState?.getComponent(IntelComponent);
+    if (intel) {
+        intel.fragments += consequence.fragments;
+        ctx.eventQueue.emit({
+            type: GameEvents.INTEL_GATHERED,
+            fragments: consequence.fragments,
+        });
+    }
+
     if (isDebugEnabled()) {
-        console.log(`[Combat] Intel gathered: ${consequence.fragments} fragment(s)`);
+        console.log(`[Combat] Intel gathered: ${consequence.fragments} fragment(s) (total: ${intel?.fragments ?? '?'})`);
     }
 }
 

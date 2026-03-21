@@ -9,6 +9,7 @@ import { FogOfWarComponent } from '../components/FogOfWarComponent';
 import { ResourceComponent } from '../components/ResourceComponent';
 import { EventStateComponent } from '../components/EventStateComponent';
 import { EventSummaryComponent } from '../components/EventSummaryComponent';
+import { IntelComponent } from '../components/IntelComponent';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -21,5 +22,6 @@ export function createGameState(world: World): Entity {
     entity.addComponent(new ResourceComponent());
     entity.addComponent(new EventStateComponent());
     entity.addComponent(new EventSummaryComponent());
+    entity.addComponent(new IntelComponent());
     return entity;
 }

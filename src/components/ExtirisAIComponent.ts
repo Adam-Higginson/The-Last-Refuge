@@ -21,11 +21,23 @@ import type { AIService, ExtirisStatePayload, ExtirisAIResponse } from '../servi
 
 type AIState = 'idle' | 'thinking';
 
+export interface CombatEncounterRecord {
+    turn: number;
+    tacticUsed: string;
+    crewSkillsUsed: string[];
+    outcome: string;
+    playerLosses: number;
+}
+
 export interface ExtirisMemory {
     lastSeenPlayerPos: { x: number; y: number; turn: number } | null;
     visitedPositions: Array<{ x: number; y: number; turn: number }>;
     knownPlanets: Array<{ name: string; x: number; y: number; lastVisitedTurn: number | null }>;
     reasoning: string;
+    /** History of combat encounters for adaptation learning. */
+    combatHistory: CombatEncounterRecord[];
+    /** Currently active adaptation tags applied to crisis cards. */
+    activeAdaptations: string[];
 }
 
 function isDebugEnabled(): boolean {
@@ -47,6 +59,8 @@ export class ExtirisAIComponent extends Component {
         visitedPositions: [],
         knownPlanets: [],
         reasoning: '',
+        combatHistory: [],
+        activeAdaptations: [],
     };
 
     aiState: AIState = 'idle';

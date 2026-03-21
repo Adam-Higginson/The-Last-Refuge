@@ -21,12 +21,15 @@ import { ExtirisRespawnComponent } from '../components/ExtirisRespawnComponent';
 import { GhostMarkerComponent } from '../components/GhostMarkerComponent';
 import { TransformComponent } from '../components/TransformComponent';
 import { RenderComponent } from '../components/RenderComponent';
-import { CRISIS_CARDS, resolveOutcomeTier, getOutcomeForTier } from '../data/crisisCards';
+import { ExtirisAIComponent } from '../components/ExtirisAIComponent';
+import { CRISIS_CARDS, resolveOutcomeTier, getOutcomeForTier, applyAdaptations } from '../data/crisisCards';
 import { getSkillScore, getRelationshipModifier } from '../utils/combatSkills';
 import { applyConsequences, processEndOfTurn } from './ConsequenceResolver';
 import type { CrisisCard, OutcomeTier } from '../data/crisisCards';
+import type { CombatEncounterRecord } from '../components/ExtirisAIComponent';
 import type { TurnEndEvent } from '../core/GameEvents';
 import type { EncounterTriggeredEvent } from '../core/GameEvents';
+import type { AIService } from '../services/AIService';
 import type { CrisisModal } from '../ui/CrisisModal';
 import type { NarrativeModal } from '../ui/NarrativeModal';
 import type { ModalLock } from '../services/ModalLock';
@@ -111,8 +114,17 @@ export class EncounterSystem extends System {
             // Get available crew for assignment
             const availableCrew = this.getAvailableCrew(event.scoutEntityId);
 
+            // Apply Extiris adaptations to the crisis card
+            const extirisEntity = this.world.getEntityByName('extiris');
+            const extirisAI = extirisEntity?.getComponent(ExtirisAIComponent);
+            const activeAdaptations = extirisAI?.memory.activeAdaptations ?? [];
+            const { modifiedCard, sacrificeDisabled } = applyAdaptations(card, activeAdaptations);
+
             if (isDebugEnabled()) {
                 console.log(`[Combat] Crisis: ${card.title} (difficulty ${card.difficulty})`);
+                if (activeAdaptations.length > 0) {
+                    console.log(`[Combat] Active adaptations: ${activeAdaptations.join(', ')}`);
+                }
                 console.log(`[Combat] Available crew: ${availableCrew.map(c => c.crew.fullName).join(', ')}`);
             }
 
@@ -129,19 +141,19 @@ export class EncounterSystem extends System {
 
             if (crisisModal) {
                 // Full CrisisModal UI — player assigns crew
-                const result = await crisisModal.show(card, availableCrew);
+                const result = await crisisModal.show(modifiedCard, availableCrew, sacrificeDisabled);
                 assignedCrewIds = [...result.assignments.values()];
-                sacrificeCrewId = result.sacrificeCrewId;
+                sacrificeCrewId = sacrificeDisabled ? null : result.sacrificeCrewId;
             } else {
                 // NarrativeModal fallback (if CrisisModal not registered)
-                assignedCrewIds = this.autoAssignCrew(card, availableCrew, event.pilotEntityId);
+                assignedCrewIds = this.autoAssignCrew(modifiedCard, availableCrew, event.pilotEntityId);
                 const narrativeModal = ServiceLocator.get<NarrativeModal>('narrativeModal');
                 const choiceLabels = this.buildFallbackChoices(resolveOutcomeTier(
-                    this.calculateTotal(card, assignedCrewIds) - card.difficulty,
+                    this.calculateTotal(modifiedCard, assignedCrewIds) - card.difficulty,
                 ));
                 await narrativeModal.show({
                     title: `\u26A0 ${card.title}`,
-                    body: `${card.description}\n\nYour crew responds.\nSkill total: ${this.calculateTotal(card, assignedCrewIds)} vs Difficulty: ${card.difficulty}`,
+                    body: `${card.description}\n\nYour crew responds.\nSkill total: ${this.calculateTotal(modifiedCard, assignedCrewIds)} vs Difficulty: ${card.difficulty}`,
                     choices: choiceLabels,
                 });
             }
@@ -183,7 +195,20 @@ export class EncounterSystem extends System {
                         // Remove any existing respawn component (shouldn't happen, but defensive)
                         const existing = gameState.getComponent(ExtirisRespawnComponent);
                         if (!existing) {
-                            gameState.addComponent(new ExtirisRespawnComponent(this.extirisDestructionCount));
+                            // Gather combat memory for respawn inheritance
+                            const combatHistory = extirisAI?.memory.combatHistory ?? [];
+                            const adaptations = extirisAI?.memory.activeAdaptations ?? [];
+                            // Include the pending record from this encounter
+                            const fullHistory = this.pendingCombatRecord
+                                ? [...combatHistory, this.pendingCombatRecord]
+                                : [...combatHistory];
+                            this.pendingCombatRecord = null;
+
+                            gameState.addComponent(new ExtirisRespawnComponent(
+                                this.extirisDestructionCount,
+                                fullHistory,
+                                adaptations,
+                            ));
                         }
                     }
                 }
@@ -200,13 +225,17 @@ export class EncounterSystem extends System {
                     tier: 'sacrifice',
                     margin: 0,
                     cardId: card.id,
+                    adaptationTag: card.adaptationTag,
                 });
+
+                // Record combat memory (Extiris is destroyed, store for respawn)
+                this.recordCombatMemory(card, 'catastrophe' as OutcomeTier, assignedCrewIds, true);
 
                 // Place ghost marker at scout's last position
                 this.createGhostMarker(event.scoutEntityId, sacCrew?.fullName ?? 'Unknown');
             } else {
                 // Normal resolution — calculate skill totals and resolve outcome
-                const total = this.calculateTotal(card, assignedCrewIds);
+                const total = this.calculateTotal(modifiedCard, assignedCrewIds);
                 const margin = total - card.difficulty;
                 const tier = resolveOutcomeTier(margin);
                 const outcome = getOutcomeForTier(card, tier);
@@ -247,7 +276,12 @@ export class EncounterSystem extends System {
                     tier,
                     margin,
                     cardId: card.id,
+                    adaptationTag: card.adaptationTag,
                 });
+
+                // Record combat memory and request adaptation (fire-and-forget)
+                this.recordCombatMemory(card, tier, assignedCrewIds, false);
+                this.requestAdaptationUpdate();
             }
 
             // Reset the trigger on the scout so future encounters can fire
@@ -266,6 +300,71 @@ export class EncounterSystem extends System {
                 modalLock.release();
             }
         }
+    }
+
+    private pendingCombatRecord: CombatEncounterRecord | null = null;
+
+    private recordCombatMemory(
+        card: CrisisCard,
+        tier: OutcomeTier,
+        assignedCrewIds: number[],
+        extirisDestroyed: boolean,
+    ): void {
+        const record: CombatEncounterRecord = {
+            turn: this.currentTurn,
+            tacticUsed: card.adaptationTag,
+            crewSkillsUsed: card.skillSlots.map(s => s.skill),
+            outcome: tier,
+            playerLosses: assignedCrewIds.filter(id => {
+                const e = this.world.getEntity(id);
+                const c = e?.getComponent(CrewMemberComponent);
+                return c && c.location.type === 'dead';
+            }).length,
+        };
+
+        if (extirisDestroyed) {
+            // Extiris is gone — store record for respawn to pick up
+            this.pendingCombatRecord = record;
+        } else {
+            const extiris = this.world.getEntityByName('extiris');
+            const ai = extiris?.getComponent(ExtirisAIComponent);
+            if (ai) {
+                ai.memory.combatHistory.push(record);
+                // Cap at 20 records
+                if (ai.memory.combatHistory.length > 20) {
+                    ai.memory.combatHistory.splice(0, ai.memory.combatHistory.length - 20);
+                }
+            }
+        }
+
+        if (isDebugEnabled()) {
+            console.log(`[Combat] Memory recorded: tactic=${record.tacticUsed}, outcome=${record.outcome}, losses=${record.playerLosses}`);
+        }
+    }
+
+    private requestAdaptationUpdate(): void {
+        const extiris = this.world.getEntityByName('extiris');
+        const ai = extiris?.getComponent(ExtirisAIComponent);
+        if (!ai) return;
+
+        const aiService = (() => {
+            try { return ServiceLocator.get<AIService>('aiService'); }
+            catch { return null; }
+        })();
+        if (!aiService) return;
+
+        // Fire-and-forget: adaptations apply to NEXT encounter
+        aiService.requestAdaptation(ai.memory.combatHistory, ai.memory.activeAdaptations)
+            .then(adaptations => {
+                if (!ai || ai.destroyed) return;
+                ai.memory.activeAdaptations = adaptations;
+                if (isDebugEnabled()) {
+                    console.log(`[Combat] Adaptations updated: ${adaptations.join(', ') || 'none'}`);
+                }
+            })
+            .catch(() => {
+                // Silent failure — deterministic fallback handled inside requestAdaptation
+            });
     }
 
     private createGhostMarker(scoutEntityId: number, pilotName: string): void {

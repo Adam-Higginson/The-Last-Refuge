@@ -101,6 +101,10 @@ export const GameEvents = {
     EXTIRIS_DESTROYED: 'extiris:destroyed',
     /** A new Extiris ship has respawned. */
     EXTIRIS_RESPAWN: 'extiris:respawn',
+    /** Intel fragments were gathered from an encounter. */
+    INTEL_GATHERED: 'intel:gathered',
+    /** Player spent intel to negate an Extiris adaptation. */
+    INTEL_COUNTERMEASURE: 'intel:countermeasure',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -351,6 +355,8 @@ export interface EncounterResolvedEvent extends GameEvent {
     margin: number;
     /** Crisis card ID that was drawn. */
     cardId: string;
+    /** Adaptation tag from the crisis card (for combat memory). */
+    adaptationTag: string;
 }
 
 export interface CrewDeathEvent extends GameEvent {
@@ -375,4 +381,16 @@ export interface ExtirisRespawnEvent extends GameEvent {
     type: typeof GameEvents.EXTIRIS_RESPAWN;
     /** How many times the Extiris has been destroyed total. */
     destructionCount: number;
+}
+
+export interface IntelGatheredEvent extends GameEvent {
+    type: typeof GameEvents.INTEL_GATHERED;
+    /** Number of fragments gathered in this event. */
+    fragments: number;
+}
+
+export interface IntelCountermeasureEvent extends GameEvent {
+    type: typeof GameEvents.INTEL_COUNTERMEASURE;
+    /** The adaptation tag that was negated. */
+    removedAdaptation: string;
 }

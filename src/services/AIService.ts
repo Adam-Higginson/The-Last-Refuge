@@ -88,6 +88,128 @@ export class AIService {
         }
     }
 
+    /**
+     * Request adaptation selection based on combat history.
+     * LLM selects from a closed set of valid tags; deterministic fallback
+     * activates when a tactic is used 3+ times.
+     */
+    async requestAdaptation(
+        combatHistory: Array<{ tacticUsed: string; outcome: string }>,
+        currentAdaptations: string[],
+        signal?: AbortSignal,
+    ): Promise<string[]> {
+        if (this.useDeterministic) {
+            return this.deterministicAdaptation(combatHistory, currentAdaptations);
+        }
+
+        try {
+            return await this.llmAdaptation(combatHistory, currentAdaptations, signal);
+        } catch (err) {
+            if (isDebugEnabled()) {
+                console.warn('[Extiris AI] Adaptation LLM call failed, using deterministic:', err);
+            }
+            return this.deterministicAdaptation(combatHistory, currentAdaptations);
+        }
+    }
+
+    private async llmAdaptation(
+        combatHistory: Array<{ tacticUsed: string; outcome: string }>,
+        currentAdaptations: string[],
+        signal?: AbortSignal,
+    ): Promise<string[]> {
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => timeoutController.abort(), LLM_TIMEOUT_MS);
+        const combinedSignal = signal
+            ? AbortSignal.any([signal, timeoutController.signal])
+            : timeoutController.signal;
+
+        try {
+            const prompt = `You are the Extiris collective intelligence. Based on combat encounters with humans, select up to 2 adaptations from this list:
+
+- sensor_resistance: Hardens sensors against jamming (counters engineering-based evasion)
+- probe_swarms: Deploys probe swarms that make terrain evasion harder (counters piloting-based hiding)
+- pattern_prediction: Predicts evasion patterns (counters piloting-based maneuvering)
+- debris_analysis: Analyzes debris to counter sacrifice tactics (blocks sacrifice auto-success)
+- signal_triangulation: Triangulates communications (counters leadership-based coordination)
+
+Current adaptations: ${currentAdaptations.length > 0 ? currentAdaptations.join(', ') : 'none'}
+Combat history: ${JSON.stringify(combatHistory.slice(-10))}
+
+Select adaptations that counter the humans' most-used tactics. Max 2 total.
+Respond with ONLY valid JSON: {"adaptations":["tag1","tag2"],"reasoning":"brief note"}`;
+
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': this.apiKey ?? '',
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-direct-browser-access': 'true',
+                },
+                body: JSON.stringify({
+                    model: this.model,
+                    max_tokens: 128,
+                    system: prompt,
+                    messages: [{ role: 'user', content: 'Select adaptations.' }],
+                }),
+                signal: combinedSignal,
+            });
+
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+            const data = await response.json() as { content?: Array<{ text?: string }> };
+            const text = data.content?.[0]?.text;
+            if (!text) throw new Error('Empty response');
+
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error('No JSON found');
+
+            const parsed = JSON.parse(jsonMatch[0]) as { adaptations?: unknown };
+            if (!Array.isArray(parsed.adaptations)) throw new Error('Invalid adaptations format');
+
+            // Validate against closed set and cap at 2
+            const validTags = new Set(['sensor_resistance', 'probe_swarms', 'pattern_prediction', 'debris_analysis', 'signal_triangulation']);
+            const validated = (parsed.adaptations as string[])
+                .filter(tag => typeof tag === 'string' && validTags.has(tag))
+                .slice(0, 2);
+
+            return validated;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    /**
+     * Deterministic adaptation: if any tactic is used 3+ times, apply counter.
+     * Maps: evasion → pattern_prediction, sensor_jam → sensor_resistance.
+     * Caps at 2 active adaptations.
+     */
+    deterministicAdaptation(
+        combatHistory: Array<{ tacticUsed: string }>,
+        currentAdaptations: string[],
+    ): string[] {
+        const tacticCounts = new Map<string, number>();
+        for (const record of combatHistory) {
+            tacticCounts.set(record.tacticUsed, (tacticCounts.get(record.tacticUsed) ?? 0) + 1);
+        }
+
+        const counterMap: Record<string, string> = {
+            evasion: 'pattern_prediction',
+            sensor_jam: 'sensor_resistance',
+        };
+
+        const adaptations = new Set(currentAdaptations);
+
+        for (const [tactic, count] of tacticCounts) {
+            if (count >= 3 && counterMap[tactic]) {
+                adaptations.add(counterMap[tactic]);
+            }
+        }
+
+        // Cap at 2
+        return [...adaptations].slice(0, 2);
+    }
+
     private async llmMove(
         payload: ExtirisStatePayload,
         signal?: AbortSignal,
