@@ -181,10 +181,18 @@ export function resolveHitTarget(
 
     if (hits.length === 0) return null;
 
-    // Sort: empty-slot vs empty-slot → nearest centre wins (prevent isometric
-    // hitRect overlap from stealing clicks between adjacent slots).
-    // Everything else → highest depth wins (occlusion: frontmost entity wins).
+    // Sort priority:
+    //   1. Colonists always beat empty-slots (you never want to click "through"
+    //      a visible person to select a build slot)
+    //   2. Empty-slot vs empty-slot → nearest centre wins (prevent isometric
+    //      hitRect overlap from stealing clicks between adjacent slots)
+    //   3. Everything else → highest depth wins (occlusion: building in front
+    //      of colonist, overlapping colonists)
+    const KIND_PRIORITY: Record<string, number> = { colonist: 2, building: 1, 'empty-slot': 0 };
     hits.sort((a, b) => {
+        const pa = KIND_PRIORITY[a.item.kind] ?? 0;
+        const pb = KIND_PRIORITY[b.item.kind] ?? 0;
+        if (pa !== pb) return pb - pa;
         const bothEmptySlots = a.item.kind === 'empty-slot' && b.item.kind === 'empty-slot';
         if (bothEmptySlots) return a.distSq - b.distSq;
         return b.item.depth - a.item.depth;
