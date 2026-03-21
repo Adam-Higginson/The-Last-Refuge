@@ -72,4 +72,7 @@ export interface ColonistVisualState {
     greetingTargetId: number | null;
     thoughtBubble: string | null;
     thoughtTimer: number;
+    morale: number;
+    celebrating: boolean;
+    celebrateTimer: number;
 }

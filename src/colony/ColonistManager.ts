@@ -105,6 +105,9 @@ export function initColonists(
             greetingTargetId: null,
             thoughtBubble: null,
             thoughtTimer: 0,
+            morale: 50,
+            celebrating: false,
+            celebrateTimer: 0,
         };
 
         sim.colonistStates.set(crew.id, state);
@@ -404,6 +407,7 @@ export function updateColonists(
 
         // Morale-driven walk speed: 0.7–1.0x based on morale
         if (crewData) {
+            colonist.morale = crewData.morale;
             let speed = 2.0 * (0.7 + 0.3 * crewData.morale / 100);
             // Emergency: colonists move sluggishly (down to 50% speed at full intensity)
             const emergency = emergencyIntensity ?? 0;
@@ -547,6 +551,15 @@ export function updateColonists(
                         break;
                     }
                 }
+            }
+        }
+
+        // --- Celebration timer ---
+        if (colonist.celebrating && colonist.celebrateTimer > 0) {
+            colonist.celebrateTimer -= dt;
+            if (colonist.celebrateTimer <= 0) {
+                colonist.celebrating = false;
+                colonist.celebrateTimer = 0;
             }
         }
 

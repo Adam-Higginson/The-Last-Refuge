@@ -16,6 +16,7 @@ import { AdaptiveQualityComponent } from './AdaptiveQualityComponent';
 import { RegionDataComponent } from './RegionDataComponent';
 import { getCrewAtColony } from '../utils/crewUtils';
 import type { ColonistVisualState } from '../colony/ColonistState';
+import type { BuildingCompletedEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 import type { World } from '../core/World';
 
@@ -29,6 +30,7 @@ export class ColonySimulationComponent extends Component {
 
     private eventQueue: EventQueue | null = null;
     private buildingHandler: EventHandler | null = null;
+    private celebrationHandler: EventHandler | null = null;
     private turnEndHandler: EventHandler | null = null;
     private initialized = false;
     private activeRegionId: number | null = null;
@@ -43,6 +45,37 @@ export class ColonySimulationComponent extends Component {
         this.eventQueue.on(GameEvents.BUILDING_STARTED, this.buildingHandler);
         this.eventQueue.on(GameEvents.BUILDING_COMPLETED, this.buildingHandler);
         this.eventQueue.on(GameEvents.BUILDING_DEMOLISHED, this.buildingHandler);
+
+        // Celebration: when a building completes, nearby colonists celebrate briefly
+        this.celebrationHandler = (event): void => {
+            if (!this.initialized || this.activeRegionId === null) return;
+            const completedEvent = event as BuildingCompletedEvent;
+            const regionData = this.entity.getComponent(RegionDataComponent);
+            if (!regionData) return;
+            const region = regionData.regions.find(r => r.id === this.activeRegionId);
+            if (!region) return;
+
+            // Find the building instance that just completed
+            const building = region.buildings.find(
+                b => b.typeId === completedEvent.buildingId && b.state === 'active',
+            );
+            if (!building) return;
+
+            const center = this.grid.getBuildingCenter(building.slotIndex);
+            if (!center) return;
+
+            // Mark colonists within Manhattan distance 2 as celebrating
+            for (const [_id, colonist] of this.colonistStates) {
+                if (colonist.sheltered) continue;
+                const dx = Math.abs(Math.round(colonist.gridX) - center.gridX);
+                const dy = Math.abs(Math.round(colonist.gridY) - center.gridY);
+                if (dx + dy <= 2) {
+                    colonist.celebrating = true;
+                    colonist.celebrateTimer = 1.5;
+                }
+            }
+        };
+        this.eventQueue.on(GameEvents.BUILDING_COMPLETED, this.celebrationHandler);
 
         // TURN_END: resolve morale + apply work efficiency modifier
         this.turnEndHandler = (): void => {
@@ -156,6 +189,9 @@ export class ColonySimulationComponent extends Component {
             this.eventQueue.off(GameEvents.BUILDING_STARTED, this.buildingHandler);
             this.eventQueue.off(GameEvents.BUILDING_COMPLETED, this.buildingHandler);
             this.eventQueue.off(GameEvents.BUILDING_DEMOLISHED, this.buildingHandler);
+        }
+        if (this.eventQueue && this.celebrationHandler) {
+            this.eventQueue.off(GameEvents.BUILDING_COMPLETED, this.celebrationHandler);
         }
         if (this.eventQueue && this.turnEndHandler) {
             this.eventQueue.off(GameEvents.TURN_END, this.turnEndHandler);
