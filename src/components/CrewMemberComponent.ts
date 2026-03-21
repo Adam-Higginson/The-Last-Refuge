@@ -28,6 +28,11 @@ export type PersonalityTrait =
 
 export type StatusEffect = 'Injured' | 'Traumatized';
 
+export interface CombatLogEntry {
+    turn: number;
+    text: string;
+}
+
 /** @deprecated Use PersonalityTrait instead. Kept for backward compatibility during migration. */
 export type Trait = PersonalityTrait;
 
@@ -43,6 +48,12 @@ export class CrewMemberComponent extends Component {
     location: CrewLocation;
     isLeader: boolean;
     isCaptain: boolean;
+    /** Number of encounters this crew member has survived. */
+    encountersSurvived: number;
+    /** Turns remaining on injury (-2 skill penalty). 0 = not injured. */
+    injuryTurnsRemaining: number;
+    /** Per-encounter combat log entries displayed on crew detail panel. */
+    combatLog: CombatLogEntry[];
 
     constructor(
         fullName: string,
@@ -64,5 +75,8 @@ export class CrewMemberComponent extends Component {
         this.location = { type: 'ship' };
         this.isLeader = false;
         this.isCaptain = false;
+        this.encountersSurvived = 0;
+        this.injuryTurnsRemaining = 0;
+        this.combatLog = [];
     }
 }

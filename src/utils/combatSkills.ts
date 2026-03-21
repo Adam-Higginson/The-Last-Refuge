@@ -91,9 +91,16 @@ export function getTraitModifiers(traits: readonly PersonalityTrait[], skill: Sk
     return modifier;
 }
 
+/** Skill penalty when crew has 'Injured' status effect. */
+const INJURY_PENALTY = -2;
+
+/** Max experience bonus from encounters survived. */
+const MAX_EXP_BONUS = 3;
+
 /**
  * Get the final skill score for a crew member.
- * Score = base (role + entity seed) + trait modifiers + leader bonus.
+ * Score = base (role + entity seed) + trait modifiers + leader bonus
+ *         + experience bonus - injury penalty.
  * Minimum score is 0.
  */
 export function getSkillScore(
@@ -104,8 +111,10 @@ export function getSkillScore(
     const base = getBaseScore(crew.role, skill, entityId);
     const traitMod = getTraitModifiers(crew.traits, skill);
     const leaderMod = crew.isLeader && skill === 'leadership' ? 3 : 0;
+    const injuryMod = crew.statusEffects.includes('Injured') ? INJURY_PENALTY : 0;
+    const expBonus = Math.min(crew.encountersSurvived, MAX_EXP_BONUS);
 
-    return Math.max(0, base + traitMod + leaderMod);
+    return Math.max(0, base + traitMod + leaderMod + injuryMod + expBonus);
 }
 
 /**
