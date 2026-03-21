@@ -94,3 +94,19 @@ export const STATION_FOG_DETAIL_RADIUS = 400;
 
 /** Station blip visibility radius when repaired (world units). */
 export const STATION_FOG_BLIP_RADIUS = 800;
+
+// ─── Engine repair constants ────────────────────────────────────────
+/** Turns required to repair the ship's engines. */
+export const ENGINE_REPAIR_TURNS = 10;
+
+/** Material cost to begin engine repair. */
+export const ENGINE_REPAIR_COST = 60;
+
+/** Ship orbit radius around New Terra when grounded (world units). */
+export const SHIP_ORBIT_RADIUS = 150;
+
+/** Ship orbit speed around New Terra (rad/turn). Very slow, just follows the planet. */
+export const SHIP_ORBIT_SPEED = 0.03;
+
+/** Ship starting orbital angle around New Terra (radians). */
+export const SHIP_START_ANGLE = 0.5;

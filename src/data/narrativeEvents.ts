@@ -54,7 +54,9 @@ The Extiris do not negotiate. They do not communicate. They arrive, and what was
 
 But your sensors have found something: an uncharted star system, and a world that might sustain life.
 
-Fifty survivors. One ship. Find a way to endure — and perhaps, one day, to understand what the Extiris truly are.`,
+Fifty survivors. One ship. Find a way to endure — and perhaps, one day, to understand what the Extiris truly are.
+
+The emergency hyperjump tore through the drive core. Your engines are offline — the ESV-7 isn't going anywhere until they're repaired. Your scouts are your only eyes out here.`,
         category: 'story',
         condition: (ctx): boolean => ctx.turn === 1,
         once: true,
@@ -164,6 +166,34 @@ Long-range sensors detect a single vessel entering the system from deep space �
 It is searching.`,
         category: 'story',
         condition: (): boolean => false,
+        once: true,
+    },
+
+    // --- Event 8: Engine diagnostic (story, flag-gated) ---
+    {
+        id: 'engine_diagnostic',
+        title: 'DRIVE CORE ANALYSIS',
+        body: `The Keth relay's diagnostic systems have completed a full scan of the ESV-7's drive core. The damage from your emergency hyperjump is extensive — but not irreparable.
+
+Your chief engineer reports a repair path: with enough materials and time, the engines can be brought back online. It won't be quick, and it won't be cheap.
+
+But it means freedom.`,
+        category: 'story',
+        condition: (ctx): boolean => ctx.flags.has('station_repaired') && !ctx.flags.has('engine_repaired'),
+        once: true,
+    },
+
+    // --- Event 9: Engines online (story, flag-gated) ---
+    {
+        id: 'engines_online',
+        title: 'ENGINES ONLINE',
+        body: `The drive core hums to life — a deep, resonant vibration that travels through every bulkhead of the ESV-7. Lights flicker, then hold steady. The navigation console illuminates for the first time since the jump.
+
+Commander Vael places a hand on the helm. "We're mobile again. For the first time since we stole this ship... we can choose where we go."
+
+The stars are no longer a cage. They're a map.`,
+        category: 'story',
+        condition: (ctx): boolean => ctx.flags.has('engine_repaired'),
         once: true,
     },
 ];
