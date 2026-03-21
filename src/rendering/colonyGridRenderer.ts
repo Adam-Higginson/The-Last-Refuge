@@ -19,7 +19,7 @@ export function drawGridTiles(
     centreY: number,
 ): void {
     ctx.save();
-    ctx.globalAlpha = 0.06;
+    ctx.globalAlpha = 0.03;
 
     for (let gy = 0; gy < COLONY_GRID_SIZE; gy++) {
         for (let gx = 0; gx < COLONY_GRID_SIZE; gx++) {
@@ -30,7 +30,7 @@ export function drawGridTiles(
             if (cell.type === 'empty') continue;
 
             const screen = gridToScreen(gx, gy, centreX, centreY);
-            drawIsometricTile(ctx, screen.x, screen.y, 'rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)');
+            drawIsometricTile(ctx, screen.x, screen.y, 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.12)');
         }
     }
 
@@ -53,11 +53,11 @@ export function drawPathTiles(
 
             if (cell.type === 'path' || cell.type === 'door') {
                 const screen = gridToScreen(gx, gy, centreX, centreY);
-                ctx.globalAlpha = 0.35;
-                drawIsometricTile(ctx, screen.x, screen.y, 'rgba(120, 100, 70, 0.5)');
+                ctx.globalAlpha = 0.12;
+                drawIsometricTile(ctx, screen.x, screen.y, 'rgba(90, 80, 60, 0.4)');
                 // Subtle dirt texture line
-                ctx.globalAlpha = 0.15;
-                drawIsometricTile(ctx, screen.x, screen.y, 'rgba(90, 75, 50, 0.3)', 'rgba(140, 120, 80, 0.4)');
+                ctx.globalAlpha = 0.06;
+                drawIsometricTile(ctx, screen.x, screen.y, 'rgba(70, 60, 45, 0.3)', 'rgba(110, 95, 65, 0.2)');
             }
         }
     }
