@@ -20,6 +20,7 @@ export function drawBuilding(
     state: BuildingState,
     t: number,
     gameHour?: number,
+    emergencyIntensity?: number,
 ): void {
     if (state === 'constructing') {
         drawConstructionScaffolding(ctx, x, y, t);
@@ -32,11 +33,12 @@ export function drawBuilding(
     if (state === 'idle' || state === 'disabled') ctx.globalAlpha = 0.4;
     const drawFn = BUILDING_DRAW_FUNCTIONS[buildingId];
     if (drawFn) drawFn(ctx, x, y, t, dayNight);
+    drawMakeshiftOverlay(ctx, buildingId, x, y);
     ctx.restore();
 
     // Draw building lights at dusk/night
     if (dayNight.ambientLight < 0.5 && state === 'active') {
-        drawBuildingLights(ctx, buildingId, x, y, t, dayNight);
+        drawBuildingLights(ctx, buildingId, x, y, t, dayNight, emergencyIntensity ?? 0);
     }
 }
 
@@ -285,6 +287,123 @@ function drawHydroponicsBay(ctx: CanvasRenderingContext2D, x: number, y: number,
     ctx.fill();
 }
 
+// --- Makeshift survival-camp overlays (salvaged hull plating, tarps, patchwork) ---
+
+function drawMakeshiftOverlay(
+    ctx: CanvasRenderingContext2D,
+    buildingId: BuildingId,
+    x: number,
+    y: number,
+): void {
+    ctx.save();
+
+    // --- Common overlays for all buildings ---
+
+    // Patchwork seam lines (irregular thin lines suggesting welded-together panels)
+    ctx.strokeStyle = 'rgba(80, 70, 60, 0.3)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x - HW * 0.3, y - 18);
+    ctx.lineTo(x + HW * 0.15, y - 10);
+    ctx.moveTo(x - HW * 0.1, y - 25);
+    ctx.lineTo(x + HW * 0.25, y - 15);
+    ctx.moveTo(x - HW * 0.4, y - 5);
+    ctx.lineTo(x - HW * 0.05, y - 2);
+    ctx.stroke();
+
+    // Repurposed hull plating patch (small metallic rectangle on one side)
+    ctx.fillStyle = '#7a7a80';
+    ctx.globalAlpha = 0.15;
+    ctx.fillRect(x + HW * 0.15, y - 20, 8, 6);
+    ctx.globalAlpha = 1;
+
+    // --- Per-building-type details ---
+
+    if (buildingId === 'shelter') {
+        // Tarp triangle draped over the roof
+        ctx.fillStyle = '#5a5040';
+        ctx.globalAlpha = 0.25;
+        ctx.beginPath();
+        ctx.moveTo(x - HW * 0.35, y - 32);
+        ctx.lineTo(x + HW * 0.1, y - 38);
+        ctx.lineTo(x - HW * 0.05, y - 24);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+    } else if (buildingId === 'farm') {
+        // Rough fence posts at edges
+        ctx.strokeStyle = 'rgba(90, 70, 50, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x - HW * 0.6, y + 2);
+        ctx.lineTo(x - HW * 0.6, y - 8);
+        ctx.moveTo(x + HW * 0.6, y + 2);
+        ctx.lineTo(x + HW * 0.6, y - 8);
+        ctx.moveTo(x - HW * 0.6, y - 4);
+        ctx.lineTo(x + HW * 0.6, y - 4);
+        ctx.stroke();
+
+    } else if (buildingId === 'workshop') {
+        // Scorch marks near chimney area
+        ctx.fillStyle = 'rgba(30, 20, 10, 0.15)';
+        ctx.beginPath();
+        ctx.ellipse(x + HW * 0.25, y - 30, 7, 4, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+
+    } else if (buildingId === 'storage_depot') {
+        // Stenciled "SUPPLIES" text
+        ctx.globalAlpha = 0.1;
+        ctx.fillStyle = '#e0e0e0';
+        ctx.font = '5px monospace';
+        ctx.fillText('SUPPLIES', x - HW * 0.35, y + 2);
+        ctx.globalAlpha = 1;
+
+    } else if (buildingId === 'med_bay') {
+        // Red cross patch (small + made of two thin rects)
+        ctx.fillStyle = 'rgba(180, 50, 50, 0.2)';
+        ctx.fillRect(x + HW * 0.2 - 1, y - 14, 3, 8);
+        ctx.fillRect(x + HW * 0.2 - 3, y - 11, 7, 3);
+
+    } else if (buildingId === 'barracks') {
+        // Reinforcement struts along edges
+        ctx.strokeStyle = 'rgba(40, 40, 40, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x - HW * 0.5, y - 20);
+        ctx.lineTo(x - HW * 0.5, y + 4);
+        ctx.moveTo(x + HW * 0.5, y - 20);
+        ctx.lineTo(x + HW * 0.5, y + 4);
+        ctx.stroke();
+
+    } else if (buildingId === 'solar_array') {
+        // Tape / repair marks across panels
+        ctx.strokeStyle = 'rgba(180, 170, 140, 0.2)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(x - HW * 0.3, y - 28);
+        ctx.lineTo(x + HW * 0.1, y - 16);
+        ctx.moveTo(x, y - 27);
+        ctx.lineTo(x + HW * 0.4, y - 17);
+        ctx.stroke();
+
+    } else if (buildingId === 'hydroponics_bay') {
+        // Condensation drips (thin vertical lines with blue tint)
+        ctx.strokeStyle = 'rgba(120, 180, 220, 0.15)';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x - 8, y - 30);
+        ctx.lineTo(x - 8, y - 18);
+        ctx.moveTo(x + 3, y - 34);
+        ctx.lineTo(x + 3, y - 20);
+        ctx.moveTo(x + 10, y - 28);
+        ctx.lineTo(x + 10, y - 17);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
 // --- Building lights (drawn after the building, visible at dusk/night) ---
 
 function drawBuildingLights(
@@ -294,9 +413,20 @@ function drawBuildingLights(
     y: number,
     t: number,
     dayNight: DayNightState,
+    emergencyIntensity: number,
 ): void {
     const lightIntensity = Math.max(0, 1 - dayNight.ambientLight * 2);
     if (lightIntensity <= 0) return;
+
+    // During emergency, lights flicker erratically — irregular on/off pattern
+    if (emergencyIntensity > 0) {
+        // Use multiple overlapping sine waves at different frequencies for irregular flicker
+        const hash = buildingId.length * 13 + x * 7 + y * 3;
+        const erratic = Math.sin(t / 120 + hash) * Math.sin(t / 73 + hash * 2.3) * Math.sin(t / 47 + hash * 0.7);
+        // erratic ranges roughly -1 to 1; during emergency, lights cut out when erratic < threshold
+        const cutThreshold = -0.3 + emergencyIntensity * 0.6; // at full emergency, cuts out more often
+        if (erratic < cutThreshold) return; // light is "off" this frame
+    }
 
     ctx.save();
     ctx.globalAlpha = lightIntensity;
