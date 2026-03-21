@@ -16,9 +16,26 @@ export class ScoutInfoUIComponent extends Component {
     private panel: HTMLElement | null = null;
     private panelOpen = false;
     private lastScoutEntityId: number | null = null;
+    private onKeyDown: ((e: KeyboardEvent) => void) | null = null;
 
     init(): void {
         this.panel = document.getElementById('scout-info-panel');
+
+        // Escape: deselect scout when panel is open
+        this.onKeyDown = (e: KeyboardEvent): void => {
+            if (e.code === 'Escape' && this.panelOpen) {
+                const world = ServiceLocator.get<World>('world');
+                const scouts = world.getEntitiesWithComponent(ScoutDataComponent);
+                for (const scout of scouts) {
+                    const sel = scout.getComponent(SelectableComponent);
+                    if (sel?.selected) {
+                        sel.selected = false;
+                        break;
+                    }
+                }
+            }
+        };
+        window.addEventListener('keydown', this.onKeyDown);
     }
 
     update(_dt: number): void {
@@ -133,6 +150,9 @@ export class ScoutInfoUIComponent extends Component {
     }
 
     destroy(): void {
-        // Event listeners cleaned up by DOM removal
+        if (this.onKeyDown) {
+            window.removeEventListener('keydown', this.onKeyDown);
+            this.onKeyDown = null;
+        }
     }
 }
