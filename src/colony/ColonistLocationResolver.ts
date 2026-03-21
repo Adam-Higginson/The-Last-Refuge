@@ -19,9 +19,11 @@ export interface ResolvedLocation {
 /**
  * Spread colonists to nearby walkable cells around a target, avoiding pixel-stacking.
  * Returns a deterministic cell based on entityId so each colonist gets a unique spot.
+ * When occupiedPositions is provided, filters out already-occupied cells first.
  */
 export function spreadAroundCell(
     grid: ColonyGrid, targetX: number, targetY: number, entityId: number,
+    occupiedPositions?: Set<string>,
 ): { gridX: number; gridY: number } {
     const walkable: { gridX: number; gridY: number }[] = [];
     for (let dy = -2; dy <= 2; dy++) {
@@ -36,6 +38,16 @@ export function spreadAroundCell(
         }
     }
     if (walkable.length === 0) return { gridX: targetX, gridY: targetY };
+
+    // Filter out occupied cells when tracking is enabled
+    if (occupiedPositions) {
+        const available = walkable.filter(c => !occupiedPositions.has(`${c.gridX},${c.gridY}`));
+        if (available.length > 0) {
+            return available[entityId % available.length];
+        }
+        // All cells occupied — fall back to deterministic pick
+    }
+
     return walkable[entityId % walkable.length];
 }
 
@@ -49,6 +61,7 @@ function spreadWithRelationships(
     entityId: number,
     sim: ColonySimulationComponent,
     world: World,
+    occupiedPositions?: Set<string>,
 ): { gridX: number; gridY: number } {
     const walkable: { gridX: number; gridY: number }[] = [];
     for (let dy = -2; dy <= 2; dy++) {
@@ -64,14 +77,21 @@ function spreadWithRelationships(
     }
     if (walkable.length === 0) return { gridX: targetX, gridY: targetY };
 
+    // Filter out occupied cells when tracking is enabled
+    const candidates = occupiedPositions
+        ? walkable.filter(c => !occupiedPositions.has(`${c.gridX},${c.gridY}`))
+        : walkable;
+    // Use filtered candidates if any are available, otherwise fall back to all walkable
+    const pool = candidates.length > 0 ? candidates : walkable;
+
     const entity = world.getEntity(entityId);
     const crew = entity?.getComponent(CrewMemberComponent);
     if (!crew || crew.relationships.length === 0) {
-        return walkable[entityId % walkable.length];
+        return pool[entityId % pool.length];
     }
 
-    // Score each walkable cell based on proximity to friends/partners and distance from rivals
-    const scores = walkable.map(cell => {
+    // Score each cell based on proximity to friends/partners and distance from rivals
+    const scores = pool.map(cell => {
         let score = 0;
         for (const rel of crew.relationships) {
             const other = sim.colonistStates.get(rel.targetId);
@@ -99,7 +119,7 @@ function spreadWithRelationships(
             bestIdx = i;
         }
     }
-    return walkable[bestIdx];
+    return pool[bestIdx];
 }
 
 /**
@@ -146,6 +166,7 @@ export function resolveLocation(
     buildings: BuildingInstance[],
     entityId: number,
     world?: World,
+    occupiedPositions?: Set<string>,
 ): ResolvedLocation | null {
     if (location === 'social_area') {
         if (!sim.campfireCell) return null;
@@ -167,22 +188,22 @@ export function resolveLocation(
 
         // Relationship-aware spreading at social area
         if (world) {
-            const spread = spreadWithRelationships(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId, sim, world);
+            const spread = spreadWithRelationships(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId, sim, world, occupiedPositions);
             return { ...spread, buildingSlot: null, buildingTypeId: null };
         }
 
-        const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId);
+        const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId, occupiedPositions);
         return { ...spread, buildingSlot: null, buildingTypeId: null };
     }
 
     if (location === 'shelter') {
         const shelterDoor = sim.grid.getDoors().find(d => d.slotIndex === 0);
         if (shelterDoor) {
-            const spread = spreadAroundCell(sim.grid, shelterDoor.gridX, shelterDoor.gridY, entityId);
+            const spread = spreadAroundCell(sim.grid, shelterDoor.gridX, shelterDoor.gridY, entityId, occupiedPositions);
             return { gridX: spread.gridX, gridY: spread.gridY, buildingSlot: 0, buildingTypeId: 'shelter' };
         }
         if (!sim.campfireCell) return null;
-        const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId);
+        const spread = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId, occupiedPositions);
         return { ...spread, buildingSlot: null, buildingTypeId: null };
     }
 
@@ -205,10 +226,10 @@ export function resolveLocation(
             if (door) {
                 // Mentor/protege: spread protege near mentor if they share a building
                 if (world) {
-                    const spread = spreadWithRelationships(sim.grid, door.gridX, door.gridY, entityId, sim, world);
+                    const spread = spreadWithRelationships(sim.grid, door.gridX, door.gridY, entityId, sim, world, occupiedPositions);
                     return { ...spread, buildingSlot: building.slotIndex, buildingTypeId: building.typeId };
                 }
-                const spread = spreadAroundCell(sim.grid, door.gridX, door.gridY, entityId);
+                const spread = spreadAroundCell(sim.grid, door.gridX, door.gridY, entityId, occupiedPositions);
                 return { ...spread, buildingSlot: building.slotIndex, buildingTypeId: building.typeId };
             }
 
@@ -219,7 +240,7 @@ export function resolveLocation(
 
         // No building for this role — go to campfire
         if (!sim.campfireCell) return null;
-        const fallback = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId);
+        const fallback = spreadAroundCell(sim.grid, sim.campfireCell.gridX, sim.campfireCell.gridY, entityId, occupiedPositions);
         return { ...fallback, buildingSlot: null, buildingTypeId: null };
     }
 

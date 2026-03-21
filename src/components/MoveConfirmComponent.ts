@@ -11,6 +11,7 @@ import { CameraComponent } from './CameraComponent';
 import { SelectableComponent } from './SelectableComponent';
 import { TransformComponent } from './TransformComponent';
 import { MovementComponent } from './MovementComponent';
+import { EngineStateComponent } from './EngineStateComponent';
 import type { World } from '../core/World';
 import type { RightClickEvent, EntityClickEvent } from '../core/GameEvents';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
@@ -59,6 +60,10 @@ export class MoveConfirmComponent extends Component {
 
     /** Called by InputSystem when a click/tap lands on empty space while entity is selected */
     handleTap(worldX: number, worldY: number): void {
+        // Block move confirmation when engines are offline
+        const engineState = this.entity.getComponent(EngineStateComponent);
+        if (engineState && engineState.engineState !== 'online') return;
+
         const movement = this.entity.getComponent(MovementComponent);
         if (!movement || movement.moving) return;
 
@@ -100,6 +105,13 @@ export class MoveConfirmComponent extends Component {
     update(_dt: number): void {
         const selectable = this.entity.getComponent(SelectableComponent);
         if (!selectable?.selected) {
+            this.clear();
+            return;
+        }
+
+        // Clear pending move if engines are offline
+        const engineState = this.entity.getComponent(EngineStateComponent);
+        if (engineState && engineState.engineState !== 'online') {
             this.clear();
             return;
         }

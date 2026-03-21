@@ -159,4 +159,39 @@ describe('narrativeEvents', () => {
         const arrival = NARRATIVE_EVENTS.find(e => e.id === 'extiris_arrival');
         expect(arrival?.category).toBe('story');
     });
+
+    // --- engine_diagnostic ---
+
+    it('engine_diagnostic requires station_repaired flag and NOT engine_repaired', () => {
+        const diag = NARRATIVE_EVENTS.find(e => e.id === 'engine_diagnostic');
+        expect(diag).toBeDefined();
+        expect(diag?.condition(makeContext({ flags: new Set() }))).toBe(false);
+        expect(diag?.condition(makeContext({ flags: new Set(['station_repaired']) }))).toBe(true);
+    });
+
+    it('engine_diagnostic suppressed when engine_repaired flag is set', () => {
+        const diag = NARRATIVE_EVENTS.find(e => e.id === 'engine_diagnostic');
+        expect(diag?.condition(makeContext({ flags: new Set(['station_repaired', 'engine_repaired']) }))).toBe(false);
+    });
+
+    it('engine_diagnostic is a story event with no choices', () => {
+        const diag = NARRATIVE_EVENTS.find(e => e.id === 'engine_diagnostic');
+        expect(diag?.category).toBe('story');
+        expect(diag?.choices).toBeUndefined();
+    });
+
+    // --- engines_online ---
+
+    it('engines_online requires engine_repaired flag', () => {
+        const online = NARRATIVE_EVENTS.find(e => e.id === 'engines_online');
+        expect(online).toBeDefined();
+        expect(online?.condition(makeContext({ flags: new Set() }))).toBe(false);
+        expect(online?.condition(makeContext({ flags: new Set(['engine_repaired']) }))).toBe(true);
+    });
+
+    it('engines_online is a story event with no choices', () => {
+        const online = NARRATIVE_EVENTS.find(e => e.id === 'engines_online');
+        expect(online?.category).toBe('story');
+        expect(online?.choices).toBeUndefined();
+    });
 });

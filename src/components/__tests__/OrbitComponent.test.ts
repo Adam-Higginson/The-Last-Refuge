@@ -275,4 +275,55 @@ describe('OrbitComponent', () => {
         expect(orbit.centreX).toBe(50);
         expect(orbit.centreY).toBe(60);
     });
+
+    it('snaps angle immediately when skipAnimations is true', () => {
+        const entity = world.createEntity('orbiter');
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
+        entity.addComponent(new TransformComponent(350, 0));
+        orbit.init();
+
+        eventQueue.emit({ type: GameEvents.TURN_END, skipAnimations: true });
+        eventQueue.drain();
+
+        expect(orbit.angle).toBeCloseTo(0.15);
+        expect(orbit.animating).toBe(false);
+    });
+
+    it('does not emit TURN_BLOCK when skipAnimations is true', () => {
+        const entity = world.createEntity('orbiter');
+        const orbit = entity.addComponent(new OrbitComponent(0, 0, 350, 0.15));
+        entity.addComponent(new TransformComponent(350, 0));
+        orbit.init();
+
+        const blocked: Array<{ type: string; key?: string }> = [];
+        eventQueue.on(GameEvents.TURN_BLOCK, (event) => {
+            blocked.push(event as { type: string; key?: string });
+        });
+
+        eventQueue.emit({ type: GameEvents.TURN_END, skipAnimations: true });
+        eventQueue.drain();
+
+        expect(blocked).toHaveLength(0);
+    });
+
+    it('parent tracking still works with skipAnimations', () => {
+        const parent = world.createEntity('parent');
+        parent.addComponent(new TransformComponent(100, 200));
+
+        const child = world.createEntity('child');
+        const orbit = child.addComponent(new OrbitComponent(100, 200, 50, 0.1));
+        child.addComponent(new TransformComponent(0, 0));
+        orbit.parentEntityId = parent.id;
+        orbit.init();
+
+        eventQueue.emit({ type: GameEvents.TURN_END, skipAnimations: true });
+        eventQueue.drain();
+
+        // Run update to trigger parent tracking
+        orbit.update(1 / 60);
+
+        expect(orbit.centreX).toBe(100);
+        expect(orbit.centreY).toBe(200);
+        expect(orbit.angle).toBeCloseTo(0.1);
+    });
 });

@@ -12,10 +12,12 @@ import { SelectableComponent } from '../components/SelectableComponent';
 import { ShipInfoUIComponent } from '../components/ShipInfoUIComponent';
 import { VisibilitySourceComponent } from '../components/VisibilitySourceComponent';
 import { CameraComponent } from '../components/CameraComponent';
+import { OrbitComponent } from '../components/OrbitComponent';
+import { EngineStateComponent } from '../components/EngineStateComponent';
+import { EngineRepairComponent } from '../components/EngineRepairComponent';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { drawMovementRangeDisc } from '../utils/drawMovementRangeDisc';
-import { getPlanetConfig } from '../data/planets';
-import { FOG_DETAIL_RADIUS, FOG_BLIP_RADIUS } from '../data/constants';
+import { FOG_DETAIL_RADIUS, FOG_BLIP_RADIUS, SHIP_ORBIT_RADIUS, SHIP_ORBIT_SPEED, SHIP_START_ANGLE } from '../data/constants';
 import type { World } from '../core/World';
 import type { Entity } from '../core/Entity';
 
@@ -45,6 +47,8 @@ function drawShip(
     const t = performance.now();
     const selectable = entity.getComponent(SelectableComponent);
     const movement = entity.getComponent(MovementComponent);
+    const engineState = entity.getComponent(EngineStateComponent);
+    const engineStatus = engineState?.engineState ?? 'online'; // default online for backwards compat
     const hovered = selectable?.hovered ?? false;
     const selected = selectable?.selected ?? false;
 
@@ -156,8 +160,8 @@ function drawShip(
         moveConfirm.renderMarker(ctx, x, y, movement.budgetRemaining);
     }
 
-    // --- Movement range disc (visible when selected) ---
-    if (selected && movement) {
+    // --- Movement range disc (visible when selected, engines online) ---
+    if (selected && movement && engineStatus === 'online') {
         drawMovementRangeDisc(ctx, x, y, movement.displayBudget, movement.budgetMax);
     }
 
@@ -233,18 +237,47 @@ function drawShip(
     ctx.rotate(angle);
 
     // --- Engine glow (at the rear of the ship) ---
-    const enginePulse = 0.7 + 0.3 * Math.sin(t / 300);
-    const engineGlow = ctx.createRadialGradient(
-        -HULL_LENGTH - 8, 0, 0,
-        -HULL_LENGTH - 8, 0, 48,
-    );
-    engineGlow.addColorStop(0, `rgba(255, 160, 40, ${(0.6 * enginePulse).toFixed(3)})`);
-    engineGlow.addColorStop(0.5, `rgba(255, 100, 20, ${(0.2 * enginePulse).toFixed(3)})`);
-    engineGlow.addColorStop(1, 'rgba(255, 80, 0, 0)');
-    ctx.fillStyle = engineGlow;
-    ctx.beginPath();
-    ctx.arc(-HULL_LENGTH - 8, 0, 48, 0, Math.PI * 2);
-    ctx.fill();
+    if (engineStatus === 'offline') {
+        // Faint smoke when engines are offline
+        const smokeGlow = ctx.createRadialGradient(
+            -HULL_LENGTH - 8, 0, 0,
+            -HULL_LENGTH - 8, 0, 32,
+        );
+        smokeGlow.addColorStop(0, 'rgba(80, 60, 40, 0.15)');
+        smokeGlow.addColorStop(1, 'rgba(80, 60, 40, 0)');
+        ctx.fillStyle = smokeGlow;
+        ctx.beginPath();
+        ctx.arc(-HULL_LENGTH - 8, 0, 32, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (engineStatus === 'repairing') {
+        // Flickering engine glow — faster pulse, lower alpha
+        const enginePulse = 0.5 + 0.5 * Math.sin(t / 150);
+        const engineGlow = ctx.createRadialGradient(
+            -HULL_LENGTH - 8, 0, 0,
+            -HULL_LENGTH - 8, 0, 48,
+        );
+        engineGlow.addColorStop(0, `rgba(255, 160, 40, ${(0.3 + 0.2 * enginePulse).toFixed(3)})`);
+        engineGlow.addColorStop(0.5, `rgba(255, 100, 20, ${(0.1 * enginePulse).toFixed(3)})`);
+        engineGlow.addColorStop(1, 'rgba(255, 80, 0, 0)');
+        ctx.fillStyle = engineGlow;
+        ctx.beginPath();
+        ctx.arc(-HULL_LENGTH - 8, 0, 48, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        // Full engine glow when online
+        const enginePulse = 0.7 + 0.3 * Math.sin(t / 300);
+        const engineGlow = ctx.createRadialGradient(
+            -HULL_LENGTH - 8, 0, 0,
+            -HULL_LENGTH - 8, 0, 48,
+        );
+        engineGlow.addColorStop(0, `rgba(255, 160, 40, ${(0.6 * enginePulse).toFixed(3)})`);
+        engineGlow.addColorStop(0.5, `rgba(255, 100, 20, ${(0.2 * enginePulse).toFixed(3)})`);
+        engineGlow.addColorStop(1, 'rgba(255, 80, 0, 0)');
+        ctx.fillStyle = engineGlow;
+        ctx.beginPath();
+        ctx.arc(-HULL_LENGTH - 8, 0, 48, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
     // --- Hull (angular alien silhouette) ---
     // 6-vertex asymmetric polygon for an alien feel
@@ -288,27 +321,65 @@ function drawShip(
     ctx.fill();
 
     ctx.restore();
+
+    // --- Repair progress arc (when engines are being repaired) ---
+    if (engineStatus === 'repairing' && engineState) {
+        // Progress arc around ship
+        const progress = (engineState.repairTurnsTotal - engineState.repairTurnsRemaining) / engineState.repairTurnsTotal;
+        const endAngle = -Math.PI / 2 + progress * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(x, y, HIT_RADIUS + 8, -Math.PI / 2, endAngle);
+        ctx.strokeStyle = '#d4a040';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        // Sparkle at endpoint
+        const sparkX = x + (HIT_RADIUS + 8) * Math.cos(endAngle);
+        const sparkY = y + (HIT_RADIUS + 8) * Math.sin(endAngle);
+        const sparkPulse = 0.5 + 0.5 * Math.sin(t / 200);
+        ctx.fillStyle = `rgba(255, 220, 100, ${(0.6 + 0.4 * sparkPulse).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(sparkX, sparkY, 4 + 2 * sparkPulse, 0, Math.PI * 2);
+        ctx.fill();
+    }
 }
 
 export function createShip(world: World): Entity {
     const entity = world.createEntity('arkSalvage');
 
-    // Start next to New Terra's initial position
-    const newTerraConfig = getPlanetConfig('newTerra');
-    const orbitR = newTerraConfig?.orbitRadius ?? 1500;
-    const angle = newTerraConfig?.startAngle ?? 3.8;
+    // Look up New Terra for orbit-relative positioning
+    const newTerra = world.getEntityByName('newTerra');
+    if (!newTerra) {
+        console.warn('createShip: newTerra entity not found — ship orbit will use origin');
+    }
+    const newTerraTransform = newTerra?.getComponent(TransformComponent);
+    const cx = newTerraTransform?.x ?? 0;
+    const cy = newTerraTransform?.y ?? 0;
+
+    // Start in orbit around New Terra
     entity.addComponent(new TransformComponent(
-        orbitR * Math.cos(angle) + 150,
-        orbitR * Math.sin(angle) + 150,
+        cx + SHIP_ORBIT_RADIUS * Math.cos(SHIP_START_ANGLE),
+        cy + SHIP_ORBIT_RADIUS * Math.sin(SHIP_START_ANGLE),
     ));
     entity.addComponent(new MovementComponent(MOVEMENT_BUDGET, GLIDE_SPEED));
     entity.addComponent(new SelectableComponent(HIT_RADIUS));
-    entity.addComponent(new RenderComponent('world', (ctx, x, y, angle) => {
-        drawShip(entity, ctx, x, y, angle);
+    entity.addComponent(new RenderComponent('world', (ctx, x, y, a) => {
+        drawShip(entity, ctx, x, y, a);
     }));
     entity.addComponent(new MoveConfirmComponent());
     entity.addComponent(new ShipInfoUIComponent());
     entity.addComponent(new VisibilitySourceComponent(FOG_DETAIL_RADIUS, FOG_BLIP_RADIUS, true));
+
+    // Orbit constraint — ship is locked orbiting New Terra until engines are repaired
+    const orbit = new OrbitComponent(cx, cy, SHIP_ORBIT_RADIUS, SHIP_ORBIT_SPEED);
+    orbit.angle = SHIP_START_ANGLE;
+    if (newTerra) {
+        orbit.parentEntityId = newTerra.id;
+    }
+    entity.addComponent(orbit);
+
+    // Engine state and repair lifecycle
+    entity.addComponent(new EngineStateComponent());
+    entity.addComponent(new EngineRepairComponent());
 
     return entity;
 }

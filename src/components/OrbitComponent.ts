@@ -5,11 +5,13 @@
 // Blocks turn advancement per-entity while animating.
 // Orbit centre and radius are in world coordinates (fixed, no resize handling).
 // Optional parentEntityId enables satellite orbits — centre tracks the parent's position.
+// Supports skipAnimations flag on TURN_END to instantly advance without animation.
 
 import { Component } from '../core/Component';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { GameEvents } from '../core/GameEvents';
 import { TransformComponent } from './TransformComponent';
+import type { TurnEndEvent } from '../core/GameEvents';
 import type { World } from '../core/World';
 import type { EventQueue, EventHandler } from '../core/EventQueue';
 
@@ -63,10 +65,22 @@ export class OrbitComponent extends Component {
         this.eventQueue = ServiceLocator.get<EventQueue>('eventQueue');
         this.world = ServiceLocator.get<World>('world');
 
-        this.turnEndHandler = (): void => {
+        this.turnEndHandler = (event): void => {
+            const { skipAnimations } = event as TurnEndEvent;
+
             // If already animating, snap to the current target first
             if (this.animating) {
                 this.angle = this.targetAngle;
+            }
+
+            // Skip animation when not visible (e.g. colony-view turns)
+            if (skipAnimations) {
+                const newAngle = this.angle + this.speed;
+                this.angle = newAngle;
+                this.targetAngle = newAngle;
+                this.startAngle = newAngle;
+                this.animating = false;
+                return;
             }
 
             this.startAngle = this.angle;

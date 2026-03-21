@@ -15,7 +15,7 @@ import { drawRelationshipOverlays, drawThoughtBubble } from './colonyRelationshi
 import { getVisibleColonists } from '../colony/ColonistManager';
 import { resolveThought } from '../colony/ColonistThoughts';
 import { CrewMemberComponent } from '../components/CrewMemberComponent';
-import { getBuildingFootprint } from '../colony/ColonyGrid';
+import { getBuildingFootprint, ColonyGrid } from '../colony/ColonyGrid';
 import { ServiceLocator } from '../core/ServiceLocator';
 import { RenderQueue, extractHitTestItems } from './RenderQueue';
 import type { WeatherInfo } from './colonyWeather';
@@ -206,7 +206,6 @@ export function drawColonyScene(
 
     const gridCentre = getGridCentre(groundCentreX, groundCentreY);
     if (sim) {
-        drawPathTiles(ctx, sim.grid, gridCentre.centreX, gridCentre.centreY);
         drawGridTiles(ctx, sim.grid, gridCentre.centreX, gridCentre.centreY);
     }
 
@@ -215,7 +214,7 @@ export function drawColonyScene(
 
     // Micro-details (campfire ring, barrels, signposts) sit on the ground plane
     // beneath all depth-sorted entities — draw before the RenderQueue pass.
-    drawMicroDetails(ctx, w, h, region, t, slotRects, state.gameHour);
+    drawMicroDetails(ctx, w, h, region, t, slotRects, state.gameHour, sim?.campfireCell ?? null, gridCentre);
 
     if (sim) {
         const colonists = getVisibleColonists(sim);
@@ -225,7 +224,7 @@ export function drawColonyScene(
         const selectedColonistDepth = computeSelectedColonistDepth(colonists, state.selectedColonistId);
 
         const queue = new RenderQueue();
-        registerBuildings(queue, slotData, region, t, state, selectedColonistDepth);
+        registerBuildings(queue, slotData, region, t, state, selectedColonistDepth, sim.grid, gridCentre);
         registerColonists(queue, colonists, gridCentre, t, state, slotData);
         registerEmptySlots(queue, slotData, state);
 
@@ -274,7 +273,7 @@ export function drawColonyScene(
         state.lastColonistPositions = [];
     } else {
         // No sim — draw props the old way (just empty slots)
-        drawSettlementProps(ctx, region, slotRects, t, state.gameHour);
+        drawSettlementProps(ctx, region, slotRects, t, state.gameHour, null, gridCentre.centreX, gridCentre.centreY);
         state.lastSlotRects = slotRects;
     }
 
@@ -1566,6 +1565,8 @@ function registerBuildings(
     t: number,
     state: ColonySceneStateComponent,
     selectedColonistDepth: number | null,
+    grid: ColonyGrid,
+    gridCentre: { centreX: number; centreY: number },
 ): void {
     for (const data of slotData) {
         if (!data.building) continue;
@@ -1593,7 +1594,7 @@ function registerBuildings(
             screenY: data.screenPos.y,
             label: `props:${data.building.typeId}`,
             draw: (ctx) => {
-                drawSettlementPropsForSlot(ctx, region, data.rect, t, state.gameHour);
+                drawSettlementPropsForSlot(ctx, region, data.rect, t, state.gameHour, grid, gridCentre.centreX, gridCentre.centreY);
             },
         });
     }
@@ -1621,7 +1622,7 @@ function registerColonists(
             kind: 'colonist',
             screenX: screen.x,
             screenY: screen.y,
-            label: colonist.name.split(' ')[0],
+            label: colonist.name,
             entityId: colonist.entityId,
             hitRadius: COLONIST_HIT_RADIUS,
             draw: (ctx) => {

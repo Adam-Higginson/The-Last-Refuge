@@ -3,9 +3,26 @@
 // plus scattered ambient details that make the colony feel lived-in.
 
 import { getBuildingType } from '../data/buildings';
+import { BUILDING_PROP_CONFIG } from '../data/buildingVisuals';
 import { getDayNightState } from './colonyDayNight';
+import { gridToScreen } from './isometric';
+import type { ColonyGrid } from '../colony/ColonyGrid';
 import type { Region } from '../components/RegionDataComponent';
 import type { ColonySlotRect } from './drawColonyScene';
+
+/** Map from prop type name to its draw function. */
+const PROP_DRAW_MAP: Record<string, (ctx: CanvasRenderingContext2D, x: number, y: number, seedOrT: number, extra?: boolean) => void> = {
+    crates: drawCrates,
+    barrel: drawBarrel,
+    toolRack: drawToolRack,
+    anvil: drawAnvil,
+    supplyCrate: drawSupplyCrate,
+    waterTrough: drawWaterTrough,
+    flagPole: (ctx, x, y, t) => drawFlagPole(ctx, x, y, t),
+    controlBox: drawControlBox,
+    waterTank: drawWaterTank,
+    campfire: (ctx, x, y, t) => drawCampfire(ctx, x, y, t, false),
+};
 
 // =========================================================================
 // Building-adjacent contextual props
@@ -17,7 +34,10 @@ export function drawSettlementPropsForSlot(
     region: Region,
     rect: ColonySlotRect,
     t: number,
-    gameHour = 10,
+    gameHour: number,
+    grid: ColonyGrid | null,
+    centreX: number,
+    centreY: number,
 ): void {
     if (!rect.occupied) return;
 
@@ -27,46 +47,32 @@ export function drawSettlementPropsForSlot(
     const dayNight = getDayNightState(gameHour);
     const isNight = dayNight.ambientLight < 0.3;
 
-    const cx = rect.x + rect.width / 2;
-    const cy = rect.y + rect.height * 0.55;
     const seed = rect.slotIndex * 17.3 + region.id * 7.1;
-
     const bt = getBuildingType(building.typeId);
 
-    switch (building.typeId) {
-        case 'storage_depot':
-            drawCrates(ctx, cx + 25, cy + 8, seed);
-            drawBarrel(ctx, cx - 28, cy + 5, seed + 3);
-            break;
-        case 'workshop':
-            drawToolRack(ctx, cx + 22, cy + 3, seed);
-            drawAnvil(ctx, cx - 20, cy + 10, seed + 1);
-            break;
-        case 'shelter':
-            drawCampfire(ctx, cx - 45, cy + 25, t, isNight);
-            drawSupplyCrate(ctx, cx + 40, cy + 15, seed);
-            break;
-        case 'farm':
-            drawWaterTrough(ctx, cx + 30, cy + 5, seed);
-            break;
-        case 'med_bay':
-            drawSupplyCrate(ctx, cx + 24, cy + 8, seed);
-            break;
-        case 'barracks':
-            drawFlagPole(ctx, cx - 22, cy - 5, t);
-            break;
-        case 'solar_array':
-            drawControlBox(ctx, cx + 20, cy + 10, seed);
-            break;
-        case 'hydroponics_bay':
-            drawWaterTank(ctx, cx - 25, cy + 8, seed);
-            break;
-        default:
-            break;
+    const config = BUILDING_PROP_CONFIG[building.typeId];
+    if (config && grid) {
+        const pos = grid.getBuildingPosition(rect.slotIndex);
+        if (pos) {
+            for (const prop of config.props) {
+                const screen = gridToScreen(
+                    pos.gx + prop.gridOffsetX,
+                    pos.gy + prop.gridOffsetY,
+                    centreX,
+                    centreY,
+                );
+                const drawFn = PROP_DRAW_MAP[prop.type];
+                if (drawFn) {
+                    drawFn(ctx, screen.x, screen.y, seed + prop.seedOffset);
+                }
+            }
+        }
     }
 
     // Generic lantern near every building (visible at night)
     if (isNight && bt.id !== 'shelter') {
+        const cx = rect.x + rect.width / 2;
+        const cy = rect.y + rect.height * 0.55;
         drawLantern(ctx, cx + Math.sin(seed) * 15, cy + 15, t);
     }
 }
@@ -77,10 +83,13 @@ export function drawSettlementProps(
     region: Region,
     slotRects: ColonySlotRect[],
     t: number,
-    gameHour = 10,
+    gameHour: number,
+    grid: ColonyGrid | null,
+    centreX: number,
+    centreY: number,
 ): void {
     for (const rect of slotRects) {
-        drawSettlementPropsForSlot(ctx, region, rect, t, gameHour);
+        drawSettlementPropsForSlot(ctx, region, rect, t, gameHour, grid, centreX, centreY);
     }
 }
 
@@ -97,6 +106,8 @@ export function drawMicroDetails(
     t: number,
     slotRects?: ColonySlotRect[],
     gameHour = 10,
+    campfireCell: { gridX: number; gridY: number } | null = null,
+    gridCentre: { centreX: number; centreY: number } | null = null,
 ): void {
     if (!slotRects || region.buildings.length === 0) return;
 
@@ -104,7 +115,7 @@ export function drawMicroDetails(
     if (occupiedSlots.length === 0) return;
 
     ctx.save();
-    drawMicroDetailsForSlots(ctx, region, t, occupiedSlots, gameHour);
+    drawMicroDetailsForSlots(ctx, region, t, occupiedSlots, gameHour, campfireCell, gridCentre);
     ctx.restore();
 }
 
@@ -115,6 +126,8 @@ export function drawMicroDetailsForSlots(
     t: number,
     occupiedSlots: ColonySlotRect[],
     gameHour = 10,
+    campfireCell: { gridX: number; gridY: number } | null = null,
+    gridCentre: { centreX: number; centreY: number } | null = null,
 ): void {
     const dayNight = getDayNightState(gameHour);
     const isNight = dayNight.ambientLight < 0.3;
@@ -137,8 +150,12 @@ export function drawMicroDetailsForSlots(
         }
     }
 
-    // Campfire ring — between non-shelter buildings, or offset from shelter
-    if (nonShelterSlots.length >= 1) {
+    // Campfire ring — use grid-based position if available
+    if (campfireCell && gridCentre) {
+        const screen = gridToScreen(campfireCell.gridX, campfireCell.gridY, gridCentre.centreX, gridCentre.centreY);
+        drawCampfireRing(ctx, screen.x, screen.y, t, isNight);
+    } else if (nonShelterSlots.length >= 1) {
+        // Fallback: screen-space heuristic when no grid data available
         const slot = nonShelterSlots[0];
         const shelter = occupiedSlots.find(s => s.slotIndex === 0);
         if (shelter) {
@@ -497,61 +514,88 @@ function drawCampfireRing(
 ): void {
     ctx.save();
 
-    // Larger stone ring
-    ctx.globalAlpha = 0.4;
+    // Stone ring
+    ctx.globalAlpha = 0.5;
     ctx.fillStyle = '#5a5a5a';
-    for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const rx = x + Math.cos(angle) * 10;
-        const ry = y + Math.sin(angle) * 4;
+    for (let i = 0; i < 10; i++) {
+        const angle = (i / 10) * Math.PI * 2;
+        const rx = x + Math.cos(angle) * 16;
+        const ry = y + Math.sin(angle) * 7;
         ctx.beginPath();
-        ctx.arc(rx, ry, 2.5, 0, Math.PI * 2);
+        ctx.arc(rx, ry, 3, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // Log seats (2)
+    // Log seats (3 around the fire)
     ctx.fillStyle = '#4a3a2a';
     ctx.save();
-    ctx.translate(x - 14, y + 2);
+    ctx.translate(x - 20, y + 4);
     ctx.rotate(-0.3);
-    ctx.fillRect(-6, -1.5, 12, 3);
+    ctx.fillRect(-8, -2, 16, 4);
     ctx.restore();
     ctx.save();
-    ctx.translate(x + 13, y + 1);
+    ctx.translate(x + 19, y + 3);
     ctx.rotate(0.2);
-    ctx.fillRect(-5, -1.5, 10, 3);
+    ctx.fillRect(-7, -2, 14, 4);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(x + 2, y + 9);
+    ctx.rotate(0.1);
+    ctx.fillRect(-6, -2, 12, 4);
     ctx.restore();
 
-    // Fire
+    // Fire — multiple flickering flame layers for a pronounced effect
     const flicker = 0.5 + 0.5 * Math.sin(t / 120 + Math.sin(t / 300) * 3);
-    const intensity = isNight ? 0.9 : 0.3;
+    const flicker2 = 0.4 + 0.6 * Math.sin(t / 95 + 1.5);
+    const intensity = isNight ? 1.0 : 0.6;
 
+    // Outer flame (orange-red, wide)
+    ctx.globalAlpha = intensity * 0.8;
+    ctx.fillStyle = `rgba(255, 100, 20, ${(0.6 * flicker).toFixed(2)})`;
+    ctx.beginPath();
+    ctx.moveTo(x - 7, y + 2);
+    ctx.quadraticCurveTo(x - 3, y - 18 * flicker, x, y - 20 * flicker);
+    ctx.quadraticCurveTo(x + 3, y - 18 * flicker, x + 6, y + 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Mid flame (bright orange)
     ctx.globalAlpha = intensity;
-    ctx.fillStyle = `rgba(255, 130, 30, ${(0.7 * flicker).toFixed(2)})`;
+    ctx.fillStyle = `rgba(255, 150, 30, ${(0.7 * flicker2).toFixed(2)})`;
     ctx.beginPath();
-    ctx.moveTo(x - 3, y + 1);
-    ctx.quadraticCurveTo(x, y - 7 * flicker, x + 2, y + 1);
+    ctx.moveTo(x - 5, y + 1);
+    ctx.quadraticCurveTo(x - 1, y - 14 * flicker2, x + 1, y - 15 * flicker);
+    ctx.quadraticCurveTo(x + 3, y - 12 * flicker2, x + 4, y + 1);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = `rgba(255, 200, 50, ${(0.4 * flicker).toFixed(2)})`;
+    // Inner flame (yellow-white, bright core)
+    ctx.fillStyle = `rgba(255, 220, 80, ${(0.5 * flicker).toFixed(2)})`;
     ctx.beginPath();
-    ctx.moveTo(x - 1.5, y);
-    ctx.quadraticCurveTo(x + 0.5, y - 4 * flicker, x + 1.5, y);
+    ctx.moveTo(x - 3, y);
+    ctx.quadraticCurveTo(x, y - 10 * flicker2, x + 2, y);
     ctx.closePath();
     ctx.fill();
 
-    // Warm light pool at night
-    if (isNight) {
-        const glow = ctx.createRadialGradient(x, y, 0, x, y, 35);
-        glow.addColorStop(0, `rgba(255, 130, 50, ${(0.12 * flicker).toFixed(2)})`);
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x, y, 35, 0, Math.PI * 2);
-        ctx.fill();
-    }
+    // Ember base (glowing coals)
+    ctx.globalAlpha = intensity * 0.6;
+    ctx.fillStyle = `rgba(255, 80, 20, ${(0.4 + 0.2 * flicker).toFixed(2)})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y + 1, 6, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Warm light pool
+    const glowRadius = isNight ? 55 : 30;
+    const glowAlpha = isNight ? 0.15 : 0.06;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
+    glow.addColorStop(0, `rgba(255, 130, 50, ${(glowAlpha * flicker).toFixed(3)})`);
+    glow.addColorStop(0.5, `rgba(255, 100, 30, ${(glowAlpha * 0.4 * flicker).toFixed(3)})`);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
 }
